@@ -1,0 +1,26 @@
+{
+  "name": "@animoca/ethereum-contracts-nft_staking",
+  "version": "0.0.1",
+  "description": "Contracts for staking of ERC1155 NFTs vs claimable ERC20",
+  "scripts": {
+    "compile": "./node_modules/@animoca/ethereum-contracts-core_library/scripts/oz-compile.sh",
+    "test": "./node_modules/@animoca/ethereum-contracts-core_library/scripts/oz-test.sh",
+    "coverage": "./node_modules/@animoca/ethereum-contracts-core_library/scripts/coverage.sh",
+    "migrate": "./node_modules/@animoca/ethereum-contracts-core_library/scripts/migrate.sh"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:animocabrands/ethereum-contracts-nft_staking.git"
+  },
+  "keywords": [
+    "solidity",
+    "ethereum"
+  ],
+  "author": "Animoca Brands",
+  "license": "MIT",
+  "dependencies": {
+    "@animoca/ethereum-contracts-assets_inventory": "^1.1.2",
+    "@animoca/ethereum-contracts-erc20_base": "^0.0.2",
+    "@animoca/f1dt-core_metadata": "^0.0.2"
+  }
+}

@@ -3,6 +3,7 @@ pragma solidity ^0.6.6;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@animoca/ethereum-contracts-erc20_base/contracts/token/ERC20/IERC20.sol";
+import "@animoca/ethereum-contracts-assets_inventory/contracts/token/ERC721/IERC721.sol";
 import "@animoca/ethereum-contracts-assets_inventory/contracts/token/ERC1155/IERC1155.sol";
 import "@animoca/ethereum-contracts-assets_inventory/contracts/token/ERC1155/IERC1155TokenReceiver.sol";
 
@@ -47,7 +48,7 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
 
     event InitialDistribution(uint startPeriod, uint endPeriod, uint dailyTokens);
     event Deposit(address indexed from, uint tokenId);
-    event Withdraw(address indexed from, uint tokenId);
+    event Withdrawal(address indexed from, uint tokenId);
     event ClaimedDivs(address indexed from, uint snapshotStartIndex, uint snapshotEndIndex, uint amount);
 
     bool _enabled;
@@ -610,9 +611,18 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
 
         _stakeStates[msg.sender] = state;
 
-        IERC1155(_whitelistedNftContract).safeTransferFrom(address(this), msg.sender, tokenId, 1, "");
+        try IERC1155(_whitelistedNftContract).safeTransferFrom(address(this), msg.sender, tokenId, 1, "") {
+        } catch Error(string memory /*reason*/) {
+            // This is executed in case evert was called inside
+            // getData and a reason string was provided.
+            IERC721(_whitelistedNftContract).transferFrom(address(this), msg.sender, tokenId);
+        } catch (bytes memory /*lowLevelData*/) {
+            // This is executed in case revert() was used or there was
+            // a failing assertion, division by zero, etc. inside getData.
+            IERC721(_whitelistedNftContract).transferFrom(address(this), msg.sender, tokenId);
+        }
 
-        emit Withdraw(msg.sender, tokenId);
+        emit Withdrawal(msg.sender, tokenId);
     }
 
     function _depositNft(uint tokenId, address tokenOwner) internal isEnabled whenNotPaused {

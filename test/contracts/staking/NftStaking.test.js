@@ -8,9 +8,9 @@ const { inventoryIds } = require('@animoca/blockchain-inventory_metadata');
 const { NFCollectionMaskLength } = require('@animoca/f1dt-core_metadata').constants;
 const { Types } = require('@animoca/f1dt-core_metadata').mappings.Common;
 
-const NftStaking = contract.fromArtifact("NftStakingTestable");
-const AssetsInventoryMock = contract.fromArtifact("AssetsInventoryMock");
-const ERC20BaseMock = contract.fromArtifact("ERC20BaseMock");
+const NftStaking = contract.fromArtifact("NftStakingTestableMock");
+const AssetsInventory = contract.fromArtifact("AssetsInventoryMock");
+const ERC20Full = contract.fromArtifact("ERC20FullMock");
 
 const DayInSeconds = 86400;
 const PayoutPeriodLength = new BN(7); // days
@@ -19,7 +19,7 @@ const FreezePeriodSeconds = new BN(DayInSeconds);
 const FreezePeriodInDays = Math.ceil(FreezePeriodSeconds.toNumber() / DayInSeconds);
 
 const PayoutPeriodLengthSeconds = PayoutPeriodLength.toNumber() * DayInSeconds;
-const DividendTokenInitialBalance = new BN("100000000000000000000000");
+const DividendTokenInitialBalance = '100000000000000000000000';
 
 const ClaimDividendsEvent = "ClaimedDivs";
 // const WithdrawNftEvent = "Withdraw";
@@ -154,9 +154,9 @@ describe("NftStaking", function () {
     }
 
     async function doFreshDeploy() {
-        this.nftContract = await AssetsInventoryMock.new(NFCollectionMaskLength, { from: creator });
+        this.nftContract = await AssetsInventory.new(NFCollectionMaskLength, { from: creator });
 
-        this.dividendToken = await ERC20BaseMock.new(DividendTokenInitialBalance, { from: creator });
+        this.dividendToken = await ERC20Full.new(DividendTokenInitialBalance, { from: creator });
         this.stakingContract = await NftStaking.new(
             PayoutPeriodLength,
             FreezePeriodSeconds,
@@ -249,7 +249,7 @@ describe("NftStaking", function () {
         });
 
         it("must create the latest snapshot", async function () {
-            await this.stakingContract._getOrCreateLatestCycleSnapshot(0);
+            await this.stakingContract.getOrCreateLatestCycleSnapshot(0);
             const numSnapshots = await this.stakingContract.totalSnapshots();
             numSnapshots.toNumber().should.be.equal(1);
             const snapshot = await this.stakingContract.getLatestSnapshot();
@@ -259,7 +259,7 @@ describe("NftStaking", function () {
 
         it("must retrieve the latest snapshot", async function () {
             await time.increase(1);
-            await this.stakingContract._getOrCreateLatestCycleSnapshot(0);
+            await this.stakingContract.getOrCreateLatestCycleSnapshot(0);
             const numSnapshots = await this.stakingContract.totalSnapshots();
             numSnapshots.toNumber().should.be.equal(1);
             const snapshot = await this.stakingContract.getLatestSnapshot();
@@ -269,7 +269,7 @@ describe("NftStaking", function () {
 
         it("must create a new latest snapshot", async function () {
             await time.increase(PayoutPeriodLengthSeconds);
-            await this.stakingContract._getOrCreateLatestCycleSnapshot(0);
+            await this.stakingContract.getOrCreateLatestCycleSnapshot(0);
 
             const numSnapshots = await this.stakingContract.totalSnapshots();
             numSnapshots.toNumber().should.be.equal(2);
@@ -280,7 +280,7 @@ describe("NftStaking", function () {
         });
 
         it("must create a new latest snapshot but 1 day ahead", async function () {
-            await this.stakingContract._getOrCreateLatestCycleSnapshot(DayInSeconds);
+            await this.stakingContract.getOrCreateLatestCycleSnapshot(DayInSeconds);
 
             let numSnapshots = await this.stakingContract.totalSnapshots();
             numSnapshots.toNumber().should.be.equal(3);
@@ -352,14 +352,14 @@ describe("NftStaking", function () {
             before(doFreshDeploy);
 
             it("must fail if NFT staked from invalid NFT contract", async function () {
-                const nftContract = await AssetsInventoryMock.new(NFCollectionMaskLength, { from: creator });
+                const nftContract = await AssetsInventory.new(NFCollectionMaskLength, { from: creator });
                 const nft = CarNFTs[0];
                 await nftContract.mintNonFungible(staker, nft.tokenId, { from: creator });
                 await expectRevert(nftContract.transferFrom(staker, this.stakingContract.address, nft.tokenId, { from: staker }), "3");
             });
 
             it("must fail if batch NFT staked from invalid NFT contract", async function () {
-                const nftContract = await AssetsInventoryMock.new(NFCollectionMaskLength, { from: creator });
+                const nftContract = await AssetsInventory.new(NFCollectionMaskLength, { from: creator });
                 for (const nft of CarNFTs) {
                     await nftContract.mintNonFungible(staker, nft.tokenId, { from: creator });
                 }

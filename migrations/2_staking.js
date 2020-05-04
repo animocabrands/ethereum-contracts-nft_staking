@@ -11,20 +11,18 @@ const ERC20FullMock = artifacts.require("ERC20FullMock");
 
 const CarRarities = {
     Common: 1,
-    Epic: 2,
-    Apex: 3
+    Rare: 2,
+    Epic: 3,
+    Legendary: 4,
+    Apex: 5
 };
-
-const CarWeightsConfig = [{
-    rarity: CarRarities.Common,
-    weight: 1
-}, {
-    rarity: CarRarities.Epic,
-    weight: 10
-}, {
-    rarity: CarRarities.Apex,
-    weight: 100
-}];
+const CarWeightsConfig = [
+    {rarity: CarRarities.Common,weight: 1},
+    {rarity: CarRarities.Rare,weight: 10},
+    {rarity: CarRarities.Epic,weight: 50},
+    {rarity: CarRarities.Legendary,weight: 100},
+    {rarity: CarRarities.Apex,weight: 500},
+];
 
 module.exports = async (deployer, network, accounts) => {
 

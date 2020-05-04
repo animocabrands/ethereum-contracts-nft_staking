@@ -9,20 +9,18 @@ const NftStakingMock = artifacts.require("NftStakingMock");
 const AssetsInventoryMock = artifacts.require("AssetsInventoryMock");
 const ERC20FullMock = artifacts.require("ERC20FullMock");
 
-const CarRarities = {
-    Common: 1,
-    Rare: 2,
-    Epic: 3,
-    Legendary: 4,
-    Apex: 5
+const RarityToWeightsMap = {
+    0:500,// Apex,
+    1:100,// Legendary,
+    2:50,// Epic,
+    3:50,// Epic,
+    4:10,// Rare,
+    5:10,// Rare,
+    6:10,// Rare,
+    7:1,// Common,
+    8:1,// Common,
+    9:1// Common,
 };
-const CarWeightsConfig = [
-    {rarity: CarRarities.Common,weight: 1},
-    {rarity: CarRarities.Rare,weight: 10},
-    {rarity: CarRarities.Epic,weight: 50},
-    {rarity: CarRarities.Legendary,weight: 100},
-    {rarity: CarRarities.Apex,weight: 500},
-];
 
 module.exports = async (deployer, network, accounts) => {
 
@@ -48,16 +46,16 @@ module.exports = async (deployer, network, accounts) => {
 
     }
     
-    console.log("Creating Staking Contract");
-        
-    console.log("Deploying Staking Contract");
     const result = await deployer.deploy(NftStakingMock,
         PayoutPeriodLength,
         FreezePeriodSeconds,
         this.nftContract.address,
         this.dividendTokenContract.address,
-        CarWeightsConfig.map(x => x.rarity),
-        CarWeightsConfig.map(x => x.weight));
+        Object.keys(RarityToWeightsMap),
+        Object.values(RarityToWeightsMap)
+    );
+    
+        
 
     this.stakingContract = await NftStakingMock.deployed();
 

@@ -1,22 +1,19 @@
-pragma solidity = 0.5.16;
-pragma experimental ABIEncoderV2;
+pragma solidity ^0.6.6;
 
 import "./NftStaking.sol";
 
-contract NftStakingTestable is NftStaking {
+abstract contract NftStakingTestable is NftStaking {
 
     constructor(
-        uint _payoutPeriodLength,
-        uint _freezeDurationAfterStake,
-        address _whitelistedNftContract,
-        address _dividendToken,
-        uint[] memory _rarities,
-        uint[] memory _rarityWeights
+        uint payoutPeriodLength,
+        uint freezeDurationAfterStake,
+        address whitelistedNftContract,
+        address dividendToken,
+        uint[] memory rarities,
+        uint[] memory rarityWeights
     )
-    NftStaking(_payoutPeriodLength, _freezeDurationAfterStake, _whitelistedNftContract, _dividendToken, _rarities, _rarityWeights)
-    public {
-
-    }
+    NftStaking(payoutPeriodLength, freezeDurationAfterStake, whitelistedNftContract, dividendToken, rarities, rarityWeights)
+    public {}
 
     function getLatestSnapshot()
     public
@@ -54,7 +51,7 @@ contract NftStakingTestable is NftStaking {
     )
     {
         DividendsSnapshot memory snapshot;
-        (snapshot, snapshotIndex) = findDividendsSnapshot(targetCycle);
+        (snapshot, snapshotIndex) = _findDividendsSnapshot(targetCycle);
         return (
             snapshot.cycleRangeStart,
             snapshot.cycleRangeEnd,
@@ -68,11 +65,20 @@ contract NftStakingTestable is NftStaking {
         return _dividendsSnapshots.length;
     }
 
-    function _getOrCreateLatestCycleSnapshot(uint offset) public returns(DividendsSnapshot memory snapshot) {
-        return super.getOrCreateLatestCycleSnapshot(offset);
+    function getOrCreateLatestCycleSnapshot(uint offset) public returns(
+        uint32 cycleRangeStart,
+        uint32 cycleRangeEnd,
+        uint64 stakedWeight,
+        uint128 tokensToClaim
+    ) {
+        DividendsSnapshot memory snapshot = super._getOrCreateLatestCycleSnapshot(offset);
+        cycleRangeStart = snapshot.cycleRangeStart;
+        cycleRangeEnd = snapshot.cycleRangeEnd;
+        stakedWeight = snapshot.stakedWeight;
+        tokensToClaim = snapshot.tokensToClaim;
     }
 
-    function _currentPayoutPeriod() public view returns(uint) {
+    function currentPayoutPeriod() public view returns(uint) {
         StakerState memory state = _stakeStates[msg.sender];
         if (state.stakedWeight == 0) {
             return 0;

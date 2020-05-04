@@ -47,8 +47,8 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
     }
 
     event InitialDistribution(uint startPeriod, uint endPeriod, uint dailyTokens);
-    event Deposit(address indexed from, uint tokenId);
-    event Withdrawal(address indexed from, uint tokenId);
+    event Deposit(address indexed from, uint tokenId, uint currentCycle);
+    event Withdrawal(address indexed from, uint tokenId, uint currentCycle);
     event ClaimedDivs(address indexed from, uint snapshotStartIndex, uint snapshotEndIndex, uint amount);
 
     bool _enabled;
@@ -622,7 +622,7 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
             IERC721(_whitelistedNftContract).transferFrom(address(this), msg.sender, tokenId);
         }
 
-        emit Withdrawal(msg.sender, tokenId);
+        emit Withdrawal(msg.sender, tokenId, getCurrentCycle());
     }
 
     function _depositNft(uint tokenId, address tokenOwner) internal isEnabled whenNotPaused {
@@ -655,7 +655,7 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
 
         _dividendsSnapshots[_dividendsSnapshots.length - 1] = snapshot;
 
-        emit Deposit(msg.sender, tokenId);
+        emit Deposit(msg.sender, tokenId, getCurrentCycle());
     }
 
     function _findDividendsSnapshot(uint cycle)

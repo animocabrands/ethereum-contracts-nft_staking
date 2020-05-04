@@ -1,4 +1,9 @@
 # Changelog
+## 1.0.1 (04/05/2020)
+
+## Improvements
+ * Added 1_NftStaking.js migration script
+
 
 ## 1.0.0 (03/05/2020)
 

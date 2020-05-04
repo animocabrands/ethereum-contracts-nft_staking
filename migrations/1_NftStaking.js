@@ -55,8 +55,6 @@ module.exports = async (deployer, network, accounts) => {
         Object.values(RarityToWeightsMap)
     );
     
-        
-
     this.stakingContract = await NftStakingMock.deployed();
 
     await this.dividendTokenContract.transfer(this.stakingContract.address, DividendTokenInitialBalance);    

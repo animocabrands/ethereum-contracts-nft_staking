@@ -5,8 +5,7 @@ const { constants, shouldSupportInterfaces } = require('@animoca/ethereum-contra
 const { EmptyByte } = constants;
 const { interfaces } = require('@animoca/ethereum-contracts-assets_inventory');
 const { inventoryIds } = require('@animoca/blockchain-inventory_metadata');
-const { NFCollectionMaskLength } = require('@animoca/f1dt-core_metadata').constants;
-const { Types } = require('@animoca/f1dt-core_metadata').mappings.Common;
+const { NFCollectionMaskLength } = require('../../../src').constants;
 
 const NftStaking = contract.fromArtifact("NftStakingTestableMock");
 const AssetsInventory = contract.fromArtifact("AssetsInventoryMock");
@@ -48,6 +47,16 @@ const CarWeightsConfig = [{
     weight: 100
 }];
 
+const Types = {
+    None: 0,
+    Car: 1,
+    Driver: 2,
+    Part: 3,
+    Gear: 4,
+    Tyres: 5,
+    Track: 6
+};
+
 let NftMintCounter = 1;
 let seasonCounter = 1;
 
@@ -60,31 +69,31 @@ function createTestNft(rarity, type) {
 
 const CarNFTs = [
     {
-        tokenId: createTestNft(CarRarities.Common, Types.IdByName['Car']),
+        tokenId: createTestNft(CarRarities.Common, Types.Car),
         rarity: CarRarities.Common
     },
     {
-        tokenId: createTestNft(CarRarities.Epic, Types.IdByName['Car']),
+        tokenId: createTestNft(CarRarities.Epic, Types.Car),
         rarity: CarRarities.Epic
     },
     {
-        tokenId: createTestNft(CarRarities.Apex, Types.IdByName['Car']),
+        tokenId: createTestNft(CarRarities.Apex, Types.Car),
         rarity: CarRarities.Apex
     }
 ];
 
 const NonCarNFTs = [
     {
-        tokenId: createTestNft(CarRarities.Common, Types.IdByName['Driver']),
-        type: Types.IdByName['Driver']
+        tokenId: createTestNft(CarRarities.Common, Types.Driver),
+        type: Types.Driver
     },
     {
-        tokenId: createTestNft(CarRarities.Epic, Types.IdByName['Gear']),
-        type: Types.IdByName['Gear']
+        tokenId: createTestNft(CarRarities.Epic, Types.Gear),
+        type: Types.Gear
     },
     {
-        tokenId: createTestNft(CarRarities.Apex, Types.IdByName['Tyres']),
-        type: Types.IdByName['Tyres']
+        tokenId: createTestNft(CarRarities.Apex, Types.Tyres),
+        type: Types.Tyres
     }
 ];
 
@@ -568,9 +577,9 @@ describe("NftStaking", function () {
 
             describe("after 3 payout periods passed and after each passed period somebody staked once more", function () {
                 const nfts = [
-                    { tokenId: createTestNft(CarRarities.Common, Types.IdByName['Car']), rarity: CarRarities.Common },
-                    { tokenId: createTestNft(CarRarities.Common, Types.IdByName['Car']), rarity: CarRarities.Common },
-                    { tokenId: createTestNft(CarRarities.Common, Types.IdByName['Car']), rarity: CarRarities.Common },
+                    { tokenId: createTestNft(CarRarities.Common, Types.Car), rarity: CarRarities.Common },
+                    { tokenId: createTestNft(CarRarities.Common, Types.Car), rarity: CarRarities.Common },
+                    { tokenId: createTestNft(CarRarities.Common, Types.Car), rarity: CarRarities.Common },
                 ];
 
                 beforeEach(async function () {
@@ -637,7 +646,7 @@ describe("NftStaking", function () {
                     await this.nftContract.transferFrom(staker, this.stakingContract.address, CarNFTs[0].tokenId, { from: staker });
                     await time.increase(PayoutPeriodLengthSeconds);
 
-                    const newNFt = createTestNft(CarRarities.Common, Types.IdByName['Car']);
+                    const newNFt = createTestNft(CarRarities.Common, Types.Car);
                     await this.nftContract.mintNonFungible(otherAccounts[0], newNFt, { from: creator });
 
                     await this.nftContract.transferFrom(otherAccounts[0], this.stakingContract.address, newNFt, { from: otherAccounts[0] });
@@ -684,9 +693,9 @@ describe("NftStaking", function () {
                 beforeEach(setTokenDistribution());
                 beforeEach(async function () {
                     const nfts = [
-                        { tokenId: createTestNft(CarRarities.Common, Types.IdByName['Car']), rarity: CarRarities.Common },
-                        { tokenId: createTestNft(CarRarities.Common, Types.IdByName['Car']), rarity: CarRarities.Common },
-                        { tokenId: createTestNft(CarRarities.Common, Types.IdByName['Car']), rarity: CarRarities.Common },
+                        { tokenId: createTestNft(CarRarities.Common, Types.Car), rarity: CarRarities.Common },
+                        { tokenId: createTestNft(CarRarities.Common, Types.Car), rarity: CarRarities.Common },
+                        { tokenId: createTestNft(CarRarities.Common, Types.Car), rarity: CarRarities.Common },
                     ];
 
                     // mint new nfts and stake
@@ -799,8 +808,8 @@ describe("NftStaking", function () {
             before(doFreshDeploy);
 
             const nfts = [
-                { tokenId: createTestNft(CarRarities.Common, Types.IdByName['Car']), rarity: CarRarities.Common },
-                { tokenId: createTestNft(CarRarities.Epic, Types.IdByName['Car']), rarity: CarRarities.Epic }
+                { tokenId: createTestNft(CarRarities.Common, Types.Car), rarity: CarRarities.Common },
+                { tokenId: createTestNft(CarRarities.Epic, Types.Car), rarity: CarRarities.Epic }
             ];
 
             before(async function () {
@@ -850,9 +859,9 @@ describe("NftStaking", function () {
             before(doFreshDeploy);
 
             const nfts = [
-                { tokenId: createTestNft(CarRarities.Common, Types.IdByName['Car']), rarity: CarRarities.Common },
-                { tokenId: createTestNft(CarRarities.Epic, Types.IdByName['Car']), rarity: CarRarities.Epic },
-                { tokenId: createTestNft(CarRarities.Apex, Types.IdByName['Car']), rarity: CarRarities.Apex },
+                { tokenId: createTestNft(CarRarities.Common, Types.Car), rarity: CarRarities.Common },
+                { tokenId: createTestNft(CarRarities.Epic, Types.Car), rarity: CarRarities.Epic },
+                { tokenId: createTestNft(CarRarities.Apex, Types.Car), rarity: CarRarities.Apex },
             ];
 
             before(async function () {
@@ -898,9 +907,9 @@ describe("NftStaking", function () {
             before(doFreshDeploy);
 
             const nfts = [
-                { tokenId: createTestNft(CarRarities.Common, Types.IdByName['Car']), rarity: CarRarities.Common },
-                { tokenId: createTestNft(CarRarities.Epic, Types.IdByName['Car']), rarity: CarRarities.Epic },
-                { tokenId: createTestNft(CarRarities.Apex, Types.IdByName['Car']), rarity: CarRarities.Apex },
+                { tokenId: createTestNft(CarRarities.Common, Types.Car), rarity: CarRarities.Common },
+                { tokenId: createTestNft(CarRarities.Epic, Types.Car), rarity: CarRarities.Epic },
+                { tokenId: createTestNft(CarRarities.Apex, Types.Car), rarity: CarRarities.Apex },
             ];
 
             before(async function () {
@@ -961,9 +970,9 @@ describe("NftStaking", function () {
             before(doFreshDeploy);
 
             const nfts = [
-                { tokenId: createTestNft(CarRarities.Common, Types.IdByName['Car']), rarity: CarRarities.Common },
-                { tokenId: createTestNft(CarRarities.Epic, Types.IdByName['Car']), rarity: CarRarities.Epic },
-                { tokenId: createTestNft(CarRarities.Apex, Types.IdByName['Car']), rarity: CarRarities.Apex },
+                { tokenId: createTestNft(CarRarities.Common, Types.Car), rarity: CarRarities.Common },
+                { tokenId: createTestNft(CarRarities.Epic, Types.Car), rarity: CarRarities.Epic },
+                { tokenId: createTestNft(CarRarities.Apex, Types.Car), rarity: CarRarities.Apex },
             ];
 
             before(async function () {
@@ -1020,7 +1029,7 @@ describe("NftStaking", function () {
 
             const nfts = [];
             for (let i = 0; i < 3; ++i) {
-                nfts.push({ tokenId: createTestNft(CarRarities.Common, Types.IdByName['Car']), rarity: CarRarities.Common });
+                nfts.push({ tokenId: createTestNft(CarRarities.Common, Types.Car), rarity: CarRarities.Common });
             }
 
             before(async function () {
@@ -1083,7 +1092,7 @@ describe("NftStaking", function () {
             const nftsCount = 7;
             const nfts = [];
             for (let i = 0; i < nftsCount; ++i) {
-                nfts.push({ tokenId: createTestNft(CarRarities.Common, Types.IdByName['Car']), rarity: CarRarities.Common });
+                nfts.push({ tokenId: createTestNft(CarRarities.Common, Types.Car), rarity: CarRarities.Common });
             }
 
             before(async function () {
@@ -1189,9 +1198,9 @@ describe("NftStaking", function () {
                 await this.nftContract.transferFrom(staker, this.stakingContract.address, CarNFTs[0].tokenId, { from: staker });
 
                 const nfts = [
-                    { tokenId: createTestNft(CarRarities.Common, Types.IdByName['Car']), rarity: CarRarities.Common },
-                    { tokenId: createTestNft(CarRarities.Common, Types.IdByName['Car']), rarity: CarRarities.Common },
-                    { tokenId: createTestNft(CarRarities.Common, Types.IdByName['Car']), rarity: CarRarities.Common },
+                    { tokenId: createTestNft(CarRarities.Common, Types.Car), rarity: CarRarities.Common },
+                    { tokenId: createTestNft(CarRarities.Common, Types.Car), rarity: CarRarities.Common },
+                    { tokenId: createTestNft(CarRarities.Common, Types.Car), rarity: CarRarities.Common },
                 ];
 
                 for (let index = 0; index < 3; ++index) {
@@ -1309,8 +1318,8 @@ describe("NftStaking", function () {
             before(setTokenDistribution());
 
             const nfts = [
-                { tokenId: createTestNft(CarRarities.Common, Types.IdByName['Car']), rarity: CarRarities.Common },
-                { tokenId: createTestNft(CarRarities.Common, Types.IdByName['Car']), rarity: CarRarities.Common }
+                { tokenId: createTestNft(CarRarities.Common, Types.Car), rarity: CarRarities.Common },
+                { tokenId: createTestNft(CarRarities.Common, Types.Car), rarity: CarRarities.Common }
             ]
 
             before(async function () {
@@ -1370,9 +1379,9 @@ describe("NftStaking", function () {
             before(setTokenDistribution());
 
             const nfts = [
-                { tokenId: createTestNft(CarRarities.Common, Types.IdByName['Car']), rarity: CarRarities.Common },
-                { tokenId: createTestNft(CarRarities.Epic, Types.IdByName['Car']), rarity: CarRarities.Epic },
-                { tokenId: createTestNft(CarRarities.Apex, Types.IdByName['Car']), rarity: CarRarities.Apex },
+                { tokenId: createTestNft(CarRarities.Common, Types.Car), rarity: CarRarities.Common },
+                { tokenId: createTestNft(CarRarities.Epic, Types.Car), rarity: CarRarities.Epic },
+                { tokenId: createTestNft(CarRarities.Apex, Types.Car), rarity: CarRarities.Apex },
             ];
 
             before(async function () {
@@ -1405,8 +1414,8 @@ describe("NftStaking", function () {
 
         describe("2 stakers. 1st staker staked from day 1. 2nd staker staked after 1st payout period.", function () {
             const nfts = [
-                { tokenId: createTestNft(CarRarities.Common, Types.IdByName['Car']), rarity: CarRarities.Common },
-                { tokenId: createTestNft(CarRarities.Epic, Types.IdByName['Car']), rarity: CarRarities.Epic }
+                { tokenId: createTestNft(CarRarities.Common, Types.Car), rarity: CarRarities.Common },
+                { tokenId: createTestNft(CarRarities.Epic, Types.Car), rarity: CarRarities.Epic }
             ];
 
             function prepareForTests() {
@@ -1464,8 +1473,8 @@ describe("NftStaking", function () {
             before(setTokenDistribution());
 
             const nfts = [
-                { tokenId: createTestNft(CarRarities.Common, Types.IdByName['Car']), rarity: CarRarities.Common },
-                { tokenId: createTestNft(CarRarities.Epic, Types.IdByName['Car']), rarity: CarRarities.Epic }
+                { tokenId: createTestNft(CarRarities.Common, Types.Car), rarity: CarRarities.Common },
+                { tokenId: createTestNft(CarRarities.Epic, Types.Car), rarity: CarRarities.Epic }
             ];
 
             before(async function () {

@@ -9,10 +9,10 @@ contract NftStakingMock is NftStaking {
         uint freezeDurationAfterStake,
         address whitelistedNftContract,
         address dividendToken,
-        uint[] memory rarities,
-        uint[] memory rarityWeights
+        uint[] memory values,
+        uint[] memory valueWeights
     )
-    NftStaking(payoutPeriodLength, freezeDurationAfterStake, whitelistedNftContract, dividendToken, rarities, rarityWeights)
+    NftStaking(payoutPeriodLength, freezeDurationAfterStake, whitelistedNftContract, dividendToken, values, valueWeights)
     public {}
 
     function isCorrectTokenType(uint tokenId) internal virtual override pure returns(bool) {

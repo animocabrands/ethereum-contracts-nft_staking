@@ -1,9 +1,15 @@
 # Changelog
+
+## 1.0.2 (04/05/2020)
+
+## Improvements
+ * Updated dependency on `@animoca/ethereum-contracts-assets_inventory` to `2.0.1`.
+ * Change variables names in multiple files to be more generic.
+
 ## 1.0.1 (04/05/2020)
 
 ## Improvements
- * Added 1_NftStaking.js migration script
-
+ * Added 1_NftStaking.js migration script.
 
 ## 1.0.0 (03/05/2020)
 

@@ -15,7 +15,7 @@ import "@animoca/ethereum-contracts-assets_inventory/contracts/token/ERC1155/IER
     3 - Trying to stake non-allowed NFT
     4 - Trying to stake non-car NFT
     5 - Fatal - payoutPeriodLength can't be equal 0
-    6 - Rarities and corresponding weights length do not match.
+    6 - Values and corresponding weights length do not match.
     7 - Not a pool reward provider
     8 - Fatal - not enough tokens in rewards pool
     10 - Fatal - Staked weight underflow

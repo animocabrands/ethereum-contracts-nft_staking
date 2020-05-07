@@ -1,14 +1,19 @@
 # Changelog
 
+## 1.0.3 (06/05/2020)
+
+### Improvements
+ * Removed dependency on `@animoca/f1dt-core_metadata`
+
 ## 1.0.2 (04/05/2020)
 
-## Improvements
+### Improvements
  * Updated dependency on `@animoca/ethereum-contracts-assets_inventory` to `2.0.1`.
  * Change variables names in multiple files to be more generic.
 
 ## 1.0.1 (04/05/2020)
 
-## Improvements
+### Improvements
  * Added 1_NftStaking.js migration script.
 
 ## 1.0.0 (03/05/2020)

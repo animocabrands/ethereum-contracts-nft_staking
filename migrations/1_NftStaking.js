@@ -1,5 +1,5 @@
 const program = require('commander');
-const { NFCollectionMaskLength } = require('@animoca/f1dt-core_metadata').constants;
+const { NFCollectionMaskLength } = require('../src').constants;
 const { BN } = require('@openzeppelin/test-helpers');
 const DayInSeconds = 86400;
 const FreezePeriodSeconds = new BN(DayInSeconds);
@@ -38,14 +38,14 @@ module.exports = async (deployer, network, accounts) => {
             this.dividendTokenContract = ERC20BaseAddressRinkeby? await ERC20FullMock.at(ERC20BaseAddressRinkeby):await ERC20FullMock.new(DividendTokenInitialBalance);
             break;
         case "mainnet":
-            
+
             break;
         default:
             console.log(`Unknown network '${network}', stopping...`);
             return;
 
     }
-    
+
     const result = await deployer.deploy(NftStakingMock,
         PayoutPeriodLength,
         FreezePeriodSeconds,
@@ -54,9 +54,9 @@ module.exports = async (deployer, network, accounts) => {
         Object.keys(RarityToWeightsMap),
         Object.values(RarityToWeightsMap)
     );
-    
+
     this.stakingContract = await NftStakingMock.deployed();
 
-    await this.dividendTokenContract.transfer(this.stakingContract.address, DividendTokenInitialBalance);    
-    
+    await this.dividendTokenContract.transfer(this.stakingContract.address, DividendTokenInitialBalance);
+
 }

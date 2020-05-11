@@ -1,6 +1,9 @@
 # Changelog
 
-## 1.0.3 (06/05/2020)
+## 1.0.3 (Unreleased)
+
+### Updates
+ * Updated the @animoca/ethereum-contracts-assets_inventory module dependency to ^2.0.2.
 
 ### Improvements
  * Removed dependency on `@animoca/f1dt-core_metadata`

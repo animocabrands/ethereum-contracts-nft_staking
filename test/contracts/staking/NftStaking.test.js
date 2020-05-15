@@ -229,11 +229,43 @@ describe("NftStaking", function () {
         it("rewardPoolBalanceIncreased must add snapshot with correct token amount to claim", async function () {
             const tokensAmount = new BN(10);
             const initialNumSnapshots = await this.stakingContract.totalSnapshots();
-            await this.stakingContract.rewardPoolBalanceIncreased(tokensAmount, { from: rewardPoolProvider });
+            this.rewardPoolBalanceIncreasedReceipt = await this.stakingContract.rewardPoolBalanceIncreased(tokensAmount, { from: rewardPoolProvider });
             const finalNumSnapshots = await this.stakingContract.totalSnapshots();
             finalNumSnapshots.should.be.bignumber.equal(initialNumSnapshots.addn(1));
             snapshot = await this.stakingContract.dividendsSnapshots(finalNumSnapshots.toNumber() - 1);
             snapshot.tokensToClaim.should.be.bignumber.equal(tokensAmount);
+        });
+
+        it("rewardPoolBalanceIncreased must emit the SnapshotCreated event", async function () {
+            const finalNumSnapshots = await this.stakingContract.totalSnapshots();
+            const snapshotIndex = finalNumSnapshots.toNumber() - 1;
+            snapshot = await this.stakingContract.dividendsSnapshots(snapshotIndex);
+            expectEvent(
+                this.rewardPoolBalanceIncreasedReceipt,
+                'SnapshotCreated',
+                {
+                    index: new BN(snapshotIndex),
+                    cycleRangeStart: snapshot.cycleRangeStart,
+                    cycleRangeEnd: snapshot.cycleRangeEnd,
+                    stakedWeight: snapshot.stakedWeight,
+                    tokensToClaim: new BN(0)
+                });
+        });
+
+        it("rewardPoolBalanceIncreased must emit the SnapshotUpdated event", async function () {
+            const finalNumSnapshots = await this.stakingContract.totalSnapshots();
+            const snapshotIndex = finalNumSnapshots.toNumber() - 1;
+            snapshot = await this.stakingContract.dividendsSnapshots(snapshotIndex);
+            expectEvent(
+                this.rewardPoolBalanceIncreasedReceipt,
+                'SnapshotUpdated',
+                {
+                    index: new BN(snapshotIndex),
+                    cycleRangeStart: snapshot.cycleRangeStart,
+                    cycleRangeEnd: snapshot.cycleRangeEnd,
+                    stakedWeight: snapshot.stakedWeight,
+                    tokensToClaim: snapshot.tokensToClaim
+                });
         });
 
         it("setPoolProvider (false) must fail when called by non-owner", async function () {
@@ -268,17 +300,31 @@ describe("NftStaking", function () {
         });
 
         it("must create the latest snapshot", async function () {
-            await this.stakingContract.getOrCreateLatestCycleSnapshot(0);
+            this.receipt = await this.stakingContract.getOrCreateLatestCycleSnapshot(0);
             const numSnapshots = await this.stakingContract.totalSnapshots();
             numSnapshots.toNumber().should.be.equal(1);
             const snapshot = await this.stakingContract.getLatestSnapshot();
             snapshot.cycleRangeStart.toNumber().should.be.equal(1);
             snapshot.cycleRangeEnd.toNumber().should.be.equal(1);
+        });
+
+        it("must emit the SnapshotCreated event", async function () {
+            await expectEvent.inTransaction(
+                this.receipt.tx,
+                this.stakingContract,
+                'SnapshotCreated');
+        });
+
+        it("must not emit the SnapshotUpdated event", async function () {
+            await expectEvent.not.inTransaction(
+                this.receipt.tx,
+                this.stakingContract,
+                'SnapshotUpdated');
         });
 
         it("must retrieve the latest snapshot", async function () {
             await time.increase(1);
-            await this.stakingContract.getOrCreateLatestCycleSnapshot(0);
+            this.receipt = await this.stakingContract.getOrCreateLatestCycleSnapshot(0);
             const numSnapshots = await this.stakingContract.totalSnapshots();
             numSnapshots.toNumber().should.be.equal(1);
             const snapshot = await this.stakingContract.getLatestSnapshot();
@@ -286,9 +332,23 @@ describe("NftStaking", function () {
             snapshot.cycleRangeEnd.toNumber().should.be.equal(1);
         });
 
+        it("must not emit the SnapshotCreated event", async function () {
+            await expectEvent.not.inTransaction(
+                this.receipt.tx,
+                this.stakingContract,
+                'SnapshotCreated');
+        });
+
+        it("must not emit the SnapshotUpdated event", async function () {
+            await expectEvent.not.inTransaction(
+                this.receipt.tx,
+                this.stakingContract,
+                'SnapshotUpdated');
+        });
+
         it("must create a new latest snapshot", async function () {
             await time.increase(PayoutPeriodLengthSeconds);
-            await this.stakingContract.getOrCreateLatestCycleSnapshot(0);
+            this.receipt = await this.stakingContract.getOrCreateLatestCycleSnapshot(0);
 
             const numSnapshots = await this.stakingContract.totalSnapshots();
             numSnapshots.toNumber().should.be.equal(2);
@@ -298,8 +358,22 @@ describe("NftStaking", function () {
             snapshot.cycleRangeEnd.toNumber().should.be.equal(8);
         });
 
+        it("must emit the SnapshotCreated event", async function () {
+            await expectEvent.inTransaction(
+                this.receipt.tx,
+                this.stakingContract,
+                'SnapshotCreated');
+        });
+
+        it("must emit the SnapshotUpdated event", async function () {
+            await expectEvent.inTransaction(
+                this.receipt.tx,
+                this.stakingContract,
+                'SnapshotUpdated');
+        });
+
         it("must create a new latest snapshot but 1 day ahead", async function () {
-            await this.stakingContract.getOrCreateLatestCycleSnapshot(DayInSeconds);
+            this.receipt = await this.stakingContract.getOrCreateLatestCycleSnapshot(DayInSeconds);
 
             let numSnapshots = await this.stakingContract.totalSnapshots();
             numSnapshots.toNumber().should.be.equal(3);
@@ -307,6 +381,20 @@ describe("NftStaking", function () {
             const snapshot = await this.stakingContract.getLatestSnapshot();
             snapshot.cycleRangeStart.toNumber().should.be.equal(9);
             snapshot.cycleRangeEnd.toNumber().should.be.equal(9);
+        });
+
+        it("must emit the SnapshotCreated event", async function () {
+            await expectEvent.inTransaction(
+                this.receipt.tx,
+                this.stakingContract,
+                'SnapshotCreated');
+        });
+
+        it("must not emit the SnapshotUpdated event", async function () {
+            await expectEvent.not.inTransaction(
+                this.receipt.tx,
+                this.stakingContract,
+                'SnapshotUpdated');
         });
     });
 
@@ -413,8 +501,11 @@ describe("NftStaking", function () {
                 });
 
                 it("must stake Car NFTs", async function () {
+                    this.receipts = [];
+
                     for (const nft of CarNFTs) {
-                        await this.nftContract.transferFrom(staker, this.stakingContract.address, nft.tokenId, { from: staker });
+                        const receipt = await this.nftContract.transferFrom(staker, this.stakingContract.address, nft.tokenId, { from: staker });
+                        this.receipts.push(receipt);
                         (await this.nftContract.ownerOf(nft.tokenId)).should.be.equal(this.stakingContract.address);
                     }
                 });
@@ -432,6 +523,34 @@ describe("NftStaking", function () {
                 it("must have depositCycle == " + (1 + FreezePeriodInDays), async function () {
                     const stakerState = await this.stakingContract.stakeStates(staker);
                     stakerState.depositCycle.toNumber().should.be.equal(1 + FreezePeriodInDays);
+                });
+
+                it("must emit the SnapshotCreated event", async function () {
+                    for (let index = 0; index < this.receipts.length; index++) {
+                        const receipt = this.receipts[index];
+
+                        if (index == 0) {
+                            await expectEvent.inTransaction(
+                                receipt.tx,
+                                this.stakingContract,
+                                'SnapshotCreated');
+                        } else {
+                            await expectEvent.not.inTransaction(
+                                receipt.tx,
+                                this.stakingContract,
+                                'SnapshotCreated');
+                        }
+                    }
+                });
+
+                it("must emit the SnapshotUpdated event", async function () {
+                    for (let index = 0; index < this.receipts.length; index++) {
+                        const receipt = this.receipts[index];
+                        await expectEvent.inTransaction(
+                            receipt.tx,
+                            this.stakingContract,
+                            'SnapshotUpdated');
+                    }
                 });
             });
 
@@ -452,12 +571,11 @@ describe("NftStaking", function () {
                 });
 
                 it("must stake Car NFTs", async function () {
-                    await this.nftContract.safeBatchTransferFrom(
+                    this.receipt = await this.nftContract.safeBatchTransferFrom(
                         staker,
                         this.stakingContract.address,
                         CarNFTs.map(x => x.tokenId),
-                        CarNFTs.map(x => 1),
-                        EmptyByte,
+                        CarNFTs.map(x => 1), EmptyByte,
                         { from: staker }
                     );
 
@@ -480,6 +598,20 @@ describe("NftStaking", function () {
                     const stakerState = await this.stakingContract.stakeStates(staker);
                     stakerState.depositCycle.toNumber().should.be.equal(2);
                 });
+
+                it("must emit the SnapshotCreated event", async function () {
+                    await expectEvent.inTransaction(
+                        this.receipt.tx,
+                        this.stakingContract,
+                        'SnapshotCreated');
+                });
+
+                it("must emit the SnapshotUpdated event", async function () {
+                    await expectEvent.inTransaction(
+                        this.receipt.tx,
+                        this.stakingContract,
+                        'SnapshotUpdated');
+                });
             });
 
             describe("when there are 3 payout periods have passed", function () {
@@ -494,7 +626,7 @@ describe("NftStaking", function () {
 
                 it("must stake successfully", async function () {
                     await time.increase(PayoutPeriodLengthSeconds * periodsToAdvance);
-                    await this.nftContract.transferFrom(staker, this.stakingContract.address, CarNFTs[0].tokenId, { from: staker });
+                    this.receipt = await this.nftContract.transferFrom(staker, this.stakingContract.address, CarNFTs[0].tokenId, { from: staker });
                 });
 
                 const targetDepositCycle = periodsToAdvance * 7 + 1 + FreezePeriodInDays;
@@ -510,6 +642,20 @@ describe("NftStaking", function () {
                         stakerState.depositCycle.toNumber().should.be.equal(targetDepositCycle);
                     });
                 });
+
+                it("must emit the SnapshotCreated event", async function () {
+                    await expectEvent.inTransaction(
+                        this.receipt.tx,
+                        this.stakingContract,
+                        'SnapshotCreated');
+                });
+
+                it("must emit the SnapshotUpdated event", async function () {
+                    await expectEvent.inTransaction(
+                        this.receipt.tx,
+                        this.stakingContract,
+                        'SnapshotUpdated');
+                });
             });
 
             describe(`when staked Common and Epic NFTs with ${PayoutPeriodLength.toNumber()} days difference`, async function () {
@@ -518,7 +664,7 @@ describe("NftStaking", function () {
                 const secondsToAdvance = (PayoutPeriodLengthSeconds * 4) + 1;
 
                 it("must fail staking when divs are not claimed before 2nd stake", async function () {
-                    await this.nftContract.transferFrom(
+                    this.transferFromReceipt = await this.nftContract.transferFrom(
                         staker,
                         this.stakingContract.address,
                         CarNFTs.filter(x => x.rarity == CarRarities.Common)[0].tokenId,
@@ -536,8 +682,15 @@ describe("NftStaking", function () {
                     );
                 });
 
+                it("must emit the SnapshotUpdated event for the 1st stake", async function () {
+                    await expectEvent.inTransaction(
+                        this.transferFromReceipt.tx,
+                        this.stakingContract,
+                        'SnapshotUpdated');
+                });
+
                 it("must able to stake 2 NFTs when divs are claimed before 2nd stake", async function () {
-                    await this.nftContract.transferFrom(
+                    this.transferFromReceipt1 = await this.nftContract.transferFrom(
                         staker,
                         this.stakingContract.address,
                         CarNFTs.filter(x => x.rarity == CarRarities.Common)[0].tokenId,
@@ -546,12 +699,26 @@ describe("NftStaking", function () {
                     await time.increase(secondsToAdvance);
                     let unclaimedCycles = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
                     await this.stakingContract.claimDividends(unclaimedCycles[1], { from: staker });
-                    await this.nftContract.transferFrom(
+                    this.transferFromReceipt2 = await this.nftContract.transferFrom(
                         staker,
                         this.stakingContract.address,
                         CarNFTs.filter(x => x.rarity == CarRarities.Epic)[0].tokenId,
                         { from: staker }
                     );
+                });
+
+                it("must emit the SnapshotUpdated event for the 1st stake", async function () {
+                    await expectEvent.inTransaction(
+                        this.transferFromReceipt1.tx,
+                        this.stakingContract,
+                        'SnapshotUpdated');
+                });
+
+                it("must emit the SnapshotUpdated event for the 2nd stake", async function () {
+                    await expectEvent.inTransaction(
+                        this.transferFromReceipt2.tx,
+                        this.stakingContract,
+                        'SnapshotUpdated');
                 });
             });
         });
@@ -741,9 +908,16 @@ describe("NftStaking", function () {
                     it("staker account must withdraw 6000 tokens", shouldClaimDivs(1, 6000, staker, true));
 
                     it("must have 1 unclaimed payout period left after ", async function () {
-                        await this.stakingContract.claimDividends(1, { from: staker });
+                        this.receipt = await this.stakingContract.claimDividends(1, { from: staker });
                         const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
                         periods[1].toNumber().should.be.equal(1);
+                    });
+
+                    it("must not emit the SnapshotUpdated event", async function () {
+                        await expectEvent.not.inTransaction(
+                            this.receipt.tx,
+                            this.stakingContract,
+                            'SnapshotUpdated');
                     });
                 });
 
@@ -751,9 +925,16 @@ describe("NftStaking", function () {
                     it("staker account must withdraw 10000 tokens", shouldClaimDivs(2, 10000, staker, true));
 
                     it("must have 0 unclaimed payouts period left after 2 periods claimed", async function () {
-                        await this.stakingContract.claimDividends(2, { from: staker });
+                        this.receipt = await this.stakingContract.claimDividends(2, { from: staker });
                         const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
                         periods[1].toNumber().should.be.equal(0);
+                    });
+
+                    it("must not emit the SnapshotUpdated event", async function () {
+                        await expectEvent.not.inTransaction(
+                            this.receipt.tx,
+                            this.stakingContract,
+                            'SnapshotUpdated');
                     });
                 });
             });
@@ -780,10 +961,17 @@ describe("NftStaking", function () {
                 });
 
                 it("must claim 1 payout period", async function () {
-                    await this.stakingContract.claimDividends(1, { from: staker });
+                    this.receipt = await this.stakingContract.claimDividends(1, { from: staker });
 
                     const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
                     periods[1].toNumber().should.be.equal(0);
+                });
+
+                it("must not emit the SnapshotUpdated event", async function () {
+                    await expectEvent.not.inTransaction(
+                        this.receipt.tx,
+                        this.stakingContract,
+                        'SnapshotUpdated');
                 });
             });
         });
@@ -846,7 +1034,14 @@ describe("NftStaking", function () {
 
             it("must able to withdraw right after frozen period", async function () {
                 await time.increase(FreezePeriodSeconds.add(new BN(1)).toNumber());
-                await this.stakingContract.withdrawNft(CarNFTs[0].tokenId, { from: staker });
+                this.receipt = await this.stakingContract.withdrawNft(CarNFTs[0].tokenId, { from: staker });
+            });
+
+            it("must emit the SnapshotUpdated event", async function () {
+                await expectEvent.inTransaction(
+                    this.receipt.tx,
+                    this.stakingContract,
+                    'SnapshotUpdated');
             });
         });
 
@@ -861,7 +1056,14 @@ describe("NftStaking", function () {
             });
 
             it("must able to withdraw 1st NFT after freeze period passed", async function () {
-                await this.stakingContract.withdrawNft(CarNFTs[0].tokenId, { from: staker });
+                this.receipt = await this.stakingContract.withdrawNft(CarNFTs[0].tokenId, { from: staker });
+            });
+
+            it("must emit the SnapshotUpdated event", async function () {
+                await expectEvent.inTransaction(
+                    this.receipt.tx,
+                    this.stakingContract,
+                    'SnapshotUpdated');
             });
 
             it("must fail to withdraw 2nd NFT", async function () {
@@ -873,7 +1075,14 @@ describe("NftStaking", function () {
 
             it("must able to withdraw 2nd NFTs after 1 more freeze period passed", async function () {
                 await time.increase(FreezePeriodSeconds.toNumber() + 1);
-                await this.stakingContract.withdrawNft(CarNFTs[1].tokenId, { from: staker });
+                this.receipt = await this.stakingContract.withdrawNft(CarNFTs[1].tokenId, { from: staker });
+            });
+
+            it("must emit the SnapshotUpdated event", async function () {
+                await expectEvent.inTransaction(
+                    this.receipt.tx,
+                    this.stakingContract,
+                    'SnapshotUpdated');
             });
         });
 
@@ -911,11 +1120,11 @@ describe("NftStaking", function () {
             });
         });
 
-        function testStakingState(staker, tokenId, stakedWeight, snapshots) {
+        function testStakingState(staker, tokenId, stakedWeight, snapshots, expectUpdateSnapshotEvent) {
             it("must withdraw", async function () {
                 let unclaimedDivsLeft = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
                 await this.stakingContract.claimDividends(unclaimedDivsLeft[1], { from: staker });
-                await this.stakingContract.withdrawNft(tokenId, { from: staker });
+                this.receipt = await this.stakingContract.withdrawNft(tokenId, { from: staker });
             });
 
             it(`must have staked weight == ${stakedWeight}`, async function () {
@@ -931,6 +1140,22 @@ describe("NftStaking", function () {
                     snapshot.stakedWeight.toNumber().should.be.equal(ss);
                 });
                 ssIndex++;
+            }
+
+            if (expectUpdateSnapshotEvent) {
+                it("must emit the SnapshotUpdated event", async function () {
+                    await expectEvent.inTransaction(
+                        this.receipt.tx,
+                        this.stakingContract,
+                        'SnapshotUpdated');
+                });
+            } else {
+                it("must not emit the SnapshotUpdated event", async function () {
+                    await expectEvent.not.inTransaction(
+                        this.receipt.tx,
+                        this.stakingContract,
+                        'SnapshotUpdated');
+                });
             }
         }
 
@@ -962,15 +1187,15 @@ describe("NftStaking", function () {
             // since freeze time is 24 hours long, weight increase will happen only for the next day
 
             describe("withdraw 1st NFT (Common), update staker state and snapshot", function () {
-                testStakingState(staker, nfts[0].tokenId, 110, [0, 10, 110]);
+                testStakingState(staker, nfts[0].tokenId, 110, [0, 10, 110], true);
             });
 
             describe("withdraw 2nd NFT (Epic), update staker state and snapshot", function () {
-                testStakingState(staker, nfts[1].tokenId, 100, [0, 0, 100]);
+                testStakingState(staker, nfts[1].tokenId, 100, [0, 0, 100], true);
             });
 
             describe("withdraw 3rd NFT (Apex), update staker state and snapshot", function () {
-                testStakingState(staker, nfts[2].tokenId, 0, [0, 0, 0]);
+                testStakingState(staker, nfts[2].tokenId, 0, [0, 0, 0], true);
             });
         }
 
@@ -1021,15 +1246,15 @@ describe("NftStaking", function () {
             });
 
             describe("withdraw 1st NFT (Common), update staker state and snapshot", function () {
-                testStakingState(staker, nfts[0].tokenId, 110, weights[0]);
+                testStakingState(staker, nfts[0].tokenId, 110, weights[0], true);
             });
 
             describe("withdraw 2nd NFT (Epic), update staker state and snapshot", function () {
-                testStakingState(staker, nfts[1].tokenId, 100, weights[1]);
+                testStakingState(staker, nfts[1].tokenId, 100, weights[1], true);
             });
 
             describe("withdraw 3rd NFT (Apex), update staker state and snapshot", function () {
-                testStakingState(staker, nfts[2].tokenId, 0, weights[2]);
+                testStakingState(staker, nfts[2].tokenId, 0, weights[2], true);
             });
         }
 
@@ -1075,15 +1300,15 @@ describe("NftStaking", function () {
             });
 
             describe("withdraw 1st NFT (Common), update staker state and snapshot", function () {
-                testStakingState(otherAccounts[0], nfts[0].tokenId, 0, weights[0]);
+                testStakingState(otherAccounts[0], nfts[0].tokenId, 0, weights[0], true);
             });
 
             describe("withdraw 2nd NFT (Epic), update staker state and snapshot", function () {
-                testStakingState(otherAccounts[1], nfts[1].tokenId, 0, weights[1]);
+                testStakingState(otherAccounts[1], nfts[1].tokenId, 0, weights[1], true);
             });
 
             describe("withdraw 3rd NFT (Apex), update staker state and snapshot", function () {
-                testStakingState(otherAccounts[2], nfts[2].tokenId, 0, weights[2]);
+                testStakingState(otherAccounts[2], nfts[2].tokenId, 0, weights[2], true);
             });
         }
 
@@ -1207,14 +1432,14 @@ describe("NftStaking", function () {
         });
     });
 
-    function shouldClaimDivs(divsToClaim, expectClaimed, from, _expectEvent) {
+    function shouldClaimDivs(divsToClaim, expectClaimed, from, _expectClaimDividendsEvent, _expectSnapshotUpdatedEvent) {
         var should = require('chai').should();
         return async function () {
             // estimate max here
             const estimationResult = await this.stakingContract.estimatePayout(1, divsToClaim, { from });
             let reciept = await this.stakingContract.claimDividends(divsToClaim, { from });
 
-            if (_expectEvent) {
+            if (_expectClaimDividendsEvent) {
                 await expectEvent(reciept, ClaimDividendsEvent, {
                     from,
                     amount: new BN(expectClaimed)
@@ -1225,6 +1450,18 @@ describe("NftStaking", function () {
                 }
             } else {
                 should.equal(reciept.logs.find(e => e.event === ClaimDividendsEvent), undefined, "Didn't expect event " + ClaimDividendsEvent);
+            }
+
+            if (_expectSnapshotUpdatedEvent) {
+                await expectEvent.inTransaction(
+                    reciept.tx,
+                    this.stakingContract,
+                    'SnapshotUpdated');
+            } else {
+                await expectEvent.not.inTransaction(
+                    reciept.tx,
+                    this.stakingContract,
+                    'SnapshotUpdated');
             }
         }
     }
@@ -1304,14 +1541,14 @@ describe("NftStaking", function () {
     });
 
     describe("Dividends", function () {
-        function testClaimAndEstimation(divsToClaim, expectedAmount, from, _expectEvent) {
-            if (_expectEvent) {
+        function testClaimAndEstimation(divsToClaim, expectedAmount, from, _expectClaimDividendsEvent, _expectSnapshotUpdatedEvent) {
+            if (_expectClaimDividendsEvent) {
                 it(
                     `must estimate and claim ${expectedAmount} tokens when ${divsToClaim} period(s) claimed`,
-                    shouldClaimDivs(divsToClaim, expectedAmount, from, _expectEvent)
+                    shouldClaimDivs(divsToClaim, expectedAmount, from, _expectClaimDividendsEvent, _expectSnapshotUpdatedEvent)
                 );
             } else {
-                it("must not claim dividends", shouldClaimDivs(divsToClaim, expectedAmount, from, _expectEvent));
+                it("must not claim dividends", shouldClaimDivs(divsToClaim, expectedAmount, from, _expectClaimDividendsEvent, _expectSnapshotUpdatedEvent));
             }
         }
 

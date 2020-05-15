@@ -11,6 +11,7 @@
 
 ### Improvements
  * Removed dependency on `@animoca/f1dt-core_metadata`.
+ * Added `SnapshotCreated` and `SnapshotUpdated` events to be emitted whenever a dividend snapshot is created or updated, respectively.
 
 ### New features
  * Introduction of an SPDX License identifier to all contract headers.
@@ -38,4 +39,4 @@
  * Better abstraction of core staking features.
 
 ## 0.0.1 (15/04/2020)
-* Initial commit.
+ * Initial commit.

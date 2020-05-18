@@ -28,7 +28,7 @@ import "@animoca/ethereum-contracts-assets_inventory/contracts/token/ERC1155/IER
 abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
     uint constant DAY_DURATION = 86400;
     uint constant DIVS_PRECISION = 10 ** 10;
-    uint constant MAX_UINT = 2 ^ 256 - 1;
+    uint constant MAX_UINT = ~uint256(0);
 
     // bytes4(keccak256("onERC1155Received(address,address,uint256,uint256,bytes)"))
     bytes4 constant internal ERC1155_RECEIVED = 0xf23a6e61;

@@ -147,7 +147,12 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
     // ERC1155TokenReceiver implementation
 
     function supportsInterface(bytes4 interfaceId) external pure returns(bool) {
-        return interfaceId == 0x4e2312e0;
+        return (
+            // ERC165 interface id
+            interfaceId == 0x01ffc9a7 ||
+            // ERC1155TokenReceiver interface id
+            interfaceId == 0x4e2312e0
+        );
     }
 
     function onERC1155Received(

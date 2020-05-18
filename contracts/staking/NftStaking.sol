@@ -103,11 +103,11 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
 
     // receive() external payable {}
 
-    function set_dividendToken(address dividendToken_) public onlyOwner {
+    function setDividendToken(address dividendToken_) public onlyOwner {
         dividendToken = dividendToken_;
     }
 
-    function set_freezeDurationAfterStake(uint freezeDurationAfterStake_) public onlyOwner {
+    function setFreezeDurationAfterStake(uint freezeDurationAfterStake_) public onlyOwner {
         freezeDurationAfterStake = freezeDurationAfterStake_;
     }
 

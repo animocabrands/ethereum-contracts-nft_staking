@@ -20,9 +20,11 @@ import "@animoca/ethereum-contracts-assets_inventory/contracts/token/ERC1155/IER
     6 - Values and corresponding weights length do not match.
     7 - Not a pool reward provider
     8 - Fatal - not enough tokens in rewards pool
+    9 - Fatal - dividends amount failed to transfer out of the dividends pool to the owner
     10 - Fatal - Staked weight underflow
     11 - Token owner doesn't match or token was already withdrawn before
     12 - Token is frozen
+    13 - Staking operations are disabled
  */
 
 abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
@@ -120,7 +122,7 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
     }
 
     function withdrawDivsPool(uint amount) public onlyOwner {
-        require(IERC20(dividendToken).transfer(msg.sender, amount));
+        require(IERC20(dividendToken).transfer(msg.sender, amount), "9");
     }
 
     function setContractEnabled(bool enabled) public onlyOwner {
@@ -138,7 +140,7 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
     }
 
     modifier isEnabled() {
-        require(_enabled);
+        require(_enabled, "13");
         _;
     }
 

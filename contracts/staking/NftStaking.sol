@@ -193,12 +193,8 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
 
     // Staking pool reward implementation
 
-    function addPoolProvider(address _provider) external onlyOwner {
-        rewardPoolProviders[_provider] = true;
-    }
-
-    function removePoolProvider(address _provider) external onlyOwner {
-        rewardPoolProviders[_provider] = false;
+    function setPoolProvider(address provider, bool authorize) external onlyOwner {
+        rewardPoolProviders[provider] = authorize;
     }
 
     function rewardPoolBalanceIncreased(uint128 amount) external onlyRewardPoolProvider {

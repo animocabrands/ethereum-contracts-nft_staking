@@ -208,15 +208,15 @@ describe("NftStaking", function () {
     describe("Reward Pool", function () {
         before(doFreshDeploy);
 
-        it("addPoolProvider must fail when called by non-owner", async function () {
-            expectRevert.unspecified(this.stakingContract.addPoolProvider(rewardPoolProvider, { from: rewardPoolProvider }));
+        it("setPoolProvider (true) must fail when called by non-owner", async function () {
+            expectRevert.unspecified(this.stakingContract.setPoolProvider(rewardPoolProvider, true, { from: rewardPoolProvider }));
         });
 
-        it("addPoolProvider must not fail when called by owner", async function () {
-            await this.stakingContract.addPoolProvider(rewardPoolProvider, { from: creator });
+        it("setPoolProvider (true) must not fail when called by owner", async function () {
+            await this.stakingContract.setPoolProvider(rewardPoolProvider, true, { from: creator });
         });
 
-        it("reward pool provider has been authorized when added", async function () {
+        it("reward pool provider has been authorized when set (true)", async function () {
             const authorized = await this.stakingContract.rewardPoolProviders(rewardPoolProvider);
             authorized.should.be.true;
         });
@@ -231,15 +231,15 @@ describe("NftStaking", function () {
             snapshot.tokensToClaim.should.be.bignumber.equal(tokensAmount);
         });
 
-        it("removePoolProvider must fail when called by non-owner", async function () {
-            expectRevert.unspecified(this.stakingContract.removePoolProvider(rewardPoolProvider, { from: rewardPoolProvider }));
+        it("setPoolProvider (false) must fail when called by non-owner", async function () {
+            expectRevert.unspecified(this.stakingContract.setPoolProvider(rewardPoolProvider, false, { from: rewardPoolProvider }));
         });
 
-        it("removePoolProvider must not fail when called by owner", async function () {
-            await this.stakingContract.removePoolProvider(rewardPoolProvider, { from: creator });
+        it("setPoolProvider (false) must not fail when called by owner", async function () {
+            await this.stakingContract.setPoolProvider(rewardPoolProvider, false, { from: creator });
         });
 
-        it("remove pool provider has been deauthorized when removed", async function () {
+        it("reward pool provider has been deauthorized when set (false)", async function () {
             const authorized = await this.stakingContract.rewardPoolProviders(rewardPoolProvider);
             authorized.should.be.false;
         });

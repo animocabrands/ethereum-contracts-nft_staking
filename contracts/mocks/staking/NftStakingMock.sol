@@ -7,14 +7,14 @@ import "../../staking/NftStaking.sol";
 contract NftStakingMock is NftStaking {
 
     constructor(
-        uint payoutPeriodLength,
-        uint freezeDurationAfterStake,
-        address whitelistedNftContract,
-        address dividendToken,
+        uint payoutPeriodLength_,
+        uint freezeDurationAfterStake_,
+        address whitelistedNftContract_,
+        address dividendToken_,
         uint[] memory values,
         uint[] memory valueWeights
     )
-    NftStaking(payoutPeriodLength, freezeDurationAfterStake, whitelistedNftContract, dividendToken, values, valueWeights)
+    NftStaking(payoutPeriodLength_, freezeDurationAfterStake_, whitelistedNftContract_, dividendToken_, values, valueWeights)
     public {}
 
     function isCorrectTokenType(uint tokenId) internal virtual override pure returns(bool) {

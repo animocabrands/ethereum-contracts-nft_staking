@@ -7,14 +7,14 @@ import "./NftStaking.sol";
 abstract contract NftStakingTestable is NftStaking {
 
     constructor(
-        uint payoutPeriodLength,
-        uint freezeDurationAfterStake,
-        address whitelistedNftContract,
-        address dividendToken,
+        uint payoutPeriodLength_,
+        uint freezeDurationAfterStake_,
+        address whitelistedNftContract_,
+        address dividendToken_,
         uint[] memory values,
         uint[] memory valueWeights
     )
-    NftStaking(payoutPeriodLength, freezeDurationAfterStake, whitelistedNftContract, dividendToken, values, valueWeights)
+    NftStaking(payoutPeriodLength_, freezeDurationAfterStake_, whitelistedNftContract_, dividendToken_, values, valueWeights)
     public {}
 
     function getLatestSnapshot()
@@ -29,8 +29,8 @@ abstract contract NftStakingTestable is NftStaking {
     {
         DividendsSnapshot memory snapshot;
 
-        if (_dividendsSnapshots.length != 0) {
-            snapshot = _dividendsSnapshots[_dividendsSnapshots.length - 1];
+        if (dividendsSnapshots.length != 0) {
+            snapshot = dividendsSnapshots[dividendsSnapshots.length - 1];
         }
 
         return (
@@ -64,7 +64,7 @@ abstract contract NftStakingTestable is NftStaking {
     }
 
     function totalSnapshots() public view returns(uint) {
-        return _dividendsSnapshots.length;
+        return dividendsSnapshots.length;
     }
 
     function getOrCreateLatestCycleSnapshot(uint offset) public returns(
@@ -81,7 +81,7 @@ abstract contract NftStakingTestable is NftStaking {
     }
 
     function currentPayoutPeriod() public view returns(uint) {
-        StakerState memory state = _stakeStates[msg.sender];
+        StakerState memory state = stakeStates[msg.sender];
         if (state.stakedWeight == 0) {
             return 0;
         }

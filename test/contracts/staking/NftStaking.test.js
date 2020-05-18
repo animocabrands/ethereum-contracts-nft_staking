@@ -109,7 +109,7 @@ describe("NftStaking", function () {
     async function debug_PrintAllSnapshots() {
         const t = (await this.stakingContract.totalSnapshots()).toNumber();
         for (let k = 0; k < t; ++k) {
-            const ss = await this.stakingContract._dividendsSnapshots(k);
+            const ss = await this.stakingContract.dividendsSnapshots(k);
 
             for (let key in ss) {
                 if (!isNaN(key)) continue;
@@ -138,7 +138,7 @@ describe("NftStaking", function () {
     }
 
     async function debug_state(from) {
-        const state = await this.stakingContract._stakeStates(from);
+        const state = await this.stakingContract.stakeStates(from);
 
         console.log("depositCycle", state.depositCycle.toNumber());
         console.log("stakedWeight", state.stakedWeight.toNumber());
@@ -217,7 +217,7 @@ describe("NftStaking", function () {
         });
 
         it("reward pool provider has been authorized when added", async function () {
-            const authorized = await this.stakingContract._rewardPoolProviders(rewardPoolProvider);
+            const authorized = await this.stakingContract.rewardPoolProviders(rewardPoolProvider);
             authorized.should.be.true;
         });
 
@@ -227,7 +227,7 @@ describe("NftStaking", function () {
             await this.stakingContract.rewardPoolBalanceIncreased(tokensAmount, { from: rewardPoolProvider });
             const finalNumSnapshots = await this.stakingContract.totalSnapshots();
             finalNumSnapshots.should.be.bignumber.equal(initialNumSnapshots.addn(1));
-            snapshot = await this.stakingContract._dividendsSnapshots(finalNumSnapshots.toNumber() - 1);
+            snapshot = await this.stakingContract.dividendsSnapshots(finalNumSnapshots.toNumber() - 1);
             snapshot.tokensToClaim.should.be.bignumber.equal(tokensAmount);
         });
 
@@ -240,7 +240,7 @@ describe("NftStaking", function () {
         });
 
         it("remove pool provider has been deauthorized when removed", async function () {
-            const authorized = await this.stakingContract._rewardPoolProviders(rewardPoolProvider);
+            const authorized = await this.stakingContract.rewardPoolProviders(rewardPoolProvider);
             authorized.should.be.false;
         });
 
@@ -399,12 +399,12 @@ describe("NftStaking", function () {
                 });
 
                 it("must have staked weight of 111", async function () {
-                    const stakerState = await this.stakingContract._stakeStates(staker);
+                    const stakerState = await this.stakingContract.stakeStates(staker);
                     stakerState.stakedWeight.toNumber().should.be.equal(111);
                 });
 
                 it("must have depositCycle == " + (1 + FreezePeriodInDays), async function () {
-                    const stakerState = await this.stakingContract._stakeStates(staker);
+                    const stakerState = await this.stakingContract.stakeStates(staker);
                     stakerState.depositCycle.toNumber().should.be.equal(1 + FreezePeriodInDays);
                 });
             });
@@ -430,12 +430,12 @@ describe("NftStaking", function () {
                 });
 
                 it("must have staked weight == 111", async function () {
-                    const stakerState = await this.stakingContract._stakeStates(staker);
+                    const stakerState = await this.stakingContract.stakeStates(staker);
                     stakerState.stakedWeight.toNumber().should.be.equal(111);
                 });
 
                 it("must have depositCycle == 2", async function () {
-                    const stakerState = await this.stakingContract._stakeStates(staker);
+                    const stakerState = await this.stakingContract.stakeStates(staker);
                     stakerState.depositCycle.toNumber().should.be.equal(2);
                 });
             });
@@ -446,7 +446,7 @@ describe("NftStaking", function () {
                 const periodsToAdvance = 3;
 
                 it("staker must have depositCycle == 0 before staking", async function () {
-                    const stakerState = await this.stakingContract._stakeStates(staker);
+                    const stakerState = await this.stakingContract.stakeStates(staker);
                     stakerState.depositCycle.toNumber().should.be.equal(0);
                 });
 
@@ -458,13 +458,13 @@ describe("NftStaking", function () {
                 const targetDepositCycle = periodsToAdvance * 7 + 1 + FreezePeriodInDays;
                 describe(`staker must have depositCycle == ${targetDepositCycle}`, function () {
                     it("immediately after staking", async function () {
-                        const stakerState = await this.stakingContract._stakeStates(staker);
+                        const stakerState = await this.stakingContract.stakeStates(staker);
                         stakerState.depositCycle.toNumber().should.be.equal(targetDepositCycle);
                     });
 
                     it("after 2 additional payout periods after staking", async function () {
                         await time.increase(PayoutPeriodLengthSeconds * 2);
-                        const stakerState = await this.stakingContract._stakeStates(staker);
+                        const stakerState = await this.stakingContract.stakeStates(staker);
                         stakerState.depositCycle.toNumber().should.be.equal(targetDepositCycle);
                     });
                 });
@@ -840,7 +840,7 @@ describe("NftStaking", function () {
             });
 
             it(`must have staked weight == ${stakedWeight}`, async function () {
-                const stakerState = await this.stakingContract._stakeStates(staker);
+                const stakerState = await this.stakingContract.stakeStates(staker);
                 stakerState.stakedWeight.toNumber().should.be.equal(stakedWeight);
             });
 
@@ -848,7 +848,7 @@ describe("NftStaking", function () {
             for (const ss of snapshots) {
                 const i = ssIndex;
                 it(`must have snapshot #${i} stakedWeight == ${ss}`, async function () {
-                    const snapshot = await this.stakingContract._dividendsSnapshots(i);
+                    const snapshot = await this.stakingContract.dividendsSnapshots(i);
                     snapshot.stakedWeight.toNumber().should.be.equal(ss);
                 });
                 ssIndex++;
@@ -1047,7 +1047,7 @@ describe("NftStaking", function () {
 
             describe(`snapshot #0`, function () {
                 before(async function () {
-                    this.snapshot = await this.stakingContract._dividendsSnapshots(0);
+                    this.snapshot = await this.stakingContract.dividendsSnapshots(0);
                 });
 
                 testSnapshot(2, 7, 1, 0);
@@ -1055,7 +1055,7 @@ describe("NftStaking", function () {
 
             describe(`snapshot #1`, function () {
                 before(async function () {
-                    this.snapshot = await this.stakingContract._dividendsSnapshots(1);
+                    this.snapshot = await this.stakingContract.dividendsSnapshots(1);
                 });
 
                 testSnapshot(8, 8, 1, 0);
@@ -1063,7 +1063,7 @@ describe("NftStaking", function () {
 
             describe(`snapshot #2`, function () {
                 before(async function () {
-                    this.snapshot = await this.stakingContract._dividendsSnapshots(2);
+                    this.snapshot = await this.stakingContract.dividendsSnapshots(2);
                 });
 
                 testSnapshot(9, 14, 2, 0);
@@ -1071,7 +1071,7 @@ describe("NftStaking", function () {
 
             describe(`snapshot #3`, function () {
                 before(async function () {
-                    this.snapshot = await this.stakingContract._dividendsSnapshots(3);
+                    this.snapshot = await this.stakingContract.dividendsSnapshots(3);
                 });
 
                 testSnapshot(15, 15, 2, 0);
@@ -1079,7 +1079,7 @@ describe("NftStaking", function () {
 
             describe(`snapshot #4`, function () {
                 before(async function () {
-                    this.snapshot = await this.stakingContract._dividendsSnapshots(4);
+                    this.snapshot = await this.stakingContract.dividendsSnapshots(4);
                 });
 
                 testSnapshot(16, 16, 3, 0);

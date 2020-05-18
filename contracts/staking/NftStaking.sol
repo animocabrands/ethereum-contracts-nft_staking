@@ -85,7 +85,7 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
         uint[] memory values,
         uint[] memory valueWeights
     ) internal {
-        require(payoutPeriodLength_ > 0, "5");
+        require(payoutPeriodLength_ != 0, "5");
         require(values.length == valueWeights.length, "6");
 
         _enabled = true;

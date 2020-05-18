@@ -59,7 +59,7 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
     event Withdrawal(address indexed from, uint tokenId, uint currentCycle);
     event ClaimedDivs(address indexed from, uint snapshotStartIndex, uint snapshotEndIndex, uint amount);
 
-    bool _enabled;
+    bool private _enabled;
 
     uint public startTimestamp;
     uint public payoutPeriodLength;
@@ -74,7 +74,8 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
 
     address public whitelistedNftContract;
     address public dividendToken;
-    mapping(uint => uint128) _initialTokenDistribution;
+
+    mapping(uint => uint128) private _initialTokenDistribution;
 
     constructor(
         uint payoutPeriodLength_,

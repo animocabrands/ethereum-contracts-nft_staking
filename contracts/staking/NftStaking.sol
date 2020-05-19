@@ -213,14 +213,15 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
     function _getOrCreateLatestCycleSnapshot(uint offsetIntoFuture) internal returns(DividendsSnapshot memory snapshot) {
         uint32 currentCycle = uint32(_getCurrentCycle(block.timestamp + offsetIntoFuture));
 
+        uint totalSnapshots = dividendsSnapshots.length;
+
         // if there are some snapshots - pick latest
-        if (dividendsSnapshots.length != 0) {
-            snapshot = dividendsSnapshots[dividendsSnapshots.length - 1];
+        if (totalSnapshots != 0) {
+            snapshot = dividendsSnapshots[totalSnapshots - 1];
         }
 
         uint currentPayoutPeriod = getCurrentPayoutPeriod();
         uint128 initialTokensToClaim = 0;
-        uint totalSnapshots = dividendsSnapshots.length;
 
         // latest snapshot is not for current cycle - create new one, +20k gas
         if (snapshot.cycleRangeEnd != currentCycle || totalSnapshots == 0) {
@@ -240,7 +241,7 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
 
                     // if anything has changed - update it
                     if (snapshot.cycleRangeEnd != rangeEnd) {
-                        dividendsSnapshots[dividendsSnapshots.length - 1] = snapshot;
+                        dividendsSnapshots[totalSnapshots - 1] = snapshot;
                     }
 
                     // if somebody staked already and there are cycles skipped
@@ -248,7 +249,7 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
                         snapshot = _addNewSnapshot(snapshot.cycleRangeEnd + 1, currentCycle - 1, snapshot.stakedWeight, 0);
                     }
                 } else {
-                    dividendsSnapshots[dividendsSnapshots.length - 1] = snapshot;
+                    dividendsSnapshots[totalSnapshots - 1] = snapshot;
                 }
             }
 

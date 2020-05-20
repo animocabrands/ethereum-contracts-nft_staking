@@ -9,7 +9,7 @@ const { NFCollectionMaskLength } = require('../../../src').constants;
 
 const NftStaking = contract.fromArtifact("NftStakingTestableMock");
 const AssetsInventory = contract.fromArtifact("AssetsInventoryMock");
-const ERC20Full = contract.fromArtifact("ERC20FullMock");
+const ERC20WithOperators = contract.fromArtifact("ERC20WithOperatorsMock");
 
 const DayInSeconds = 86400;
 const PayoutPeriodLength = new BN(7); // days
@@ -165,7 +165,7 @@ describe("NftStaking", function () {
     async function doFreshDeploy() {
         this.nftContract = await AssetsInventory.new(NFCollectionMaskLength, { from: creator });
 
-        this.dividendToken = await ERC20Full.new(DividendTokenInitialBalance, { from: creator });
+        this.dividendToken = await ERC20WithOperators.new(DividendTokenInitialBalance, { from: creator });
         this.stakingContract = await NftStaking.new(
             PayoutPeriodLength,
             FreezePeriodSeconds,

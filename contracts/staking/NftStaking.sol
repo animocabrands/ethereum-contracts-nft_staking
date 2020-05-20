@@ -30,6 +30,12 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
     uint constant DIVS_PRECISION = 10 ** 10;
     uint constant MAX_UINT = 2 ^ 256 - 1;
 
+    // bytes4(keccak256("onERC1155Received(address,address,uint256,uint256,bytes)"))
+    bytes4 constant internal ERC1155_RECEIVED = 0xf23a6e61;
+
+    // bytes4(keccak256("onERC1155BatchReceived(address,address,uint256[],uint256[],bytes)"))
+    bytes4 constant internal ERC1155_BATCH_RECEIVED = 0xbc197c81;
+
     struct DividendsSnapshot {
         uint32 cycleRangeStart;
         uint32 cycleRangeEnd;

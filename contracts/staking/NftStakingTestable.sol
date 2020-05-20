@@ -86,6 +86,6 @@ abstract contract NftStakingTestable is NftStaking {
             return 0;
         }
 
-        return _payoutPeriodFromCycle(state.depositCycle);
+        return _getPayoutPeriod(state.depositCycle, payoutPeriodLength);
     }
 }

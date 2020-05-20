@@ -25,4 +25,8 @@ contract NftStakingTestableMock is NftStakingTestable {
     function valueFromTokenId(uint tokenId) internal virtual override pure returns(uint) {
         return (tokenId & (0xFF << 176)) >> 176;
     }
+
+    function getCurrentPayoutPeriod() public view returns (uint) {
+        return _getPayoutPeriod(getCurrentCycle(), payoutPeriodLength);
+    }
 }

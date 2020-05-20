@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.3 (Unreleased)
+## 2.0.0 (Unreleased)
 
 ### Breaking changes
  * Updated the `@animoca/ethereum-contracts-assets_inventory` module dependency to ^3.0.0.

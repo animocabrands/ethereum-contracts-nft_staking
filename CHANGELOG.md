@@ -3,7 +3,7 @@
 ## 1.0.3 (Unreleased)
 
 ### Breaking changes
- * Updated the @animoca/ethereum-contracts-assets_inventory module dependency to ^2.0.2.
+ * Updated the `@animoca/ethereum-contracts-assets_inventory` module dependency to ^3.0.0.
  * Migrated compiler to `solc:0.6.8`.
 
 ### Changes

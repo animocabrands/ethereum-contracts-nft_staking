@@ -576,8 +576,7 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
         require(block.timestamp - tokenInfo.depositTimestamp > freezeDurationAfterStake, "12");
 
         // reset to indicate that token was withdrawn
-        tokenInfo.owner = address(0);
-        tokensInfo[tokenId] = tokenInfo;
+        tokensInfo[tokenId].owner = address(0);
 
         // decrease stake weight based on NFT value
         uint64 nftWeight = uint64(valueStakeWeights[valueFromTokenId(tokenId)]);

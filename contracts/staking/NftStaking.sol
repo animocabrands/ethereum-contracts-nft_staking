@@ -227,7 +227,7 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
         // latest snapshot is not for current cycle - create new one, +20k gas
         if (snapshot.cycleRangeEnd != currentCycle || totalSnapshots == 0) {
             // if current old snapshot has missing cycle - override end range to include all missed cycles
-            if (totalSnapshots > 0 && snapshot.cycleRangeEnd != currentCycle - 1) {
+            if (totalSnapshots != 0 && snapshot.cycleRangeEnd != currentCycle - 1) {
                 snapshot.cycleRangeEnd = currentCycle - 1;
 
                 // if snapshot is between 2 payout periods

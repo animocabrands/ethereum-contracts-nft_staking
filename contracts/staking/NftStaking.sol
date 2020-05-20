@@ -1,4 +1,4 @@
-pragma solidity ^0.6.6;
+pragma solidity ^0.6.8;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
@@ -210,14 +210,14 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
             // if current old snapshot has missing cycle - override end range to include all missed cycles
             if (totalSnapshots > 0 && snapshot.cycleRangeEnd != currentCycle - 1) {
                 snapshot.cycleRangeEnd = currentCycle - 1;
-                
+
                 // if snapshot is between 2 payout periods
                 if (currentPayoutPeriod != _payoutPeriodFromCycle(snapshot.cycleRangeStart)) {
                     // Note that we don't have to create new snapshot in this case because prepopulated pool distributes based on staked duration
                     // tokensToClaim only populated from poolProviders and it triggers new snapshot creation and tokensToClaim is SHARED between several days
                     // unlike predefined initial distribution from the company
                     uint32 rangeEnd = snapshot.cycleRangeEnd;
-                                        
+
                     // align current snapshot to the end of the previous payout period
                     snapshot.cycleRangeEnd = uint32((currentPayoutPeriod-1) * _payoutPeriodLength);
 
@@ -378,7 +378,7 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
 
                 totalDivsToClaim += tokensToClaim;
             }
-            
+
             if (snapshotIndex == params.lastSnapshotIndex) {
                 // last snapshot, align range end to the end of the previous payout period
                 snapshot.cycleRangeEnd = uint32((params.currentPayoutPeriod - 1) * params._payoutPeriodLength);
@@ -401,7 +401,7 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
                         params.rangeStart = uint32((params.payoutPeriodToClaim - 1) * params._payoutPeriodLength + 1);
                         params.dailyFixedTokens = _initialTokenDistribution[params.payoutPeriodToClaim];
                         params.nextPayoutPeriodCycle = params.payoutPeriodToClaim * params._payoutPeriodLength + 1;
-                        
+
                         loops++;
                         if (loops >= payoutPeriodsToClaim) {
                             break;
@@ -488,7 +488,7 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
                 _dividendsSnapshots[uint(snapshotIndex)] = snapshot;
                 totalDivsToClaim += tokensToClaim;
             }
-            
+
             if (snapshotIndex == params.lastSnapshotIndex) {
                 // last snapshot, align range end to the end of the previous payout period
                 snapshot.cycleRangeEnd = uint32((params.currentPayoutPeriod - 1) * params._payoutPeriodLength);
@@ -511,7 +511,7 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
                         params.rangeStart = uint32((params.payoutPeriodToClaim - 1) * params._payoutPeriodLength + 1);
                         params.dailyFixedTokens = _initialTokenDistribution[params.payoutPeriodToClaim];
                         params.nextPayoutPeriodCycle = params.payoutPeriodToClaim * params._payoutPeriodLength + 1;
-                        
+
                         loops++;
                         if (loops >= payoutPeriodsToClaim) {
                             break;

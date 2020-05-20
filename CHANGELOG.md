@@ -2,11 +2,18 @@
 
 ## 1.0.3 (Unreleased)
 
-### Updates
+### Breaking changes
  * Updated the @animoca/ethereum-contracts-assets_inventory module dependency to ^2.0.2.
+ * Migrated compiler to `solc:0.6.8`.
+
+### Changes
+ * `NftStaking.sol` defines its own `ERC1155_RECEIVED` and `ERC1155_BATCH_RECEIVED` constants for the ERC-1155 TokenReceiver callback functions, since being removed from the `IERC1155TokenReceiver.sol` contract of the Assets Inventory package.
 
 ### Improvements
- * Removed dependency on `@animoca/f1dt-core_metadata`
+ * Removed dependency on `@animoca/f1dt-core_metadata`.
+
+### New features
+ * Introduction of an SPDX License identifier to all contract headers.
 
 ## 1.0.2 (04/05/2020)
 

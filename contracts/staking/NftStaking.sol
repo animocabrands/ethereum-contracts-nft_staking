@@ -642,7 +642,7 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
             IERC721(whitelistedNftContract).transferFrom(address(this), msg.sender, tokenId);
         }
 
-        emit Withdrawal(msg.sender, tokenId, getCurrentCycle());
+        emit Withdrawal(msg.sender, tokenId, currentCycle);
     }
 
     function _depositNft(uint tokenId, address tokenOwner) internal isEnabled whenNotPaused {

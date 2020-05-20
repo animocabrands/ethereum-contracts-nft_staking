@@ -627,10 +627,18 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
         } catch Error(string memory /*reason*/) {
             // This is executed in case evert was called inside
             // getData and a reason string was provided.
+
+            // attempting a non-safe transferFrom() of the token in the case
+            // that the failure was caused by a ethereum client wallet
+            // implementation that does not support safeTransferFrom()
             IERC721(whitelistedNftContract).transferFrom(address(this), msg.sender, tokenId);
         } catch (bytes memory /*lowLevelData*/) {
             // This is executed in case revert() was used or there was
             // a failing assertion, division by zero, etc. inside getData.
+
+            // attempting a non-safe transferFrom() of the token in the case
+            // that the failure was caused by a ethereum client wallet
+            // implementation that does not support safeTransferFrom()
             IERC721(whitelistedNftContract).transferFrom(address(this), msg.sender, tokenId);
         }
 

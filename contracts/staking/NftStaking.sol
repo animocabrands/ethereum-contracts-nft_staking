@@ -2,6 +2,8 @@
 
 pragma solidity ^0.6.8;
 
+import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/utils/SafeCast.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@animoca/ethereum-contracts-erc20_base/contracts/token/ERC20/IERC20.sol";
@@ -28,6 +30,9 @@ import "@animoca/ethereum-contracts-assets_inventory/contracts/token/ERC1155/IER
  */
 
 abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
+    using SafeMath for uint256;
+    using SafeCast for uint256;
+
     uint constant DAY_DURATION = 86400;
     uint constant DIVS_PRECISION = 10 ** 10;
     uint constant MAX_UINT = ~uint256(0);
@@ -200,7 +205,7 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
     function rewardPoolBalanceIncreased(uint128 amount) external onlyRewardPoolProvider {
         // get latest reward pool snapshot and increased it
         DividendsSnapshot memory snapshot = _getOrCreateLatestCycleSnapshot(0);
-        snapshot.tokensToClaim += amount;
+        snapshot.tokensToClaim = SafeMath.add(snapshot.tokensToClaim, amount).toUint128();
         dividendsSnapshots[dividendsSnapshots.length - 1] = snapshot;
     }
 

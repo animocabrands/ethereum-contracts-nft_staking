@@ -7,6 +7,7 @@ import "./NftStaking.sol";
 abstract contract NftStakingTestable is NftStaking {
 
     constructor(
+        uint256 cycleLength_,
         uint payoutPeriodLength_,
         uint freezeDurationAfterStake_,
         address whitelistedNftContract_,
@@ -14,7 +15,7 @@ abstract contract NftStakingTestable is NftStaking {
         uint[] memory values,
         uint[] memory valueWeights
     )
-    NftStaking(payoutPeriodLength_, freezeDurationAfterStake_, whitelistedNftContract_, dividendToken_, values, valueWeights)
+    NftStaking(cycleLength_, payoutPeriodLength_, freezeDurationAfterStake_, whitelistedNftContract_, dividendToken_, values, valueWeights)
     public {}
 
     function getLatestSnapshot()

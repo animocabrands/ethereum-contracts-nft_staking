@@ -15,7 +15,6 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
     using SafeMath for uint256;
     using SafeCast for uint256;
 
-    uint constant DAY_DURATION = 86400;
     uint constant DIVS_PRECISION = 10 ** 10;
     uint constant MAX_UINT = ~uint256(0);
 
@@ -45,6 +44,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
     bool private _disabled; // flags whether or not the contract is disabled
 
     uint public startTimestamp;
+    uint256 public immutable cycleLength; // length of a cycle in seconds
     uint public payoutPeriodLength;
     uint public freezeDurationAfterStake;
 
@@ -60,7 +60,18 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
 
     mapping(uint => uint128) private _initialTokenDistribution;
 
+    /**
+     * @dev Constructor.
+     * @param cycleLength_ Length of a cycle, in seconds.
+     * @param payoutPeriodLength_ Length of a period, in cycles.
+     * @param freezeDurationAfterStake_ Initial duration that a newly staked NFT is locked for before it can be withdrawn from staking, in seconds.
+     * @param whitelistedNftContract_ Contract that has been whitelisted to be able to perform transfer operations of staked NFTs.
+     * @param dividendToken_ The ERC20-based token used in dividend payouts.
+     * @param values NFT token classifications (e.g. tier, rarity, category).
+     * @param valueWeights Dividend reward allocation weight for each NFT token classification defined by the 'value' argument.
+     */
     constructor(
+        uint256 cycleLength_,
         uint payoutPeriodLength_,
         uint freezeDurationAfterStake_,
         address whitelistedNftContract_,
@@ -73,6 +84,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
 
         _disabled = false;
 
+        cycleLength = cycleLength_;
         payoutPeriodLength = payoutPeriodLength_;
         freezeDurationAfterStake = freezeDurationAfterStake_;
         startTimestamp = block.timestamp;
@@ -264,7 +276,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
     }
 
     function _getCurrentCycle(uint ts) internal view returns(uint) {
-        return (ts - startTimestamp) / DAY_DURATION + 1;
+        return (ts - startTimestamp) / cycleLength + 1;
     }
 
     function _getPayoutPeriod(uint cycle, uint payoutPeriodLength_) internal pure returns(uint) {

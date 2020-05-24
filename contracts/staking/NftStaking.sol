@@ -550,58 +550,73 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         }
     }
 
-    function withdrawNft(uint tokenId) external virtual isEnabled divsClaimed(msg.sender) {
+    /**
+     * Unstakes a deposited NFT from the contract.
+     * @dev Reverts if the caller is not the original owner of the NFT.
+     * @dev While the contract is enabled, reverts if there are outstanding dividends to be claimed.
+     * @dev While the contract is enabled, reverts if NFT is being withdrawn before the staking freeze duration has elapsed.
+     * @param tokenId The token identifier, referencing the NFT being withdrawn.
+     */
+    function withdrawNft(uint tokenId) external virtual {
         TokenInfo memory tokenInfo = tokensInfo[tokenId];
         require(tokenInfo.owner == msg.sender, "NftStaking: Token owner doesn't match or token was already withdrawn before");
-        require(block.timestamp - tokenInfo.depositTimestamp > freezeDurationAfterStake, "NftStaking: Staking freeze duration has not yet elapsed");
 
-        // reset to indicate that token was withdrawn
-        tokensInfo[tokenId].owner = address(0);
-
-        // decrease stake weight based on NFT value
-        uint64 nftWeight = uint64(valueStakeWeights[valueFromTokenId(tokenId)]);
-
-        // Decrease staking weight for every snapshot for the current payout period
         uint currentCycle = getCurrentCycle();
-        uint payoutPeriodLength_ = payoutPeriodLength;
-        uint startCycle = (_getPayoutPeriod(currentCycle, payoutPeriodLength_) - 1) * payoutPeriodLength_ + 1;
-        if (startCycle < tokenInfo.depositCycle) {
-            startCycle = tokenInfo.depositCycle;
-        }
 
-        // iterate over all snapshots and decrease weight
-        (DividendsSnapshot memory snapshot, int snapshotIndex) = _findDividendsSnapshot(startCycle);
-        int lastSnapshotIndex = int(dividendsSnapshots.length - 1);
+        // by-pass staked weight operations if the contract is disabled, to
+        // avoid unnecessary calculations and reduce the gas requirements for
+        // the caller
+        if (!_disabled) {
+            require(_getUnclaimedPayoutPeriods(msg.sender) == 0, "NftStaking: Dividends are not claimed");
+            require(block.timestamp - tokenInfo.depositTimestamp > freezeDurationAfterStake, "NftStaking: Staking freeze duration has not yet elapsed");
 
-        while (startCycle <= currentCycle) {
-            // outside the range of current snapshot, query next
-            if (startCycle > snapshot.cycleRangeEnd) {
-                snapshotIndex++;
-                if (snapshotIndex > lastSnapshotIndex) {
-                    // reached the end of snapshots
-                    break;
-                }
-                snapshot = dividendsSnapshots[uint(snapshotIndex)];
+            // reset to indicate that token was withdrawn
+            tokensInfo[tokenId].owner = address(0);
+
+            // decrease stake weight based on NFT value
+            uint64 nftWeight = uint64(valueStakeWeights[valueFromTokenId(tokenId)]);
+
+            // Decrease staking weight for every snapshot for the current payout period
+            uint payoutPeriodLength_ = payoutPeriodLength;
+            uint startCycle = (_getPayoutPeriod(currentCycle, payoutPeriodLength_) - 1) * payoutPeriodLength_ + 1;
+            if (startCycle < tokenInfo.depositCycle) {
+                startCycle = tokenInfo.depositCycle;
             }
 
-            startCycle = snapshot.cycleRangeEnd + 1;
+            // iterate over all snapshots and decrease weight
+            (DividendsSnapshot memory snapshot, int snapshotIndex) = _findDividendsSnapshot(startCycle);
+            int lastSnapshotIndex = int(dividendsSnapshots.length - 1);
 
-            // must never underflow
-            require(snapshot.stakedWeight >= nftWeight, "NftStaking: Staked weight underflow");
-            snapshot.stakedWeight -= nftWeight;
-            dividendsSnapshots[uint(snapshotIndex)] = snapshot;
+            while (startCycle <= currentCycle) {
+                // outside the range of current snapshot, query next
+                if (startCycle > snapshot.cycleRangeEnd) {
+                    snapshotIndex++;
+                    if (snapshotIndex > lastSnapshotIndex) {
+                        // reached the end of snapshots
+                        break;
+                    }
+                    snapshot = dividendsSnapshots[uint(snapshotIndex)];
+                }
+
+                startCycle = snapshot.cycleRangeEnd + 1;
+
+                // must never underflow
+                require(snapshot.stakedWeight >= nftWeight, "NftStaking: Staked weight underflow");
+                snapshot.stakedWeight -= nftWeight;
+                dividendsSnapshots[uint(snapshotIndex)] = snapshot;
+            }
+
+            StakerState memory state = stakeStates[msg.sender];
+
+            // decrease staker weight
+            state.stakedWeight -= nftWeight;
+            // if no more nfts left to stake - reset depositCycle
+            if (state.stakedWeight == 0) {
+                state.depositCycle = 0;
+            }
+
+            stakeStates[msg.sender] = state;
         }
-
-        StakerState memory state = stakeStates[msg.sender];
-
-        // decrease staker weight
-        state.stakedWeight -= nftWeight;
-        // if no more nfts left to stake - reset depositCycle
-        if (state.stakedWeight == 0) {
-            state.depositCycle = 0;
-        }
-
-        stakeStates[msg.sender] = state;
 
         try IERC1155(whitelistedNftContract).safeTransferFrom(address(this), msg.sender, tokenId, 1, "") {
         } catch Error(string memory /*reason*/) {

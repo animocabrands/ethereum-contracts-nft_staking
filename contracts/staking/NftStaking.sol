@@ -42,7 +42,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
     event Withdrawal(address indexed from, uint tokenId, uint currentCycle);
     event ClaimedDivs(address indexed from, uint snapshotStartIndex, uint snapshotEndIndex, uint amount);
 
-    bool private _enabled;
+    bool private _disabled; // flags whether or not the contract is disabled
 
     uint public startTimestamp;
     uint public payoutPeriodLength;
@@ -71,7 +71,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         require(payoutPeriodLength_ != 0, "NftStaking: Zero payout period length");
         require(values.length == valueWeights.length, "NftStaking: Mismatch in value/weight array argument lengths");
 
-        _enabled = true;
+        _disabled = false;
 
         payoutPeriodLength = payoutPeriodLength_;
         freezeDurationAfterStake = freezeDurationAfterStake_;
@@ -108,8 +108,8 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         require(IERC20(dividendToken).transfer(msg.sender, amount), "9");
     }
 
-    function setContractEnabled(bool enabled) public onlyOwner {
-        _enabled = enabled;
+    function disable() public onlyOwner {
+        _disabled = true;
     }
 
     modifier divsClaimed(address sender) {
@@ -123,7 +123,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
     }
 
     modifier isEnabled() {
-        require(_enabled, "NftStaking: Staking operations are disabled");
+        require(!_disabled, "NftStaking: Staking operations are disabled");
         _;
     }
 

@@ -18,6 +18,8 @@ const PayoutPeriodLength = new BN(7);
 const FreezePeriodSeconds = new BN(DayInSeconds);
 const FreezePeriodInDays = Math.ceil(FreezePeriodSeconds.toNumber() / DayInSeconds);
 
+const RewardPoolBase = new BN(0);
+
 const PayoutPeriodLengthSeconds = PayoutPeriodLength.toNumber() * DayInSeconds;
 const DividendTokenInitialBalance = '100000000000000000000000';
 
@@ -171,6 +173,7 @@ describe("NftStaking", function () {
             CycleLength,
             PayoutPeriodLength,
             FreezePeriodSeconds,
+            RewardPoolBase,
             this.nftContract.address,
             this.dividendToken.address,
             CarWeightsConfig.map(x => x.rarity),

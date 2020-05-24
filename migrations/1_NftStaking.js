@@ -3,6 +3,7 @@ const { NFCollectionMaskLength } = require('../src').constants;
 const { BN } = require('@openzeppelin/test-helpers');
 const DayInSeconds = 86400;
 const FreezePeriodSeconds = new BN(DayInSeconds);
+const RewardPoolBase = new BN(0);
 const DividendTokenInitialBalance = new BN("100000000000000000000000");
 const CycleLength = new BN(DayInSeconds);
 const PayoutPeriodLength = new BN(7);
@@ -51,6 +52,7 @@ module.exports = async (deployer, network, accounts) => {
         CycleLength,
         PayoutPeriodLength,
         FreezePeriodSeconds,
+        RewardPoolBase,
         this.nftContract.address,
         this.dividendTokenContract.address,
         Object.keys(RarityToWeightsMap),

@@ -317,7 +317,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         }
 
         uint256 payoutPeriodLength_ = payoutPeriodLength;
-        uint256 currentPayoutPeriod = _getPayoutPeriod(getCurrentCycle(), payoutPeriodLength_);
+        uint256 currentPayoutPeriod = _getCurrentPayoutPeriod(payoutPeriodLength_);
 
         // latest snapshot is for the current payout period
         if (currentPayoutPeriod == _getPayoutPeriod(snapshot.cycleRangeStart, payoutPeriodLength_)) {
@@ -404,6 +404,23 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
     }
 
     /**
+     * Retrieves the current payout period (index-1 based).
+     * @return The current payout period (index-1 based).
+     */
+     function getCurrentPayoutPeriod() external view returns(uint256) {
+         return _getCurrentPayoutPeriod(payoutPeriodLength);
+     }
+
+     /**
+      * Retrieves the current payout period (index-1 based).
+      * @param payoutPeriodLength_ Length of a dividend payout period, in cycles.
+      * @return The current payout period (index-1 based).
+      */
+     function _getCurrentPayoutPeriod(uint256 payoutPeriodLength_) internal view returns(uint256) {
+         return _getPayoutPeriod(getCurrentCycle(), payoutPeriodLength_);
+     }
+
+    /**
      * Retrieves the payout period (index-1 based) for the specified cycle and payout period length.
      * @param cycle The cycle within the payout period to retrieve.
      * @param payoutPeriodLength_ Length of a dividend payout period, in cycles.
@@ -440,7 +457,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
 
         uint256 payoutPeriodLength_ = payoutPeriodLength;
         uint256 payoutPeriodToClaim = _getPayoutPeriod(state.depositCycle, payoutPeriodLength_);
-        return _getPayoutPeriod(getCurrentCycle(), payoutPeriodLength_) - payoutPeriodToClaim;
+        return _getCurrentPayoutPeriod(payoutPeriodLength_) - payoutPeriodToClaim;
     }
 
     /**
@@ -455,7 +472,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
 
         ClaimDivsParams memory params;
         params.payoutPeriodLength = payoutPeriodLength;
-        params.currentPayoutPeriod = _getPayoutPeriod(getCurrentCycle(), params.payoutPeriodLength);
+        params.currentPayoutPeriod = _getCurrentPayoutPeriod(params.payoutPeriodLength);
 
         if (params.currentPayoutPeriod <= startPayoutPeriod) {
             return 0;
@@ -593,7 +610,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
 
         ClaimDivsParams memory params;
         params.payoutPeriodLength = payoutPeriodLength;
-        params.currentPayoutPeriod = _getPayoutPeriod(getCurrentCycle(), params.payoutPeriodLength);
+        params.currentPayoutPeriod = _getCurrentPayoutPeriod(params.payoutPeriodLength);
 
         // payout cycles starts from 1
         params.payoutPeriodToClaim = _getPayoutPeriod(state.depositCycle, params.payoutPeriodLength);

@@ -160,16 +160,28 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         _registerInterface(type(IERC1155TokenReceiver).interfaceId);
     }
 
-    // receive() external payable {}
-
+    /**
+     * Sets the dividend token to use for dividend payouts.
+     * @param dividendToken_ The address of an IERC20 compatible token to use for dividend payouts.
+     */
     function setDividendToken(address dividendToken_) public onlyOwner {
         dividendToken = dividendToken_;
     }
 
+    /**
+     * Sets the period of time, in seconds, for which a newly staked token cannot be withdrawn. After the freeze duration has elapsed, the staked token can be unstaked.
+     * @param freezeDurationAfterStake_ Initial duration that a newly staked NFT is locked for before it can be withdrawn from staking, in seconds.
+     */
     function setFreezeDurationAfterStake(uint256 freezeDurationAfterStake_) public onlyOwner {
         freezeDurationAfterStake = freezeDurationAfterStake_;
     }
 
+    /**
+     * Sets the initial distribution period in which staked tokens are awarded additional per-cycle bonus dividends.
+     * @param periodStart The starting period of the initial distribution.
+     * @param periodEnd The ending period of the initial distribution.
+     * @param tokensDaily The amount of per-cycle bonus dividends to award.
+     */
     function setInitialDistributionPeriod(uint256 periodStart, uint256 periodEnd, uint128 tokensDaily) public onlyOwner {
         for (uint256 i = periodStart; i <= periodEnd; ++i) {
             _initialTokenDistribution[i] = tokensDaily;
@@ -178,14 +190,34 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         emit InitialDistribution(periodStart, periodEnd, tokensDaily);
     }
 
+    /**
+     * Withdraws a specified amount of dividends from the contract reward pool.
+     * @param amount The amount to withdraw.
+     */
     function withdrawDivsPool(uint256 amount) public onlyOwner {
         require(IERC20(dividendToken).transfer(msg.sender, amount), "9");
     }
 
+    /**
+     * Permanently disables all staking and claiming functionality of the contract.
+     */
     function disable() public onlyOwner {
         _disabled = true;
     }
 
+    /**
+     * Handle the receipt of a single ERC1155 token type.
+     * @dev An ERC1155-compliant smart contract MUST call this function on the token recipient contract, at the end of a `safeTransferFrom` after the balance has been updated.
+     * This function MUST return `bytes4(keccak256("onERC1155Received(address,address,uint256,uint256,bytes)"))` (i.e. 0xf23a6e61) if it accepts the transfer.
+     * This function MUST revert if it rejects the transfer.
+     * Return of any other value than the prescribed keccak256 generated value MUST result in the transaction being reverted by the caller.
+     * @param //operator The address which initiated the transfer (i.e. msg.sender).
+     * @param from The address which previously owned the token.
+     * @param id The ID of the token being transferred.
+     * @param //value The amount of tokens being transferred.
+     * @param //data Additional data with no specified format.
+     * @return `bytes4(keccak256("onERC1155Received(address,address,uint256,uint256,bytes)"))`.
+     */
     function onERC1155Received(
         address /*operator*/,
         address from,
@@ -203,6 +235,19 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         return _ERC1155_RECEIVED;
     }
 
+    /**
+     * Handle the receipt of multiple ERC1155 token types.
+     * @dev An ERC1155-compliant smart contract MUST call this function on the token recipient contract, at the end of a `safeBatchTransferFrom` after the balances have been updated.
+     * This function MUST return `bytes4(keccak256("onERC1155BatchReceived(address,address,uint256[],uint256[],bytes)"))` (i.e. 0xbc197c81) if it accepts the transfer(s).
+     * This function MUST revert if it rejects the transfer(s).
+     * Return of any other value than the prescribed keccak256 generated value MUST result in the transaction being reverted by the caller.
+     * @param //operator The address which initiated the batch transfer (i.e. msg.sender).
+     * @param from The address which previously owned the token.
+     * @param ids An array containing ids of each token being transferred (order and length must match _values array).
+     * @param //values An array containing amounts of each token being transferred (order and length must match _ids array).
+     * @param //data Additional data with no specified format.
+     * @return `bytes4(keccak256("onERC1155BatchReceived(address,address,uint256[],uint256[],bytes)"))`.
+     */
     function onERC1155BatchReceived(
         address /*operator*/,
         address from,
@@ -222,12 +267,19 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         return _ERC1155_BATCH_RECEIVED;
     }
 
-    // Staking pool reward implementation
-
+    /**
+     * Sets the authorization state of the specified pool provider.
+     * @param provider The provider whose authorization state will be set.
+     * @param authorize The authorization state to set with.
+     */
     function setPoolProvider(address provider, bool authorize) external onlyOwner {
         rewardPoolProviders[provider] = authorize;
     }
 
+    /**
+     * Permanently increases the reward pool balance of the current and new snapshots.
+     * @param amount The amount to increase the reward pool balance by.
+     */
     function rewardPoolBalanceIncreased(uint128 amount) external onlyRewardPoolProvider {
         // get latest reward pool snapshot and increased it
         DividendsSnapshot memory snapshot = _getOrCreateLatestCycleSnapshot(0);
@@ -239,7 +291,11 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         rewardPoolBase = SafeMath.add(rewardPoolBase, amount).toUint128();
     }
 
-    // Staking implementation
+    /**
+     * Retrieves, or creates (if one does not already exist), a dividends snapshot for the timestamp derived from the specified offset to the current time, in seconds.
+     * @param offsetIntoFuture The offset from the current time to create the snapshot for, in seconds.
+     * @return The dividends snapshot, or a newly created one, for the timestamp derived from the specified offset to the current time.
+     */
     function _getOrCreateLatestCycleSnapshot(uint256 offsetIntoFuture) internal returns(DividendsSnapshot memory) {
         uint32 currentCycle = uint32(_getCurrentCycle(block.timestamp + offsetIntoFuture));
         uint256 totalSnapshots = dividendsSnapshots.length;
@@ -309,6 +365,14 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         return _addNewSnapshot(currentCycle, currentCycle, snapshot.stakedWeight, initialTokensToClaim);
     }
 
+    /**
+     * Adds a new dividends snapshot to the snapshot history list.
+     * @param cycleStart Starting cycle for the new snapshot.
+     * @param cycleEnd Ending cycle for the new snapshot.
+     * @param stakedWeight Initial staked weight for the new snapshot.
+     * @param tokensToClaim Initial tokens to claim balance for the new snapshot.
+     * @return snapshot The newly created snapshot.
+     */
     function _addNewSnapshot(uint32 cycleStart, uint32 cycleEnd, uint64 stakedWeight, uint128 tokensToClaim
     ) internal returns(DividendsSnapshot memory snapshot)
     {
@@ -321,15 +385,30 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         return snapshot;
     }
 
+    /**
+     * Retrieves the current cycle (index-1 based).
+     * @return The current cycle (index-1 based).
+     */
     function getCurrentCycle() public view returns(uint256) {
         // index is 1 based
         return _getCurrentCycle(block.timestamp);
     }
 
+    /**
+     * Retrieves the cycle (index-1 based) at the specified timestamp.
+     * @param ts The timestamp for which the cycle is derived from.
+     * @return The cycle (index-1 based) at the specified timestamp.
+     */
     function _getCurrentCycle(uint256 ts) internal view returns(uint256) {
         return (ts - startTimestamp) / cycleLength + 1;
     }
 
+    /**
+     * Retrieves the payout period (index-1 based) for the specified cycle and payout period length.
+     * @param cycle The cycle within the payout period to retrieve.
+     * @param payoutPeriodLength_ Length of a dividend payout period, in cycles.
+     * @return The payout period (index-1 based) for the specified cycle and payout period length.
+     */
     function _getPayoutPeriod(uint256 cycle, uint256 payoutPeriodLength_) internal pure returns(uint256) {
         if (cycle == 0) {
             return 0;
@@ -338,11 +417,21 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         return (cycle - 1) / payoutPeriodLength_ + 1;
     }
 
+    /**
+     * Retrieves the first unclaimed payout period (index-1 based) and number of unclaimed payout periods.
+     * @return The first unclaimed payout period (index-1 based).
+     * @return The number of unclaimed payout periods.
+     */
     function getUnclaimedPayoutPeriods() external view returns(uint256, uint256) {
         StakerState memory state = stakeStates[msg.sender];
         return (_getPayoutPeriod(state.depositCycle, payoutPeriodLength), _getUnclaimedPayoutPeriods(msg.sender));
     }
 
+    /**
+     * Retrieves the number of unclaimed payout periods for the specified staker.
+     * @param sender The staker whose number of unclaimed payout periods will be retrieved.
+     * @return The number of unclaimed payout periods for the specified staker.
+     */
     function _getUnclaimedPayoutPeriods(address sender) internal view returns(uint256) {
         StakerState memory state = stakeStates[sender];
         if (state.stakedWeight == 0) {
@@ -354,8 +443,11 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         return _getPayoutPeriod(getCurrentCycle(), payoutPeriodLength_) - payoutPeriodToClaim;
     }
 
-    // almost complete copypaste of claimDividends
-    // estimate payout for [startPayoutPeriod, startPayoutPeriod + payoutPeriodsToClaim - 1] range
+    /**
+     * Estimates the total claimable dividends, starting from the specified payout period over the specified number of payout periods to claim.
+     * @param startPayoutPeriod The starting payout period to begin estimating the total claimable dividends.
+     * @param payoutPeriodsToClaim The number of payout periods to estimate the total claimable dividends for.
+     */
     function estimatePayout(uint256 startPayoutPeriod, uint256 payoutPeriodsToClaim) external view returns(uint128) {
         if (dividendsSnapshots.length == 0) {
             return 0;
@@ -481,7 +573,10 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         return totalDivsToClaim;
     }
 
-    // claim X payout periods. Will not claim more than X periods to control gas consumption
+    /**
+     * Claims the dividends for the specified number of payout periods.
+     * @param payoutPeriodsToClaim The maximum number of dividend payout periods to claim for.
+     */
     function claimDividends(uint256 payoutPeriodsToClaim) external isEnabled {
         if (payoutPeriodsToClaim == 0) {
             return;
@@ -689,6 +784,11 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         emit Withdrawal(msg.sender, tokenId, currentCycle);
     }
 
+    /**
+     * Stakes the NFT received by the contract, referenced by its specified token identifier and owner.
+     * @param tokenId Identifier of the staked NFT.
+     * @param tokenOwner Owner of the staked NFT.
+     */
     function _depositNft(uint256 tokenId, address tokenOwner) internal isEnabled whenNotPaused {
         require(whitelistedNftContract == msg.sender, "NftStaking: Caller is not the whitelisted NFT contract");
         require(_isCorrectTokenType(tokenId), "NftStaking: Attempting to deposit an invalid token type");
@@ -722,6 +822,12 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         emit Deposit(tokenOwner, tokenId, getCurrentCycle());
     }
 
+    /**
+     * Searches for the dividend snapshot containing the specified cycle. If the snapshot cannot be found then the closest snapshot by cycle range is returned.
+     * @param cycle The cycle for which the dividend snapshot is searched for.
+     * @return snapshot If found, the snapshot containing the specified cycle, otherwise the closest snapshot to the cycle.
+     * @return snapshotIndex The index (index-0 based) of the returned snapshot.
+     */
     function _findDividendsSnapshot(uint256 cycle)
     internal
     view

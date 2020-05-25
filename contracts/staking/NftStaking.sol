@@ -210,60 +210,73 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
     }
 
     // Staking implementation
-    function _getOrCreateLatestCycleSnapshot(uint offsetIntoFuture) internal returns(DividendsSnapshot memory snapshot) {
+    function _getOrCreateLatestCycleSnapshot(uint offsetIntoFuture) internal returns(DividendsSnapshot memory) {
         uint32 currentCycle = uint32(_getCurrentCycle(block.timestamp + offsetIntoFuture));
-
         uint totalSnapshots = dividendsSnapshots.length;
 
-        // if there are some snapshots - pick latest
-        if (totalSnapshots != 0) {
-            snapshot = dividendsSnapshots[totalSnapshots - 1];
+        // empty snapshot history
+        if (totalSnapshots == 0) {
+            // create the very first snapshot for the current cycle
+            return _addNewSnapshot(currentCycle, currentCycle, 0, 0);
+        }
+
+        // get the latest snapshot
+        DividendsSnapshot memory snapshot = dividendsSnapshots[totalSnapshots - 1];
+
+        // latest snapshot ends on the current cycle
+        if (snapshot.cycleRangeEnd == currentCycle) {
+            // this is the very latest snapshot
+            return snapshot;
         }
 
         uint payoutPeriodLength_ = payoutPeriodLength;
         uint currentPayoutPeriod = _getPayoutPeriod(getCurrentCycle(), payoutPeriodLength_);
         uint128 initialTokensToClaim = 0;
 
-        // latest snapshot is not for current cycle - create new one, +20k gas
-        if (snapshot.cycleRangeEnd != currentCycle || totalSnapshots == 0) {
-            // if current old snapshot has missing cycle - override end range to include all missed cycles
-            if (totalSnapshots != 0 && snapshot.cycleRangeEnd != currentCycle - 1) {
+        // latest snapshot is for the current payout period
+        if (currentPayoutPeriod == _getPayoutPeriod(snapshot.cycleRangeStart, payoutPeriodLength_)) {
+            // latest snapshot didn't end on the previous cycle
+            if (snapshot.cycleRangeEnd != currentCycle - 1) {
+                // simply extend the latest snapshot to capture the unaccounted
+                // cycles from where the last snapshot ended, up-to the previous
+                // cycle (inclusive)
                 snapshot.cycleRangeEnd = currentCycle - 1;
-
-                // if snapshot is between 2 payout periods
-                if (currentPayoutPeriod != _getPayoutPeriod(snapshot.cycleRangeStart, payoutPeriodLength_)) {
-                    // Note that we don't have to create new snapshot in this case because prepopulated pool distributes based on staked duration
-                    // tokensToClaim only populated from poolProviders and it triggers new snapshot creation and tokensToClaim is SHARED between several days
-                    // unlike predefined initial distribution from the company
-                    uint32 rangeEnd = snapshot.cycleRangeEnd;
-
-                    // align current snapshot to the end of the previous payout period
-                    snapshot.cycleRangeEnd = uint32((currentPayoutPeriod-1) * payoutPeriodLength_);
-
-                    // if anything has changed - update it
-                    if (snapshot.cycleRangeEnd != rangeEnd) {
-                        dividendsSnapshots[totalSnapshots - 1] = snapshot;
-                    }
-
-                    // if somebody staked already and there are cycles skipped
-                    if (snapshot.stakedWeight != 0 && snapshot.cycleRangeEnd + 1 != currentCycle) {
-                        snapshot = _addNewSnapshot(snapshot.cycleRangeEnd + 1, currentCycle - 1, snapshot.stakedWeight, 0);
-                    }
-                } else {
-                    dividendsSnapshots[totalSnapshots - 1] = snapshot;
-                }
+                dividendsSnapshots[totalSnapshots - 1] = snapshot;
             }
 
-            // if old snapshot has no staked weight - move it to the new snapshot
             if (snapshot.stakedWeight == 0) {
                 initialTokensToClaim = snapshot.tokensToClaim;
             }
 
-            // create new snapshot, with staked weight from previous snapshot
-            snapshot = _addNewSnapshot(currentCycle, currentCycle, snapshot.stakedWeight, initialTokensToClaim);
+            // create a new latest snapshot for the current cycle
+            return _addNewSnapshot(currentCycle, currentCycle, snapshot.stakedWeight, initialTokensToClaim);
         }
 
-        return snapshot;
+        // latest snapshot is for an earlier payout period
+
+        uint32 previousPayoutPeriodCycleEnd = uint32((currentPayoutPeriod - 1) * payoutPeriodLength_);
+
+        // latest snapshot didn't end on the end of the previous payout period
+        if (snapshot.cycleRangeEnd != previousPayoutPeriodCycleEnd) {
+            // align current snapshot to the end of the previous payout period
+            snapshot.cycleRangeEnd = previousPayoutPeriodCycleEnd;
+            dividendsSnapshots[totalSnapshots - 1] = snapshot;
+        }
+
+        // there are tokens staked and cycles unaccounted for in the current
+        // payout period
+        if ((snapshot.stakedWeight != 0) && (snapshot.cycleRangeEnd != currentCycle - 1)) {
+            // create a new snapshot to capture the unaccounted cycles in the
+            // current payout period, up-to the previous cycle (inclusive)
+            snapshot = _addNewSnapshot(snapshot.cycleRangeEnd + 1, currentCycle - 1, snapshot.stakedWeight, 0);
+        }
+
+        if (snapshot.stakedWeight == 0) {
+            initialTokensToClaim = snapshot.tokensToClaim;
+        }
+
+        // create a new latest snapshot for the current cycle
+        return _addNewSnapshot(currentCycle, currentCycle, snapshot.stakedWeight, initialTokensToClaim);
     }
 
     function _addNewSnapshot(uint32 cycleStart, uint32 cycleEnd, uint64 stakedWeight, uint128 tokensToClaim

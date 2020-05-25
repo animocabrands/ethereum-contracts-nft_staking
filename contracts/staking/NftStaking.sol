@@ -104,6 +104,21 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
 
     mapping(uint => uint128) private _initialTokenDistribution; // payout period => per-cycle tokens distribution
 
+    modifier divsClaimed(address sender) {
+        require(_getUnclaimedPayoutPeriods(sender) == 0, "NftStaking: Dividends are not claimed");
+        _;
+    }
+
+    modifier onlyRewardPoolProvider() {
+        require(rewardPoolProviders[msg.sender], "NftStaking: Not a pool reward provider");
+        _;
+    }
+
+    modifier isEnabled() {
+        require(!_disabled, "NftStaking: Staking operations are disabled");
+        _;
+    }
+
     /**
      * @dev Constructor.
      * @param cycleLength_ Length of a cycle, in seconds.
@@ -169,21 +184,6 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
 
     function disable() public onlyOwner {
         _disabled = true;
-    }
-
-    modifier divsClaimed(address sender) {
-        require(_getUnclaimedPayoutPeriods(sender) == 0, "NftStaking: Dividends are not claimed");
-        _;
-    }
-
-    modifier onlyRewardPoolProvider() {
-        require(rewardPoolProviders[msg.sender], "NftStaking: Not a pool reward provider");
-        _;
-    }
-
-    modifier isEnabled() {
-        require(!_disabled, "NftStaking: Staking operations are disabled");
-        _;
     }
 
     function onERC1155Received(

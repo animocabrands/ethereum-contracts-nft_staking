@@ -623,7 +623,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
             tokensInfo[tokenId].owner = address(0);
 
             // decrease stake weight based on NFT value
-            uint64 nftWeight = uint64(valueStakeWeights[valueFromTokenId(tokenId)]);
+            uint64 nftWeight = uint64(valueStakeWeights[_valueFromTokenId(tokenId)]);
 
             // Decrease staking weight for every snapshot for the current payout period
             uint payoutPeriodLength_ = payoutPeriodLength;
@@ -691,14 +691,14 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
 
     function _depositNft(uint tokenId, address tokenOwner) internal isEnabled whenNotPaused {
         require(whitelistedNftContract == msg.sender, "NftStaking: Caller is not the whitelisted NFT contract");
-        require(isCorrectTokenType(tokenId), "NftStaking: Attempting to deposit an invalid token type");
+        require(_isCorrectTokenType(tokenId), "NftStaking: Attempting to deposit an invalid token type");
 
         TokenInfo memory tokenInfo;
         tokenInfo.depositTimestamp = uint64(block.timestamp);
         tokenInfo.owner = tokenOwner;
 
         // add weight based on car value
-        uint64 nftWeight = uint64(valueStakeWeights[valueFromTokenId(tokenId)]);
+        uint64 nftWeight = uint64(valueStakeWeights[_valueFromTokenId(tokenId)]);
 
         // increase current snapshot total staked weight
         DividendsSnapshot memory snapshot = _getOrCreateLatestCycleSnapshot(freezeDurationAfterStake);
@@ -750,8 +750,20 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         return (snapshot, mid);
     }
 
-    function isCorrectTokenType(uint id) internal virtual pure returns(bool);
+    /**
+     * Validates whether or not the supplied NFT identifier is the correct token
+     * type allowable for staking.
+     * @param id NFT identifier used to determine if the token is valid for staking.
+     * @return True if the token can be staked, false otherwise.
+     */
+    function _isCorrectTokenType(uint id) internal virtual pure returns(bool);
 
-    function valueFromTokenId(uint tokenId) internal virtual pure returns(uint);
+    /**
+     * Retrieves NFT token classification (e.g. tier, rarity, category) from the
+     * given token identifier.
+     * @param tokenId The token identifier from which the classification value is retrieved from.
+     * @return The retrieved token classification value.
+     */
+    function _valueFromTokenId(uint tokenId) internal virtual pure returns(uint);
 
 }

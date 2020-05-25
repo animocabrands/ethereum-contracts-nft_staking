@@ -19,12 +19,12 @@ contract NftStakingTestableMock is NftStakingTestable {
     NftStakingTestable(cycleLength_, payoutPeriodLength_, freezeDurationAfterStake_, rewardPoolBase_, whitelistedNftContract_, dividendToken_, values, valueWeights)
     public {}
 
-    function isCorrectTokenType(uint tokenId) internal virtual override pure returns(bool) {
+    function _isCorrectTokenType(uint tokenId) internal virtual override pure returns(bool) {
         uint tokenType = (tokenId & (0xFF << 240)) >> 240;
         return tokenType == 1;
     }
 
-    function valueFromTokenId(uint tokenId) internal virtual override pure returns(uint) {
+    function _valueFromTokenId(uint tokenId) internal virtual override pure returns(uint) {
         return (tokenId & (0xFF << 176)) >> 176;
     }
 

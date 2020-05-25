@@ -12,7 +12,8 @@ const AssetsInventory = contract.fromArtifact("AssetsInventoryMock");
 const ERC20WithOperators = contract.fromArtifact("ERC20WithOperatorsMock");
 
 const DayInSeconds = 86400;
-const PayoutPeriodLength = new BN(7); // days
+const CycleLength = new BN(DayInSeconds);
+const PayoutPeriodLength = new BN(7);
 
 const FreezePeriodSeconds = new BN(DayInSeconds);
 const FreezePeriodInDays = Math.ceil(FreezePeriodSeconds.toNumber() / DayInSeconds);
@@ -167,6 +168,7 @@ describe("NftStaking", function () {
 
         this.dividendToken = await ERC20WithOperators.new(DividendTokenInitialBalance, { from: creator });
         this.stakingContract = await NftStaking.new(
+            CycleLength,
             PayoutPeriodLength,
             FreezePeriodSeconds,
             this.nftContract.address,

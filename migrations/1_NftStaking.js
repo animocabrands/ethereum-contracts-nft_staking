@@ -4,7 +4,8 @@ const { BN } = require('@openzeppelin/test-helpers');
 const DayInSeconds = 86400;
 const FreezePeriodSeconds = new BN(DayInSeconds);
 const DividendTokenInitialBalance = new BN("100000000000000000000000");
-const PayoutPeriodLength = new BN(7); // days
+const CycleLength = new BN(DayInSeconds);
+const PayoutPeriodLength = new BN(7);
 const NftStakingMock = artifacts.require("NftStakingMock");
 const AssetsInventoryMock = artifacts.require("AssetsInventoryMock");
 const ERC20FullMock = artifacts.require("ERC20FullMock");
@@ -47,6 +48,7 @@ module.exports = async (deployer, network, accounts) => {
     }
 
     const result = await deployer.deploy(NftStakingMock,
+        CycleLength,
         PayoutPeriodLength,
         FreezePeriodSeconds,
         this.nftContract.address,

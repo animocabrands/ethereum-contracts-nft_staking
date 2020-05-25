@@ -7,14 +7,14 @@ import "../../staking/NftStakingTestable.sol";
 contract NftStakingTestableMock is NftStakingTestable {
 
     constructor(
-        uint payoutPeriodLength,
-        uint freezeDurationAfterStake,
-        address whitelistedNftContract,
-        address dividendToken,
+        uint payoutPeriodLength_,
+        uint freezeDurationAfterStake_,
+        address whitelistedNftContract_,
+        address dividendToken_,
         uint[] memory values,
         uint[] memory valueWeights
     )
-    NftStakingTestable(payoutPeriodLength, freezeDurationAfterStake, whitelistedNftContract, dividendToken, values, valueWeights)
+    NftStakingTestable(payoutPeriodLength_, freezeDurationAfterStake_, whitelistedNftContract_, dividendToken_, values, valueWeights)
     public {}
 
     function isCorrectTokenType(uint tokenId) internal virtual override pure returns(bool) {
@@ -24,5 +24,9 @@ contract NftStakingTestableMock is NftStakingTestable {
 
     function valueFromTokenId(uint tokenId) internal virtual override pure returns(uint) {
         return (tokenId & (0xFF << 176)) >> 176;
+    }
+
+    function getCurrentPayoutPeriod() public view returns (uint) {
+        return _getPayoutPeriod(getCurrentCycle(), payoutPeriodLength);
     }
 }

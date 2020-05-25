@@ -109,7 +109,7 @@ describe("NftStaking", function () {
     async function debug_PrintAllSnapshots() {
         const t = (await this.stakingContract.totalSnapshots()).toNumber();
         for (let k = 0; k < t; ++k) {
-            const ss = await this.stakingContract._dividendsSnapshots(k);
+            const ss = await this.stakingContract.dividendsSnapshots(k);
 
             for (let key in ss) {
                 if (!isNaN(key)) continue;
@@ -138,7 +138,7 @@ describe("NftStaking", function () {
     }
 
     async function debug_state(from) {
-        const state = await this.stakingContract._stakeStates(from);
+        const state = await this.stakingContract.stakeStates(from);
 
         console.log("depositCycle", state.depositCycle.toNumber());
         console.log("stakedWeight", state.stakedWeight.toNumber());
@@ -208,16 +208,16 @@ describe("NftStaking", function () {
     describe("Reward Pool", function () {
         before(doFreshDeploy);
 
-        it("addPoolProvider must fail when called by non-owner", async function () {
-            expectRevert.unspecified(this.stakingContract.addPoolProvider(rewardPoolProvider, { from: rewardPoolProvider }));
+        it("setPoolProvider (true) must fail when called by non-owner", async function () {
+            expectRevert.unspecified(this.stakingContract.setPoolProvider(rewardPoolProvider, true, { from: rewardPoolProvider }));
         });
 
-        it("addPoolProvider must not fail when called by owner", async function () {
-            await this.stakingContract.addPoolProvider(rewardPoolProvider, { from: creator });
+        it("setPoolProvider (true) must not fail when called by owner", async function () {
+            await this.stakingContract.setPoolProvider(rewardPoolProvider, true, { from: creator });
         });
 
-        it("reward pool provider has been authorized when added", async function () {
-            const authorized = await this.stakingContract._rewardPoolProviders(rewardPoolProvider);
+        it("reward pool provider has been authorized when set (true)", async function () {
+            const authorized = await this.stakingContract.rewardPoolProviders(rewardPoolProvider);
             authorized.should.be.true;
         });
 
@@ -227,22 +227,22 @@ describe("NftStaking", function () {
             await this.stakingContract.rewardPoolBalanceIncreased(tokensAmount, { from: rewardPoolProvider });
             const finalNumSnapshots = await this.stakingContract.totalSnapshots();
             finalNumSnapshots.should.be.bignumber.equal(initialNumSnapshots.addn(1));
-            snapshot = await this.stakingContract._dividendsSnapshots(finalNumSnapshots.toNumber() - 1);
+            snapshot = await this.stakingContract.dividendsSnapshots(finalNumSnapshots.toNumber() - 1);
             snapshot.tokensToClaim.should.be.bignumber.equal(tokensAmount);
         });
 
-        it("removePoolProvider must fail when called by non-owner", async function () {
+        it("setPoolProvider (false) must fail when called by non-owner", async function () {
             expectRevert.unspecified(
-                this.stakingContract.removePoolProvider(rewardPoolProvider, { from: rewardPoolProvider })
+                this.stakingContract.setPoolProvider(rewardPoolProvider, false, { from: rewardPoolProvider })
             );
         });
 
-        it("removePoolProvider must not fail when called by owner", async function () {
-            await this.stakingContract.removePoolProvider(rewardPoolProvider, { from: creator });
+        it("setPoolProvider (false) must not fail when called by owner", async function () {
+            await this.stakingContract.setPoolProvider(rewardPoolProvider, false, { from: creator });
         });
 
-        it("remove pool provider has been deauthorized when removed", async function () {
-            const authorized = await this.stakingContract._rewardPoolProviders(rewardPoolProvider);
+        it("reward pool provider has been deauthorized when set (false)", async function () {
+            const authorized = await this.stakingContract.rewardPoolProviders(rewardPoolProvider);
             authorized.should.be.false;
         });
 
@@ -371,7 +371,7 @@ describe("NftStaking", function () {
                 await nftContract.mintNonFungible(staker, nft.tokenId, { from: creator });
                 await expectRevert(
                     nftContract.transferFrom(staker, this.stakingContract.address, nft.tokenId, { from: staker }),
-                    "NftStaking: Trying to stake non-allowed NFT"
+                    "NftStaking: Caller is not the whitelisted NFT contract"
                 );
             });
 
@@ -389,7 +389,7 @@ describe("NftStaking", function () {
                         EmptyByte,
                         { from: staker }
                     ),
-                    "NftStaking: Trying to stake non-allowed NFT"
+                    "NftStaking: Caller is not the whitelisted NFT contract"
                 );
             });
 
@@ -401,7 +401,7 @@ describe("NftStaking", function () {
                         it(`with type ${nft.type}`, async function () {
                             await expectRevert(
                                 this.nftContract.transferFrom(staker, this.stakingContract.address, nft.tokenId, { from: staker }),
-                                "NftStaking: Trying to stake non-car NFT"
+                                "NftStaking: Attempting to deposit an invalid token type"
                             );
                         });
                     }
@@ -420,12 +420,12 @@ describe("NftStaking", function () {
                 });
 
                 it("must have staked weight of 111", async function () {
-                    const stakerState = await this.stakingContract._stakeStates(staker);
+                    const stakerState = await this.stakingContract.stakeStates(staker);
                     stakerState.stakedWeight.toNumber().should.be.equal(111);
                 });
 
                 it("must have depositCycle == " + (1 + FreezePeriodInDays), async function () {
-                    const stakerState = await this.stakingContract._stakeStates(staker);
+                    const stakerState = await this.stakingContract.stakeStates(staker);
                     stakerState.depositCycle.toNumber().should.be.equal(1 + FreezePeriodInDays);
                 });
             });
@@ -442,7 +442,7 @@ describe("NftStaking", function () {
                             NonCarNFTs.map(x => 1), EmptyByte,
                             { from: staker }
                         ),
-                        "NftStaking: Trying to stake non-car NFT"
+                        "NftStaking: Attempting to deposit an invalid token type"
                     );
                 });
 
@@ -467,12 +467,12 @@ describe("NftStaking", function () {
                 });
 
                 it("must have staked weight == 111", async function () {
-                    const stakerState = await this.stakingContract._stakeStates(staker);
+                    const stakerState = await this.stakingContract.stakeStates(staker);
                     stakerState.stakedWeight.toNumber().should.be.equal(111);
                 });
 
                 it("must have depositCycle == 2", async function () {
-                    const stakerState = await this.stakingContract._stakeStates(staker);
+                    const stakerState = await this.stakingContract.stakeStates(staker);
                     stakerState.depositCycle.toNumber().should.be.equal(2);
                 });
             });
@@ -483,7 +483,7 @@ describe("NftStaking", function () {
                 const periodsToAdvance = 3;
 
                 it("staker must have depositCycle == 0 before staking", async function () {
-                    const stakerState = await this.stakingContract._stakeStates(staker);
+                    const stakerState = await this.stakingContract.stakeStates(staker);
                     stakerState.depositCycle.toNumber().should.be.equal(0);
                 });
 
@@ -495,13 +495,13 @@ describe("NftStaking", function () {
                 const targetDepositCycle = periodsToAdvance * 7 + 1 + FreezePeriodInDays;
                 describe(`staker must have depositCycle == ${targetDepositCycle}`, function () {
                     it("immediately after staking", async function () {
-                        const stakerState = await this.stakingContract._stakeStates(staker);
+                        const stakerState = await this.stakingContract.stakeStates(staker);
                         stakerState.depositCycle.toNumber().should.be.equal(targetDepositCycle);
                     });
 
                     it("after 2 additional payout periods after staking", async function () {
                         await time.increase(PayoutPeriodLengthSeconds * 2);
-                        const stakerState = await this.stakingContract._stakeStates(staker);
+                        const stakerState = await this.stakingContract.stakeStates(staker);
                         stakerState.depositCycle.toNumber().should.be.equal(targetDepositCycle);
                     });
                 });
@@ -836,7 +836,7 @@ describe("NftStaking", function () {
             });
 
             it("must fail to withdraw within frozen period", async function () {
-                await expectRevert(this.stakingContract.withdrawNft(CarNFTs[0].tokenId, { from: staker }), "NftStaking: Token is frozen -- Reason given: NftStaking: Token is frozen");
+                await expectRevert(this.stakingContract.withdrawNft(CarNFTs[0].tokenId, { from: staker }), "NftStaking: Staking freeze duration has not yet elapsed");
             });
 
             it("must able to withdraw right after frozen period", async function () {
@@ -862,7 +862,7 @@ describe("NftStaking", function () {
             it("must fail to withdraw 2nd NFT", async function () {
                 await expectRevert(
                     this.stakingContract.withdrawNft(CarNFTs[1].tokenId, { from: staker }),
-                    "NftStaking: Token is frozen -- Reason given: NftStaking: Token is frozen"
+                    "NftStaking: Staking freeze duration has not yet elapsed"
                 );
             });
 
@@ -914,7 +914,7 @@ describe("NftStaking", function () {
             });
 
             it(`must have staked weight == ${stakedWeight}`, async function () {
-                const stakerState = await this.stakingContract._stakeStates(staker);
+                const stakerState = await this.stakingContract.stakeStates(staker);
                 stakerState.stakedWeight.toNumber().should.be.equal(stakedWeight);
             });
 
@@ -922,7 +922,7 @@ describe("NftStaking", function () {
             for (const ss of snapshots) {
                 const i = ssIndex;
                 it(`must have snapshot #${i} stakedWeight == ${ss}`, async function () {
-                    const snapshot = await this.stakingContract._dividendsSnapshots(i);
+                    const snapshot = await this.stakingContract.dividendsSnapshots(i);
                     snapshot.stakedWeight.toNumber().should.be.equal(ss);
                 });
                 ssIndex++;
@@ -1121,7 +1121,7 @@ describe("NftStaking", function () {
 
             describe(`snapshot #0`, function () {
                 before(async function () {
-                    this.snapshot = await this.stakingContract._dividendsSnapshots(0);
+                    this.snapshot = await this.stakingContract.dividendsSnapshots(0);
                 });
 
                 testSnapshot(2, 7, 1, 0);
@@ -1129,7 +1129,7 @@ describe("NftStaking", function () {
 
             describe(`snapshot #1`, function () {
                 before(async function () {
-                    this.snapshot = await this.stakingContract._dividendsSnapshots(1);
+                    this.snapshot = await this.stakingContract.dividendsSnapshots(1);
                 });
 
                 testSnapshot(8, 8, 1, 0);
@@ -1137,7 +1137,7 @@ describe("NftStaking", function () {
 
             describe(`snapshot #2`, function () {
                 before(async function () {
-                    this.snapshot = await this.stakingContract._dividendsSnapshots(2);
+                    this.snapshot = await this.stakingContract.dividendsSnapshots(2);
                 });
 
                 testSnapshot(9, 14, 2, 0);
@@ -1145,7 +1145,7 @@ describe("NftStaking", function () {
 
             describe(`snapshot #3`, function () {
                 before(async function () {
-                    this.snapshot = await this.stakingContract._dividendsSnapshots(3);
+                    this.snapshot = await this.stakingContract.dividendsSnapshots(3);
                 });
 
                 testSnapshot(15, 15, 2, 0);
@@ -1153,7 +1153,7 @@ describe("NftStaking", function () {
 
             describe(`snapshot #4`, function () {
                 before(async function () {
-                    this.snapshot = await this.stakingContract._dividendsSnapshots(4);
+                    this.snapshot = await this.stakingContract.dividendsSnapshots(4);
                 });
 
                 testSnapshot(16, 16, 3, 0);

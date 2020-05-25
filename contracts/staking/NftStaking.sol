@@ -47,6 +47,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
     uint256 public immutable cycleLength; // length of a cycle in seconds
     uint public payoutPeriodLength;
     uint public freezeDurationAfterStake;
+    uint128 public rewardPoolBase; // amount of reward pool tokens to set as the initial tokens to claim when a new snapshot is created.
 
     mapping(address => bool) public rewardPoolProviders;
     mapping(address => StakerState) public stakeStates;
@@ -65,6 +66,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
      * @param cycleLength_ Length of a cycle, in seconds.
      * @param payoutPeriodLength_ Length of a period, in cycles.
      * @param freezeDurationAfterStake_ Initial duration that a newly staked NFT is locked for before it can be withdrawn from staking, in seconds.
+     * @param rewardPoolBase_ Amount of reward pool tokens to set as the initial tokens to claim when a new snapshot is created.
      * @param whitelistedNftContract_ Contract that has been whitelisted to be able to perform transfer operations of staked NFTs.
      * @param dividendToken_ The ERC20-based token used in dividend payouts.
      * @param values NFT token classifications (e.g. tier, rarity, category).
@@ -74,6 +76,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         uint256 cycleLength_,
         uint payoutPeriodLength_,
         uint freezeDurationAfterStake_,
+        uint128 rewardPoolBase_,
         address whitelistedNftContract_,
         address dividendToken_,
         uint[] memory values,
@@ -87,6 +90,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         cycleLength = cycleLength_;
         payoutPeriodLength = payoutPeriodLength_;
         freezeDurationAfterStake = freezeDurationAfterStake_;
+        rewardPoolBase = rewardPoolBase_;
         startTimestamp = block.timestamp;
         whitelistedNftContract = whitelistedNftContract_;
         dividendToken = dividendToken_;
@@ -186,17 +190,22 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         DividendsSnapshot memory snapshot = _getOrCreateLatestCycleSnapshot(0);
         snapshot.tokensToClaim = SafeMath.add(snapshot.tokensToClaim, amount).toUint128();
         dividendsSnapshots[dividendsSnapshots.length - 1] = snapshot;
+
+        // update the reward pool base amount to persist the change for new
+        // snapshots created, moving forward
+        rewardPoolBase = SafeMath.add(rewardPoolBase, amount).toUint128();
     }
 
     // Staking implementation
     function _getOrCreateLatestCycleSnapshot(uint offsetIntoFuture) internal returns(DividendsSnapshot memory) {
         uint32 currentCycle = uint32(_getCurrentCycle(block.timestamp + offsetIntoFuture));
         uint totalSnapshots = dividendsSnapshots.length;
+        uint128 initialTokensToClaim = rewardPoolBase;
 
         // empty snapshot history
         if (totalSnapshots == 0) {
             // create the very first snapshot for the current cycle
-            return _addNewSnapshot(currentCycle, currentCycle, 0, 0);
+            return _addNewSnapshot(currentCycle, currentCycle, 0, initialTokensToClaim);
         }
 
         // get the latest snapshot
@@ -210,7 +219,6 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
 
         uint payoutPeriodLength_ = payoutPeriodLength;
         uint currentPayoutPeriod = _getPayoutPeriod(getCurrentCycle(), payoutPeriodLength_);
-        uint128 initialTokensToClaim = 0;
 
         // latest snapshot is for the current payout period
         if (currentPayoutPeriod == _getPayoutPeriod(snapshot.cycleRangeStart, payoutPeriodLength_)) {
@@ -247,7 +255,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         if ((snapshot.stakedWeight != 0) && (snapshot.cycleRangeEnd != currentCycle - 1)) {
             // create a new snapshot to capture the unaccounted cycles in the
             // current payout period, up-to the previous cycle (inclusive)
-            snapshot = _addNewSnapshot(snapshot.cycleRangeEnd + 1, currentCycle - 1, snapshot.stakedWeight, 0);
+            snapshot = _addNewSnapshot(snapshot.cycleRangeEnd + 1, currentCycle - 1, snapshot.stakedWeight, initialTokensToClaim);
         }
 
         if (snapshot.stakedWeight == 0) {

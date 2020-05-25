@@ -10,12 +10,13 @@ contract NftStakingTestableMock is NftStakingTestable {
         uint256 cycleLength_,
         uint payoutPeriodLength_,
         uint freezeDurationAfterStake_,
+        uint128 rewardPoolBase_,
         address whitelistedNftContract_,
         address dividendToken_,
         uint[] memory values,
         uint[] memory valueWeights
     )
-    NftStakingTestable(cycleLength_, payoutPeriodLength_, freezeDurationAfterStake_, whitelistedNftContract_, dividendToken_, values, valueWeights)
+    NftStakingTestable(cycleLength_, payoutPeriodLength_, freezeDurationAfterStake_, rewardPoolBase_, whitelistedNftContract_, dividendToken_, values, valueWeights)
     public {}
 
     function isCorrectTokenType(uint tokenId) internal virtual override pure returns(bool) {

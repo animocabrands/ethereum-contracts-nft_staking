@@ -297,7 +297,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
      * @return The dividends snapshot, or a newly created one, for the timestamp derived from the specified offset to the current time.
      */
     function _getOrCreateLatestCycleSnapshot(uint256 offsetIntoFuture) internal returns(DividendsSnapshot memory) {
-        uint32 currentCycle = uint32(_getCurrentCycle(block.timestamp + offsetIntoFuture));
+        uint32 currentCycle = uint32(_getCycle(block.timestamp + offsetIntoFuture));
         uint256 totalSnapshots = dividendsSnapshots.length;
         uint128 initialTokensToClaim = rewardPoolBase;
 
@@ -391,7 +391,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
      */
     function getCurrentCycle() public view returns(uint256) {
         // index is 1 based
-        return _getCurrentCycle(block.timestamp);
+        return _getCycle(block.timestamp);
     }
 
     /**
@@ -399,7 +399,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
      * @param ts The timestamp for which the cycle is derived from.
      * @return The cycle (index-1 based) at the specified timestamp.
      */
-    function _getCurrentCycle(uint256 ts) internal view returns(uint256) {
+    function _getCycle(uint256 ts) internal view returns(uint256) {
         return (ts - startTimestamp) / cycleLength + 1;
     }
 

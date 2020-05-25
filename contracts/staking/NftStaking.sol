@@ -356,7 +356,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
 
     // almost complete copypaste of claimDividends
     // estimate payout for [startPayoutPeriod, startPayoutPeriod + payoutPeriodsToClaim - 1] range
-    function estimatePayout(uint startPayoutPeriod, uint payoutPeriodsToClaim) public view returns(uint128) {
+    function estimatePayout(uint startPayoutPeriod, uint payoutPeriodsToClaim) external view returns(uint128) {
         if (dividendsSnapshots.length == 0) {
             return 0;
         }

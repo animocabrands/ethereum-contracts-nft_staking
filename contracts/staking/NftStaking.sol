@@ -7,34 +7,11 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@animoca/ethereum-contracts-erc20_base/contracts/token/ERC20/IERC20.sol";
 import "@animoca/ethereum-contracts-assets_inventory/contracts/token/ERC721/IERC721.sol";
 import "@animoca/ethereum-contracts-assets_inventory/contracts/token/ERC1155/IERC1155.sol";
-import "@animoca/ethereum-contracts-assets_inventory/contracts/token/ERC1155/IERC1155TokenReceiver.sol";
+import "@animoca/ethereum-contracts-assets_inventory/contracts/token/ERC1155/ERC1155TokenReceiver.sol";
 
-/**
-    Error Codes
-
-    1 - Dividends are not claimed
-    2 - Fatal
-    3 - Trying to stake non-allowed NFT
-    4 - Trying to stake non-car NFT
-    5 - Fatal - payoutPeriodLength can't be equal 0
-    6 - Values and corresponding weights length do not match.
-    7 - Not a pool reward provider
-    8 - Fatal - not enough tokens in rewards pool
-    10 - Fatal - Staked weight underflow
-    11 - Token owner doesn't match or token was already withdrawn before
-    12 - Token is frozen
- */
-
-abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
+abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
     uint constant DAY_DURATION = 86400;
     uint constant DIVS_PRECISION = 10 ** 10;
-    uint constant MAX_UINT = 2 ^ 256 - 1;
-
-    // bytes4(keccak256("onERC1155Received(address,address,uint256,uint256,bytes)"))
-    bytes4 constant internal ERC1155_RECEIVED = 0xf23a6e61;
-
-    // bytes4(keccak256("onERC1155BatchReceived(address,address,uint256[],uint256[],bytes)"))
-    bytes4 constant internal ERC1155_BATCH_RECEIVED = 0xbc197c81;
 
     struct DividendsSnapshot {
         uint32 cycleRangeStart;
@@ -83,9 +60,10 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
         address dividendToken,
         uint[] memory values,
         uint[] memory valueWeights
-    ) internal {
-        require(payoutPeriodLength > 0, "5");
-        require(values.length == valueWeights.length, "6");
+    ) internal
+    {
+        require(payoutPeriodLength > 0, "NftStaking: Fatal - payoutPeriodLength can't be equal 0");
+        require(values.length == valueWeights.length, "NftStaking: Values and corresponding weights length do not match");
 
         _enabled = true;
 
@@ -98,6 +76,8 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
         for (uint i = 0; i < values.length; ++i) {
             _valueStakeWeights[values[i]] = valueWeights[i];
         }
+
+        _registerInterface(type(IERC1155TokenReceiver).interfaceId);
     }
 
     // receive() external payable {}
@@ -127,24 +107,18 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
     }
 
     modifier divsClaimed(address sender) {
-        require(_getUnclaimedPayoutPeriods(sender) == 0, "1");
+        require(_getUnclaimedPayoutPeriods(sender) == 0, "NftStaking: Dividends are not claimed");
         _;
     }
 
     modifier onlyRewardPoolProvider() {
-        require(_rewardPoolProviders[msg.sender], "7");
+        require(_rewardPoolProviders[msg.sender], "NftStaking: Not a pool reward provider");
         _;
     }
 
     modifier isEnabled() {
         require(_enabled);
         _;
-    }
-
-    // ERC1155TokenReceiver implementation
-
-    function supportsInterface(bytes4 interfaceId) external pure returns(bool) {
-        return interfaceId == 0x4e2312e0;
     }
 
     function onERC1155Received(
@@ -161,7 +135,7 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
     returns (bytes4)
     {
         _depositNft(id, from);
-        return ERC1155_RECEIVED;
+        return _ERC1155_RECEIVED;
     }
 
     function onERC1155BatchReceived(
@@ -180,7 +154,7 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
         for (uint i = 0; i < ids.length; ++i) {
             _depositNft(ids[i], from);
         }
-        return ERC1155_BATCH_RECEIVED;
+        return _ERC1155_BATCH_RECEIVED;
     }
 
     // Staking pool reward implementation
@@ -382,7 +356,7 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
             if (snapshot.stakedWeight > 0 && snapshot.tokensToClaim > 0) {
                 // avoid division by zero
                 uint128 tokensToClaim = uint128((state.stakedWeight * DIVS_PRECISION / snapshot.stakedWeight) * snapshot.tokensToClaim / DIVS_PRECISION);
-                require(snapshot.tokensToClaim >= tokensToClaim, "2");
+                require(snapshot.tokensToClaim >= tokensToClaim, "NftStaking: Fatal");
 
                 totalDivsToClaim += tokensToClaim;
             }
@@ -490,7 +464,7 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
             if (snapshot.stakedWeight > 0 && snapshot.tokensToClaim > 0) {
                 // avoid division by zero
                 uint128 tokensToClaim = uint128((state.stakedWeight * DIVS_PRECISION / snapshot.stakedWeight) * snapshot.tokensToClaim / DIVS_PRECISION);
-                require(snapshot.tokensToClaim >= tokensToClaim, "2");
+                require(snapshot.tokensToClaim >= tokensToClaim, "NftStaking: Fatal");
 
                 snapshot.tokensToClaim -= tokensToClaim;
                 _dividendsSnapshots[uint(snapshotIndex)] = snapshot;
@@ -559,7 +533,7 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
 
         if (totalDivsToClaim > 0) {
             // must never underflow
-            require(IERC20(_dividendToken).balanceOf(address(this)) >= totalDivsToClaim, "8");
+            require(IERC20(_dividendToken).balanceOf(address(this)) >= totalDivsToClaim, "NftStaking: Fatal - not enough tokens in rewards pool");
             require(IERC20(_dividendToken).transfer(msg.sender, totalDivsToClaim));
 
             emit ClaimedDivs(msg.sender, params.startSnapshotIndex, uint(snapshotIndex), totalDivsToClaim);
@@ -568,8 +542,8 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
 
     function withdrawNft(uint tokenId) external virtual isEnabled divsClaimed(msg.sender) {
         TokenInfo memory tokenInfo = _tokensInfo[tokenId];
-        require(tokenInfo.owner == msg.sender, "11");
-        require(block.timestamp - tokenInfo.depositTimestamp > _freezeDurationAfterStake, "12");
+        require(tokenInfo.owner == msg.sender, "NftStaking: Token owner doesn't match or token was already withdrawn before");
+        require(block.timestamp - tokenInfo.depositTimestamp > _freezeDurationAfterStake, "NftStaking: Token is frozen");
 
         // reset to indicate that token was withdrawn
         tokenInfo.owner = address(0);
@@ -603,7 +577,7 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
             startCycle = snapshot.cycleRangeEnd + 1;
 
             // must never underflow
-            require(snapshot.stakedWeight >= nftWeight, "10");
+            require(snapshot.stakedWeight >= nftWeight, "NftStaking: Fatal - Staked weight underflow");
             snapshot.stakedWeight -= nftWeight;
             _dividendsSnapshots[uint(snapshotIndex)] = snapshot;
         }
@@ -634,8 +608,8 @@ abstract contract NftStaking is Ownable, Pausable, IERC1155TokenReceiver {
     }
 
     function _depositNft(uint tokenId, address tokenOwner) internal isEnabled whenNotPaused {
-        require(_whitelistedNftContract == msg.sender, "3");
-        require(isCorrectTokenType(tokenId), "4");
+        require(_whitelistedNftContract == msg.sender, "NftStaking: Trying to stake non-allowed NFT");
+        require(isCorrectTokenType(tokenId), "NftStaking: Trying to stake non-car NFT");
 
         TokenInfo memory tokenInfo;
         tokenInfo.depositTimestamp = uint64(block.timestamp);

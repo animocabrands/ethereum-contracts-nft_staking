@@ -232,7 +232,9 @@ describe("NftStaking", function () {
         });
 
         it("removePoolProvider must fail when called by non-owner", async function () {
-            expectRevert.unspecified(this.stakingContract.removePoolProvider(rewardPoolProvider, { from: rewardPoolProvider }));
+            expectRevert.unspecified(
+                this.stakingContract.removePoolProvider(rewardPoolProvider, { from: rewardPoolProvider })
+            );
         });
 
         it("removePoolProvider must not fail when called by owner", async function () {
@@ -245,7 +247,10 @@ describe("NftStaking", function () {
         });
 
         it("rewardPoolBalanceIncreased must fail after reward pool provider removal", async function () {
-            expectRevert(this.stakingContract.rewardPoolBalanceIncreased(new BN(10), { from: rewardPoolProvider }), "7");
+            expectRevert(
+                this.stakingContract.rewardPoolBalanceIncreased(new BN(10), { from: rewardPoolProvider }),
+                "NftStaking: Not a pool reward provider"
+            );
         });
     });
 
@@ -364,7 +369,10 @@ describe("NftStaking", function () {
                 const nftContract = await AssetsInventory.new(NFCollectionMaskLength, { from: creator });
                 const nft = CarNFTs[0];
                 await nftContract.mintNonFungible(staker, nft.tokenId, { from: creator });
-                await expectRevert(nftContract.transferFrom(staker, this.stakingContract.address, nft.tokenId, { from: staker }), "3");
+                await expectRevert(
+                    nftContract.transferFrom(staker, this.stakingContract.address, nft.tokenId, { from: staker }),
+                    "NftStaking: Trying to stake non-allowed NFT"
+                );
             });
 
             it("must fail if batch NFT staked from invalid NFT contract", async function () {
@@ -372,7 +380,17 @@ describe("NftStaking", function () {
                 for (const nft of CarNFTs) {
                     await nftContract.mintNonFungible(staker, nft.tokenId, { from: creator });
                 }
-                await expectRevert(nftContract.safeBatchTransferFrom(staker, this.stakingContract.address, CarNFTs.map(x => x.tokenId), CarNFTs.map(x => 1), EmptyByte, { from: staker }), "3");
+                await expectRevert(
+                    nftContract.safeBatchTransferFrom(
+                        staker,
+                        this.stakingContract.address,
+                        CarNFTs.map(x => x.tokenId),
+                        CarNFTs.map(x => 1),
+                        EmptyByte,
+                        { from: staker }
+                    ),
+                    "NftStaking: Trying to stake non-allowed NFT"
+                );
             });
 
             describe("when single transfer is used", function () {
@@ -381,7 +399,10 @@ describe("NftStaking", function () {
                 describe("must fail if non-car NFT type is staked", function () {
                     for (const nft of NonCarNFTs) {
                         it(`with type ${nft.type}`, async function () {
-                            await expectRevert(this.nftContract.transferFrom(staker, this.stakingContract.address, nft.tokenId, { from: staker }), "4");
+                            await expectRevert(
+                                this.nftContract.transferFrom(staker, this.stakingContract.address, nft.tokenId, { from: staker }),
+                                "NftStaking: Trying to stake non-car NFT"
+                            );
                         });
                     }
                 });
@@ -413,11 +434,27 @@ describe("NftStaking", function () {
                 before(doFreshDeploy);
 
                 it("must fail if non-car NFTs are staked", async function () {
-                    await expectRevert(this.nftContract.safeBatchTransferFrom(staker, this.stakingContract.address, NonCarNFTs.map(x => x.tokenId), NonCarNFTs.map(x => 1), EmptyByte, { from: staker }), "4");
+                    await expectRevert(
+                        this.nftContract.safeBatchTransferFrom(
+                            staker,
+                            this.stakingContract.address,
+                            NonCarNFTs.map(x => x.tokenId),
+                            NonCarNFTs.map(x => 1), EmptyByte,
+                            { from: staker }
+                        ),
+                        "NftStaking: Trying to stake non-car NFT"
+                    );
                 });
 
                 it("must stake Car NFTs", async function () {
-                    await this.nftContract.safeBatchTransferFrom(staker, this.stakingContract.address, CarNFTs.map(x => x.tokenId), CarNFTs.map(x => 1), EmptyByte, { from: staker });
+                    await this.nftContract.safeBatchTransferFrom(
+                        staker,
+                        this.stakingContract.address,
+                        CarNFTs.map(x => x.tokenId),
+                        CarNFTs.map(x => 1),
+                        EmptyByte,
+                        { from: staker }
+                    );
 
                     for (const nft of CarNFTs) {
                         (await this.nftContract.ownerOf(nft.tokenId)).should.be.equal(this.stakingContract.address);
@@ -476,17 +513,40 @@ describe("NftStaking", function () {
                 const secondsToAdvance = (PayoutPeriodLengthSeconds * 4) + 1;
 
                 it("must fail staking when divs are not claimed before 2nd stake", async function () {
-                    await this.nftContract.transferFrom(staker, this.stakingContract.address, CarNFTs.filter(x => x.rarity == CarRarities.Common)[0].tokenId, { from: staker });
+                    await this.nftContract.transferFrom(
+                        staker,
+                        this.stakingContract.address,
+                        CarNFTs.filter(x => x.rarity == CarRarities.Common)[0].tokenId,
+                        { from: staker }
+                    );
                     await time.increase(secondsToAdvance);
-                    await expectRevert(this.nftContract.transferFrom(staker, this.stakingContract.address, CarNFTs.filter(x => x.rarity == CarRarities.Epic)[0].tokenId, { from: staker }), "1");
+                    await expectRevert(
+                        this.nftContract.transferFrom(
+                            staker,
+                            this.stakingContract.address,
+                            CarNFTs.filter(x => x.rarity == CarRarities.Epic)[0].tokenId,
+                            { from: staker }
+                        ),
+                        "NftStaking: Dividends are not claimed"
+                    );
                 });
 
                 it("must able to stake 2 NFTs when divs are claimed before 2nd stake", async function () {
-                    await this.nftContract.transferFrom(staker, this.stakingContract.address, CarNFTs.filter(x => x.rarity == CarRarities.Common)[0].tokenId, { from: staker });
+                    await this.nftContract.transferFrom(
+                        staker,
+                        this.stakingContract.address,
+                        CarNFTs.filter(x => x.rarity == CarRarities.Common)[0].tokenId,
+                        { from: staker }
+                    );
                     await time.increase(secondsToAdvance);
                     let unclaimedCycles = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
                     await this.stakingContract.claimDividends(unclaimedCycles[1], { from: staker });
-                    await this.nftContract.transferFrom(staker, this.stakingContract.address, CarNFTs.filter(x => x.rarity == CarRarities.Epic)[0].tokenId, { from: staker });
+                    await this.nftContract.transferFrom(
+                        staker,
+                        this.stakingContract.address,
+                        CarNFTs.filter(x => x.rarity == CarRarities.Epic)[0].tokenId,
+                        { from: staker }
+                    );
                 });
             });
         });
@@ -586,7 +646,12 @@ describe("NftStaking", function () {
                     for (let index = 0; index < 3; ++index) {
                         await time.increase(PayoutPeriodLengthSeconds);
                         await this.nftContract.mintNonFungible(otherAccounts[index], nfts[index].tokenId, { from: creator });
-                        await this.nftContract.transferFrom(otherAccounts[index], this.stakingContract.address, nfts[index].tokenId, { from: otherAccounts[index] });
+                        await this.nftContract.transferFrom(
+                            otherAccounts[index],
+                            this.stakingContract.address,
+                            nfts[index].tokenId,
+                            { from: otherAccounts[index] }
+                        );
                     }
                 });
 
@@ -767,11 +832,11 @@ describe("NftStaking", function () {
             });
 
             it("must fail to withdraw NFT staked by different account", async function () {
-                await expectRevert(this.stakingContract.withdrawNft(CarNFTs[0].tokenId, { from: otherAccounts[0] }), "11");
+                await expectRevert(this.stakingContract.withdrawNft(CarNFTs[0].tokenId, { from: otherAccounts[0] }), "NftStaking: Token owner doesn't match or token was already withdrawn before");
             });
 
             it("must fail to withdraw within frozen period", async function () {
-                await expectRevert(this.stakingContract.withdrawNft(CarNFTs[0].tokenId, { from: staker }), "12");
+                await expectRevert(this.stakingContract.withdrawNft(CarNFTs[0].tokenId, { from: staker }), "NftStaking: Token is frozen -- Reason given: NftStaking: Token is frozen");
             });
 
             it("must able to withdraw right after frozen period", async function () {
@@ -795,7 +860,10 @@ describe("NftStaking", function () {
             });
 
             it("must fail to withdraw 2nd NFT", async function () {
-                await expectRevert(this.stakingContract.withdrawNft(CarNFTs[1].tokenId, { from: staker }), "12");
+                await expectRevert(
+                    this.stakingContract.withdrawNft(CarNFTs[1].tokenId, { from: staker }),
+                    "NftStaking: Token is frozen -- Reason given: NftStaking: Token is frozen"
+                );
             });
 
             it("must able to withdraw 2nd NFTs after 1 more freeze period passed", async function () {
@@ -824,11 +892,17 @@ describe("NftStaking", function () {
             });
 
             it("must fail to withdraw 1st NFT (Common) without claiming", async function () {
-                await expectRevert(this.stakingContract.withdrawNft(nfts[0].tokenId, { from: otherAccounts[0] }), "1");
+                await expectRevert(
+                    this.stakingContract.withdrawNft(nfts[0].tokenId, { from: otherAccounts[0] }),
+                    "NftStaking: Dividends are not claimed"
+                );
             });
 
             it("must fail to withdraw 2nd NFT (Epic) without claiming", async function () {
-                await expectRevert(this.stakingContract.withdrawNft(nfts[1].tokenId, { from: otherAccounts[1] }), "1");
+                await expectRevert(
+                    this.stakingContract.withdrawNft(nfts[1].tokenId, { from: otherAccounts[1] }),
+                    "NftStaking: Dividends are not claimed"
+                );
             });
         });
 
@@ -1206,7 +1280,12 @@ describe("NftStaking", function () {
                 for (let index = 0; index < 3; ++index) {
                     await time.increase(PayoutPeriodLengthSeconds);
                     await this.nftContract.mintNonFungible(otherAccounts[index], nfts[index].tokenId, { from: creator });
-                    await this.nftContract.transferFrom(otherAccounts[index], this.stakingContract.address, nfts[index].tokenId, { from: otherAccounts[index] });
+                    await this.nftContract.transferFrom(
+                        otherAccounts[index],
+                        this.stakingContract.address,
+                        nfts[index].tokenId,
+                        { from: otherAccounts[index] }
+                    );
                 }
 
                 await time.increase(PayoutPeriodLengthSeconds);
@@ -1222,7 +1301,10 @@ describe("NftStaking", function () {
     describe("Dividends", function () {
         function testClaimAndEstimation(divsToClaim, expectedAmount, from, _expectEvent) {
             if (_expectEvent) {
-                it(`must estimate and claim ${expectedAmount} tokens when ${divsToClaim} period(s) claimed`, shouldClaimDivs(divsToClaim, expectedAmount, from, _expectEvent));
+                it(
+                    `must estimate and claim ${expectedAmount} tokens when ${divsToClaim} period(s) claimed`,
+                    shouldClaimDivs(divsToClaim, expectedAmount, from, _expectEvent)
+                );
             } else {
                 it("must not claim dividends", shouldClaimDivs(divsToClaim, expectedAmount, from, _expectEvent));
             }
@@ -1482,7 +1564,12 @@ describe("NftStaking", function () {
                 let index = 0;
                 for (let nft of nfts) {
                     await this.nftContract.mintNonFungible(otherAccounts[index], nft.tokenId, { from: creator });
-                    await this.nftContract.transferFrom(otherAccounts[index], this.stakingContract.address, nft.tokenId, { from: otherAccounts[index] });
+                    await this.nftContract.transferFrom(
+                        otherAccounts[index],
+                        this.stakingContract.address,
+                        nft.tokenId,
+                        { from: otherAccounts[index] }
+                    );
 
                     if (index == 0) {
                         await time.increase(DayInSeconds * 2);

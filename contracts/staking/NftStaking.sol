@@ -36,6 +36,21 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         uint64 depositCycle;
     }
 
+    // a struct container for getting around the stack limit of the
+    // claimDividends() and estimatePayout() functions
+    struct ClaimDivsParams {
+        uint currentPayoutPeriod;
+        uint payoutPeriodToClaim;
+        uint startSnapshotIndex;
+        int lastSnapshotIndex;
+        uint nextPayoutPeriodCycle;
+        uint dailyFixedTokens;
+        uint rangeStart;
+        uint rangeEnd;
+        uint payoutPeriodLength;
+        uint depositCycle;
+    }
+
     event InitialDistribution(uint startPeriod, uint endPeriod, uint dailyTokens);
 
     event Deposit(
@@ -315,20 +330,6 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         uint payoutPeriodLength_ = payoutPeriodLength;
         uint payoutPeriodToClaim = _getPayoutPeriod(state.depositCycle, payoutPeriodLength_);
         return _getPayoutPeriod(getCurrentCycle(), payoutPeriodLength_) - payoutPeriodToClaim;
-    }
-
-    // to bypass stack limit
-    struct ClaimDivsParams {
-        uint currentPayoutPeriod;
-        uint payoutPeriodToClaim;
-        uint startSnapshotIndex;
-        int lastSnapshotIndex;
-        uint nextPayoutPeriodCycle;
-        uint dailyFixedTokens;
-        uint rangeStart;
-        uint rangeEnd;
-        uint payoutPeriodLength;
-        uint depositCycle;
     }
 
     // almost complete copypaste of claimDividends

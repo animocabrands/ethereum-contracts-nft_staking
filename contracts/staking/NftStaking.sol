@@ -105,7 +105,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
     mapping(uint256 => uint128) private _initialTokenDistribution; // payout period => per-cycle tokens distribution
 
     modifier divsClaimed(address sender) {
-        require(_getUnclaimedPayoutPeriods(sender) == 0, "NftStaking: Dividends are not claimed");
+        require(_getUnclaimedPayoutPeriods(sender, payoutPeriodLength) == 0, "NftStaking: Dividends are not claimed");
         _;
     }
 
@@ -441,21 +441,22 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
      */
     function getUnclaimedPayoutPeriods() external view returns(uint256, uint256) {
         StakerState memory state = stakeStates[msg.sender];
-        return (_getPayoutPeriod(state.depositCycle, payoutPeriodLength), _getUnclaimedPayoutPeriods(msg.sender));
+        uint256 payoutPeriodLength_ = payoutPeriodLength;
+        return (_getPayoutPeriod(state.depositCycle, payoutPeriodLength_), _getUnclaimedPayoutPeriods(msg.sender, payoutPeriodLength_));
     }
 
     /**
      * Retrieves the number of unclaimed payout periods for the specified staker.
      * @param sender The staker whose number of unclaimed payout periods will be retrieved.
+     * @param payoutPeriodLength_ Length of a dividend payout period, in cycles.
      * @return The number of unclaimed payout periods for the specified staker.
      */
-    function _getUnclaimedPayoutPeriods(address sender) internal view returns(uint256) {
+    function _getUnclaimedPayoutPeriods(address sender, uint256 payoutPeriodLength_) internal view returns(uint256) {
         StakerState memory state = stakeStates[sender];
         if (state.stakedWeight == 0) {
             return 0;
         }
 
-        uint256 payoutPeriodLength_ = payoutPeriodLength;
         uint256 payoutPeriodToClaim = _getPayoutPeriod(state.depositCycle, payoutPeriodLength_);
         return _getCurrentPayoutPeriod(payoutPeriodLength_) - payoutPeriodToClaim;
     }
@@ -723,12 +724,13 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         require(tokenInfo.owner == msg.sender, "NftStaking: Token owner doesn't match or token was already withdrawn before");
 
         uint256 currentCycle = getCurrentCycle();
+        uint256 payoutPeriodLength_ = payoutPeriodLength;
 
         // by-pass staked weight operations if the contract is disabled, to
         // avoid unnecessary calculations and reduce the gas requirements for
         // the caller
         if (!_disabled) {
-            require(_getUnclaimedPayoutPeriods(msg.sender) == 0, "NftStaking: Dividends are not claimed");
+            require(_getUnclaimedPayoutPeriods(msg.sender, payoutPeriodLength_) == 0, "NftStaking: Dividends are not claimed");
             require(block.timestamp - tokenInfo.depositTimestamp > freezeDurationAfterStake, "NftStaking: Staking freeze duration has not yet elapsed");
 
             // reset to indicate that token was withdrawn
@@ -738,7 +740,6 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
             uint64 nftWeight = uint64(valueStakeWeights[_valueFromTokenId(tokenId)]);
 
             // Decrease staking weight for every snapshot for the current payout period
-            uint256 payoutPeriodLength_ = payoutPeriodLength;
             uint256 startCycle = (_getPayoutPeriod(currentCycle, payoutPeriodLength_) - 1) * payoutPeriodLength_ + 1;
             if (startCycle < tokenInfo.depositCycle) {
                 startCycle = tokenInfo.depositCycle;

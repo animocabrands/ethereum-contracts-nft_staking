@@ -37,7 +37,13 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
     }
 
     event InitialDistribution(uint startPeriod, uint endPeriod, uint dailyTokens);
-    event Deposit(address indexed from, uint tokenId, uint currentCycle);
+
+    event Deposit(
+        address indexed from, // original owner of the NFT
+        uint tokenId, // NFT token identifier
+        uint currentCycle // the cycle in which the token was deposited
+    );
+
     event Withdrawal(address indexed from, uint tokenId, uint currentCycle);
     event ClaimedDivs(address indexed from, uint snapshotStartIndex, uint snapshotEndIndex, uint amount);
 
@@ -690,7 +696,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
 
         dividendsSnapshots[dividendsSnapshots.length - 1] = snapshot;
 
-        emit Deposit(msg.sender, tokenId, getCurrentCycle());
+        emit Deposit(tokenOwner, tokenId, getCurrentCycle());
     }
 
     function _findDividendsSnapshot(uint cycle)

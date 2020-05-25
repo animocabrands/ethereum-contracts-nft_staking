@@ -18,22 +18,26 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
     uint constant DIVS_PRECISION = 10 ** 10;
     uint constant MAX_UINT = ~uint256(0);
 
+    // a struct container used to track aggregate changes in staked tokens and
+    // dividends, over time
     struct DividendsSnapshot {
-        uint32 cycleRangeStart;
-        uint32 cycleRangeEnd;
-        uint64 stakedWeight;
-        uint128 tokensToClaim;
+        uint32 cycleRangeStart; // starting cycle of the snapshot
+        uint32 cycleRangeEnd; // ending cycle of the snapshot
+        uint64 stakedWeight; // current total weight of all NFTs staked
+        uint128 tokensToClaim; // current total dividends available for payout across the snapshot duration
     }
 
+    // a struct container used to track a staker's aggregate staking info
     struct StakerState {
-        uint64 depositCycle;
-        uint64 stakedWeight;
+        uint64 depositCycle; // beginning cycle from which a staker may claim dividend rewards for staked NFTs
+        uint64 stakedWeight; // current total weight of NFTs staked by the staker
     }
 
+    // a struct container used to track staked tokens
     struct TokenInfo {
-        address owner;
-        uint64 depositTimestamp;
-        uint64 depositCycle;
+        address owner; // owner of the staked NFT
+        uint64 depositTimestamp; // initial deposit timestamp of the NFT, in seconds since epoch
+        uint64 depositCycle; // cycle in which the token was deposited for staking
     }
 
     // a struct container for getting around the stack limit of the
@@ -51,41 +55,59 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         uint depositCycle;
     }
 
-    event InitialDistribution(uint startPeriod, uint endPeriod, uint dailyTokens);
+    // emitted when an initial token distribution is set
+    event InitialDistribution(
+        uint startPeriod, // starting payout period for the distribution
+        uint endPeriod, // ending payout period for the distribution
+        uint dailyTokens // amount of token rewards to distribute per cycle
+    );
 
+    // emitted when an NFT is staked
     event Deposit(
         address indexed from, // original owner of the NFT
-        uint tokenId, // NFT token identifier
+        uint tokenId, // NFT identifier
         uint currentCycle // the cycle in which the token was deposited
     );
 
-    event Withdrawal(address indexed from, uint tokenId, uint currentCycle);
-    event ClaimedDivs(address indexed from, uint snapshotStartIndex, uint snapshotEndIndex, uint amount);
+    // emitted when an NFT is unstaked
+    event Withdrawal(
+        address indexed from, // original owner of the NFT
+        uint tokenId, // NFT identifier
+        uint currentCycle // the cycle in which the token was withdrawn
+    );
+
+    // emitted when dividends are claimed
+    event ClaimedDivs(
+        address indexed from, // staker claiming the dividends
+        uint snapshotStartIndex, // claim snapshot starting index
+        uint snapshotEndIndex, // claim snapshot ending index
+        uint amount // amount of dividends claimed
+    );
 
     bool private _disabled; // flags whether or not the contract is disabled
 
-    uint public startTimestamp;
-    uint256 public immutable cycleLength; // length of a cycle in seconds
-    uint public payoutPeriodLength;
-    uint public freezeDurationAfterStake;
-    uint128 public rewardPoolBase; // amount of reward pool tokens to set as the initial tokens to claim when a new snapshot is created.
+    uint public startTimestamp; // staking started timestamp, in seconds since epoch
+    uint256 public immutable cycleLength; // length of a cycle, in seconds
+    uint public payoutPeriodLength; // length of a dividend payout period, in cycles
+    uint public freezeDurationAfterStake; // initial duration that a newly staked NFT is locked before it can be with drawn from staking, in seconds
+    uint128 public rewardPoolBase; // amount of reward pool tokens to set as the initial tokens to claim when a new snapshot is created
 
-    mapping(address => bool) public rewardPoolProviders;
-    mapping(address => StakerState) public stakeStates;
-    mapping(uint => uint) public valueStakeWeights;
-    mapping(uint => TokenInfo) public tokensInfo;
+    mapping(address => bool) public rewardPoolProviders; // reward pool provider address => authorized flag
+    mapping(address => StakerState) public stakeStates; // staker address => staker state
+    mapping(uint => uint) public valueStakeWeights; // NFT classification (e.g. tier, rarity, category) => payout weight
+    mapping(uint => TokenInfo) public tokensInfo; // NFT identifier => token info
 
-    DividendsSnapshot[] public dividendsSnapshots;
+    DividendsSnapshot[] public dividendsSnapshots; // snapshot history of staking and dividend changes
 
-    address public whitelistedNftContract;
-    address public dividendToken;
+    address public whitelistedNftContract; // contract that has been whitelisted to be able to perform transfer operations of staked NFTs
+    address public dividendToken; // ERC20-based token used in dividend payouts
 
-    mapping(uint => uint128) private _initialTokenDistribution;
+    mapping(uint => uint128) private _initialTokenDistribution; // payout period => per-cycle tokens distribution
 
     /**
      * @dev Constructor.
      * @param cycleLength_ Length of a cycle, in seconds.
-     * @param payoutPeriodLength_ Length of a period, in cycles.
+     * @param payoutPeriodLength_ Length of a dividend payout period, in cycles.
      * @param freezeDurationAfterStake_ Initial duration that a newly staked NFT is locked for before it can be withdrawn from staking, in seconds.
      * @param rewardPoolBase_ Amount of reward pool tokens to set as the initial tokens to claim when a new snapshot is created.
      * @param whitelistedNftContract_ Contract that has been whitelisted to be able to perform transfer operations of staked NFTs.

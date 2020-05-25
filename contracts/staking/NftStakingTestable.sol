@@ -8,13 +8,13 @@ abstract contract NftStakingTestable is NftStaking {
 
     constructor(
         uint256 cycleLength_,
-        uint payoutPeriodLength_,
-        uint freezeDurationAfterStake_,
+        uint256 payoutPeriodLength_,
+        uint256 freezeDurationAfterStake_,
         uint128 rewardPoolBase_,
         address whitelistedNftContract_,
         address dividendToken_,
-        uint[] memory values,
-        uint[] memory valueWeights
+        uint256[] memory values,
+        uint256[] memory valueWeights
     )
     NftStaking(cycleLength_, payoutPeriodLength_, freezeDurationAfterStake_, rewardPoolBase_, whitelistedNftContract_, dividendToken_, values, valueWeights)
     public {}
@@ -43,7 +43,7 @@ abstract contract NftStakingTestable is NftStaking {
         );
     }
 
-    function dividendsSnapshot(uint targetCycle)
+    function dividendsSnapshot(uint256 targetCycle)
     public
     view
     returns(
@@ -51,7 +51,7 @@ abstract contract NftStakingTestable is NftStaking {
         uint32 cycleRangeEnd,
         uint64 stakedWeight,
         uint128 tokensToClaim,
-        int snapshotIndex
+        int256 snapshotIndex
     )
     {
         DividendsSnapshot memory snapshot;
@@ -65,11 +65,11 @@ abstract contract NftStakingTestable is NftStaking {
         );
     }
 
-    function totalSnapshots() public view returns(uint) {
+    function totalSnapshots() public view returns(uint256) {
         return dividendsSnapshots.length;
     }
 
-    function getOrCreateLatestCycleSnapshot(uint offset) public returns(
+    function getOrCreateLatestCycleSnapshot(uint256 offset) public returns(
         uint32 cycleRangeStart,
         uint32 cycleRangeEnd,
         uint64 stakedWeight,
@@ -82,7 +82,7 @@ abstract contract NftStakingTestable is NftStaking {
         tokensToClaim = snapshot.tokensToClaim;
     }
 
-    function currentPayoutPeriod() public view returns(uint) {
+    function currentPayoutPeriod() public view returns(uint256) {
         StakerState memory state = stakeStates[msg.sender];
         if (state.stakedWeight == 0) {
             return 0;

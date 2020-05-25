@@ -7,9 +7,9 @@ const RewardPoolBase = new BN(0);
 const DividendTokenInitialBalance = new BN("100000000000000000000000");
 const CycleLength = new BN(DayInSeconds);
 const PayoutPeriodLength = new BN(7);
-const NftStakingMock = artifacts.require("NftStakingMock");
-const AssetsInventoryMock = artifacts.require("AssetsInventoryMock");
-const ERC20FullMock = artifacts.require("ERC20FullMock");
+const NftStaking = artifacts.require("NftStakingMock");
+const AssetsInventory = artifacts.require("AssetsInventoryMock");
+const ERC20 = artifacts.require("ERC20WithOperatorsMock");
 
 const RarityToWeightsMap = {
     0:500,// Apex,
@@ -28,16 +28,16 @@ module.exports = async (deployer, network, accounts) => {
 
     switch(network){
         case "ganache":
-            await deployer.deploy(AssetsInventoryMock,NFCollectionMaskLength);
-            this.nftContract = await AssetsInventoryMock.deployed();
-            await deployer.deploy(ERC20FullMock,DividendTokenInitialBalance);
-            this.dividendTokenContract = await ERC20FullMock.deployed();
+            await deployer.deploy(AssetsInventory,NFCollectionMaskLength);
+            this.nftContract = await AssetsInventory.deployed();
+            await deployer.deploy(ERC20,DividendTokenInitialBalance);
+            this.dividendTokenContract = await ERC20.deployed();
             break;
         case "rinkeby":
             const nftContractAddressRinkeby = program.nftContractAddressRinkeby;
             const ERC20BaseAddressRinkeby = program.ERC20BaseAddressRinkeby;
-            this.nftContract = nftContractAddressRinkeby?await AssetsInventoryMock.at(nftContractAddressRinkeby):await AssetsInventoryMock.new(NFCollectionMaskLength);
-            this.dividendTokenContract = ERC20BaseAddressRinkeby? await ERC20FullMock.at(ERC20BaseAddressRinkeby):await ERC20FullMock.new(DividendTokenInitialBalance);
+            this.nftContract = nftContractAddressRinkeby?await AssetsInventory.at(nftContractAddressRinkeby):await AssetsInventory.new(NFCollectionMaskLength);
+            this.dividendTokenContract = ERC20BaseAddressRinkeby? await ERC20.at(ERC20BaseAddressRinkeby):await ERC20.new(DividendTokenInitialBalance);
             break;
         case "mainnet":
 
@@ -48,7 +48,7 @@ module.exports = async (deployer, network, accounts) => {
 
     }
 
-    const result = await deployer.deploy(NftStakingMock,
+    const result = await deployer.deploy(NftStaking,
         CycleLength,
         PayoutPeriodLength,
         FreezePeriodSeconds,
@@ -59,7 +59,7 @@ module.exports = async (deployer, network, accounts) => {
         Object.values(RarityToWeightsMap)
     );
 
-    this.stakingContract = await NftStakingMock.deployed();
+    this.stakingContract = await NftStaking.deployed();
 
     await this.dividendTokenContract.transfer(this.stakingContract.address, DividendTokenInitialBalance);
 

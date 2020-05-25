@@ -195,7 +195,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
      * @param amount The amount to withdraw.
      */
     function withdrawDivsPool(uint256 amount) public onlyOwner {
-        require(IERC20(dividendToken).transfer(msg.sender, amount), "9");
+        require(IERC20(dividendToken).transfer(msg.sender, amount), "NftStaking: Unknown failure when attempting to withdraw from the dividends reward pool");
     }
 
     /**
@@ -706,7 +706,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         if (totalDivsToClaim > 0) {
             // must never underflow
             require(IERC20(dividendToken).balanceOf(address(this)) >= totalDivsToClaim, "NftStaking: Insufficient tokens in the rewards pool");
-            require(IERC20(dividendToken).transfer(msg.sender, totalDivsToClaim));
+            require(IERC20(dividendToken).transfer(msg.sender, totalDivsToClaim), "NftStaking: Unknown failure when attempting to transfer claimed dividend rewards");
 
             emit ClaimedDivs(msg.sender, params.startSnapshotIndex, uint256(snapshotIndex), totalDivsToClaim);
         }

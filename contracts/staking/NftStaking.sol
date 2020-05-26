@@ -531,7 +531,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
 
         // handle overflow
         if (startPayoutPeriod + payoutPeriodsToClaim < payoutPeriodsToClaim) {
-            payoutPeriodsToClaim = payoutPeriodsToClaim - startPayoutPeriod;
+            payoutPeriodsToClaim = type(uint256).max - startPayoutPeriod;
         }
 
         StakerState memory state = stakeStates[msg.sender];

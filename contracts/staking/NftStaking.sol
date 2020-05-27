@@ -301,19 +301,21 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
      */
     function rewardPoolBalanceIncreased(uint128 amount) external onlyRewardPoolProvider {
         // get latest reward pool snapshot and increased it
-        DividendsSnapshot memory snapshot = _getOrCreateLatestCycleSnapshot(0);
-        snapshot.tokensToClaim = SafeMath.add(snapshot.tokensToClaim, amount).toUint128();
+        (DividendsSnapshot storage writeSnapshot, uint256 snapshotIndex) = _getOrCreateLatestCycleSnapshot(0);
 
-        uint256 snapshotIndex = dividendsSnapshots.length - 1;
+        // in-memory copy of the latest snapshot for reads, to save gas
+        DividendsSnapshot memory readSnapshot = writeSnapshot;
 
-        dividendsSnapshots[snapshotIndex] = snapshot;
+        uint128 tokensToClaim = SafeMath.add(readSnapshot.tokensToClaim, amount).toUint128();
+
+        writeSnapshot.tokensToClaim = tokensToClaim;
 
         emit SnapshotUpdated(
             snapshotIndex,
-            snapshot.cycleRangeStart,
-            snapshot.cycleRangeEnd,
-            snapshot.stakedWeight,
-            snapshot.tokensToClaim);
+            readSnapshot.cycleRangeStart,
+            readSnapshot.cycleRangeEnd,
+            readSnapshot.stakedWeight,
+            tokensToClaim);
 
         // update the reward pool base amount to persist the change for new
         // snapshots created, moving forward
@@ -324,8 +326,9 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
      * Retrieves, or creates (if one does not already exist), a dividends snapshot for the timestamp derived from the specified offset to the current time, in seconds.
      * @param offsetIntoFuture The offset from the current time to create the snapshot for, in seconds.
      * @return The dividends snapshot, or a newly created one, for the timestamp derived from the specified offset to the current time.
+     * @return The index of the retrieved snapshot.
      */
-    function _getOrCreateLatestCycleSnapshot(uint256 offsetIntoFuture) internal returns(DividendsSnapshot memory) {
+    function _getOrCreateLatestCycleSnapshot(uint256 offsetIntoFuture) internal returns(DividendsSnapshot storage, uint256) {
         uint32 currentCycle = uint32(_getCycle(block.timestamp + offsetIntoFuture));
         uint256 totalSnapshots = dividendsSnapshots.length;
         uint128 initialTokensToClaim = rewardPoolBase;
@@ -336,42 +339,47 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
             return _addNewSnapshot(currentCycle, currentCycle, 0, initialTokensToClaim);
         }
 
+        uint256 snapshotIndex = totalSnapshots - 1;
+
         // get the latest snapshot
-        DividendsSnapshot memory snapshot = dividendsSnapshots[totalSnapshots - 1];
+        DividendsSnapshot storage writeSnapshot = dividendsSnapshots[snapshotIndex];
 
         // latest snapshot ends on the current cycle
-        if (snapshot.cycleRangeEnd == currentCycle) {
+        if (writeSnapshot.cycleRangeEnd == currentCycle) {
             // this is the very latest snapshot
-            return snapshot;
+            return (writeSnapshot, snapshotIndex);
         }
+
+        // in-memory copy of the latest snapshot for reads, to save gas
+        DividendsSnapshot memory readSnapshot = writeSnapshot;
 
         uint256 payoutPeriodLength_ = payoutPeriodLength;
         uint256 currentPayoutPeriod = _getCurrentPayoutPeriod(payoutPeriodLength_);
+        uint32 previousCycle = currentCycle - 1;
 
         // latest snapshot is for the current payout period
-        if (currentPayoutPeriod == _getPayoutPeriod(snapshot.cycleRangeStart, payoutPeriodLength_)) {
+        if (currentPayoutPeriod == _getPayoutPeriod(readSnapshot.cycleRangeStart, payoutPeriodLength_)) {
             // latest snapshot didn't end on the previous cycle
-            if (snapshot.cycleRangeEnd != currentCycle - 1) {
+            if (readSnapshot.cycleRangeEnd != previousCycle) {
                 // simply extend the latest snapshot to capture the unaccounted
                 // cycles from where the last snapshot ended, up-to the previous
                 // cycle (inclusive)
-                snapshot.cycleRangeEnd = currentCycle - 1;
-                dividendsSnapshots[totalSnapshots - 1] = snapshot;
+                writeSnapshot.cycleRangeEnd = previousCycle;
 
                 emit SnapshotUpdated(
-                    totalSnapshots - 1,
-                    snapshot.cycleRangeStart,
-                    snapshot.cycleRangeEnd,
-                    snapshot.stakedWeight,
-                    snapshot.tokensToClaim);
+                    snapshotIndex,
+                    readSnapshot.cycleRangeStart,
+                    previousCycle,
+                    readSnapshot.stakedWeight,
+                    readSnapshot.tokensToClaim);
             }
 
-            if (snapshot.stakedWeight == 0) {
-                initialTokensToClaim = snapshot.tokensToClaim;
+            if (readSnapshot.stakedWeight == 0) {
+                initialTokensToClaim = readSnapshot.tokensToClaim;
             }
 
             // create a new latest snapshot for the current cycle
-            return _addNewSnapshot(currentCycle, currentCycle, snapshot.stakedWeight, initialTokensToClaim);
+            return _addNewSnapshot(currentCycle, currentCycle, readSnapshot.stakedWeight, initialTokensToClaim);
         }
 
         // latest snapshot is for an earlier payout period
@@ -379,33 +387,32 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         uint32 previousPayoutPeriodCycleEnd = uint32((currentPayoutPeriod - 1) * payoutPeriodLength_);
 
         // latest snapshot didn't end on the end of the previous payout period
-        if (snapshot.cycleRangeEnd != previousPayoutPeriodCycleEnd) {
-            // align current snapshot to the end of the previous payout period
-            snapshot.cycleRangeEnd = previousPayoutPeriodCycleEnd;
-            dividendsSnapshots[totalSnapshots - 1] = snapshot;
+        if (readSnapshot.cycleRangeEnd != previousPayoutPeriodCycleEnd) {
+            // align the latest snapshot to the end of the previous payout period
+            writeSnapshot.cycleRangeEnd = previousPayoutPeriodCycleEnd;
 
             emit SnapshotUpdated(
-                totalSnapshots - 1,
-                snapshot.cycleRangeStart,
-                snapshot.cycleRangeEnd,
-                snapshot.stakedWeight,
-                snapshot.tokensToClaim);
+                snapshotIndex,
+                readSnapshot.cycleRangeStart,
+                previousPayoutPeriodCycleEnd,
+                readSnapshot.stakedWeight,
+                readSnapshot.tokensToClaim);
         }
 
         // there are tokens staked and cycles unaccounted for in the current
         // payout period
-        if ((snapshot.stakedWeight != 0) && (snapshot.cycleRangeEnd != currentCycle - 1)) {
+        if ((readSnapshot.stakedWeight != 0) && (previousPayoutPeriodCycleEnd != previousCycle)) {
             // create a new snapshot to capture the unaccounted cycles in the
             // current payout period, up-to the previous cycle (inclusive)
-            snapshot = _addNewSnapshot(snapshot.cycleRangeEnd + 1, currentCycle - 1, snapshot.stakedWeight, initialTokensToClaim);
+            (readSnapshot, ) = _addNewSnapshot(previousPayoutPeriodCycleEnd + 1, previousCycle, readSnapshot.stakedWeight, initialTokensToClaim);
         }
 
-        if (snapshot.stakedWeight == 0) {
-            initialTokensToClaim = snapshot.tokensToClaim;
+        if (readSnapshot.stakedWeight == 0) {
+            initialTokensToClaim = readSnapshot.tokensToClaim;
         }
 
         // create a new latest snapshot for the current cycle
-        return _addNewSnapshot(currentCycle, currentCycle, snapshot.stakedWeight, initialTokensToClaim);
+        return _addNewSnapshot(currentCycle, currentCycle, readSnapshot.stakedWeight, initialTokensToClaim);
     }
 
     /**
@@ -414,25 +421,30 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
      * @param cycleEnd Ending cycle for the new snapshot.
      * @param stakedWeight Initial staked weight for the new snapshot.
      * @param tokensToClaim Initial tokens to claim balance for the new snapshot.
-     * @return snapshot The newly created snapshot.
+     * @return The newly created snapshot.
+     * @return The index of the newly created snapshot.
      */
     function _addNewSnapshot(uint32 cycleStart, uint32 cycleEnd, uint64 stakedWeight, uint128 tokensToClaim
-    ) internal returns(DividendsSnapshot memory snapshot)
+    ) internal returns(DividendsSnapshot storage, uint256)
     {
+        DividendsSnapshot memory snapshot;
         snapshot.cycleRangeStart = cycleStart;
         snapshot.cycleRangeEnd = cycleEnd;
         snapshot.stakedWeight = stakedWeight;
         snapshot.tokensToClaim = tokensToClaim;
+
         dividendsSnapshots.push(snapshot);
 
+        uint256 snapshotIndex = dividendsSnapshots.length - 1;
+
         emit SnapshotCreated(
-            dividendsSnapshots.length - 1,
+            snapshotIndex,
             snapshot.cycleRangeStart,
             snapshot.cycleRangeEnd,
             snapshot.stakedWeight,
             snapshot.tokensToClaim);
 
-        return snapshot;
+        return (dividendsSnapshots[snapshotIndex], snapshotIndex);
     }
 
     /**
@@ -697,6 +709,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
                     snapshot.cycleRangeEnd,
                     snapshot.stakedWeight,
                     snapshot.tokensToClaim);
+
                 totalDivsToClaim += tokensToClaim;
             }
 
@@ -879,12 +892,22 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         tokenInfo.depositTimestamp = uint64(block.timestamp);
         tokenInfo.owner = tokenOwner;
 
-        // add weight based on car value
+        // add weight based on token type
         uint64 nftWeight = uint64(valueStakeWeights[_valueFromTokenId(tokenId)]);
 
+        (DividendsSnapshot memory snapshot, uint256 snapshotIndex) = _getOrCreateLatestCycleSnapshot(freezeDurationAfterStake);
+
+        uint64 stakedWeight = snapshot.stakedWeight + nftWeight;
+
         // increase current snapshot total staked weight
-        DividendsSnapshot memory snapshot = _getOrCreateLatestCycleSnapshot(freezeDurationAfterStake);
-        snapshot.stakedWeight += nftWeight;
+        dividendsSnapshots[snapshotIndex].stakedWeight = stakedWeight;
+
+        emit SnapshotUpdated(
+            snapshotIndex,
+            snapshot.cycleRangeStart,
+            snapshot.cycleRangeEnd,
+            stakedWeight,
+            snapshot.tokensToClaim);
 
         tokenInfo.depositCycle = snapshot.cycleRangeStart;
 
@@ -898,17 +921,6 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
 
         state.stakedWeight += nftWeight;
         stakeStates[tokenOwner] = state;
-
-        uint256 snapshotIndex = dividendsSnapshots.length - 1;
-
-        dividendsSnapshots[snapshotIndex] = snapshot;
-
-        emit SnapshotUpdated(
-            snapshotIndex,
-            snapshot.cycleRangeStart,
-            snapshot.cycleRangeEnd,
-            snapshot.stakedWeight,
-            snapshot.tokensToClaim);
 
         emit Deposit(tokenOwner, tokenId, getCurrentCycle());
     }

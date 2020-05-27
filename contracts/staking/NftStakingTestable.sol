@@ -75,7 +75,7 @@ abstract contract NftStakingTestable is NftStaking {
         uint64 stakedWeight,
         uint128 tokensToClaim
     ) {
-        DividendsSnapshot memory snapshot = super._getOrCreateLatestCycleSnapshot(offset);
+        (DividendsSnapshot memory snapshot, ) = super._getOrCreateLatestCycleSnapshot(offset);
         cycleRangeStart = snapshot.cycleRangeStart;
         cycleRangeEnd = snapshot.cycleRangeEnd;
         stakedWeight = snapshot.stakedWeight;

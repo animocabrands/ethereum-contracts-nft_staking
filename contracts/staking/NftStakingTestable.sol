@@ -51,7 +51,7 @@ abstract contract NftStakingTestable is NftStaking {
         uint32 cycleRangeEnd,
         uint64 stakedWeight,
         uint128 tokensToClaim,
-        int256 snapshotIndex
+        uint256 snapshotIndex
     )
     {
         DividendsSnapshot memory snapshot;

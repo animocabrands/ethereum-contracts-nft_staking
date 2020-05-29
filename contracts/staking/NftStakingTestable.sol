@@ -10,14 +10,21 @@ abstract contract NftStakingTestable is NftStaking {
         uint256 cycleLength_,
         uint256 payoutPeriodLength_,
         uint256 freezeDurationAfterStake_,
-        uint128 rewardPoolBase_,
+        // uint128 rewardPoolBase_,
         address whitelistedNftContract_,
         address dividendToken_,
         uint256[] memory values,
         uint256[] memory valueWeights
-    )
-    NftStaking(cycleLength_, payoutPeriodLength_, freezeDurationAfterStake_, rewardPoolBase_, whitelistedNftContract_, dividendToken_, values, valueWeights)
-    public {}
+    ) NftStaking(
+        cycleLength_,
+        payoutPeriodLength_,
+        freezeDurationAfterStake_,
+        // rewardPoolBase_,
+        whitelistedNftContract_,
+        dividendToken_,
+        values,
+        valueWeights
+    ) public {}
 
     function getLatestSnapshot()
     public
@@ -88,6 +95,6 @@ abstract contract NftStakingTestable is NftStaking {
             return 0;
         }
 
-        return _getPayoutPeriod(state.depositCycle, payoutPeriodLength);
+        return _getPayoutPeriod(state.cycleToRename, periodLengthInCycles);
     }
 }

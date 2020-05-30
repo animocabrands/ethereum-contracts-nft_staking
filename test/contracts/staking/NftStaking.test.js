@@ -431,7 +431,7 @@ describe("NftStaking", function () {
                         it(`with type ${nft.type}`, async function () {
                             await expectRevert(
                                 this.nftContract.transferFrom(staker, this.stakingContract.address, nft.tokenId, { from: staker }),
-                                "NftStaking: Attempting to deposit an invalid token type"
+                                "NftStakingMock: wrong NFT type"
                             );
                         });
                     }
@@ -504,7 +504,7 @@ describe("NftStaking", function () {
                             NonCarNFTs.map(x => 1), EmptyByte,
                             { from: staker }
                         ),
-                        "NftStaking: Attempting to deposit an invalid token type"
+                        "NftStakingMock: wrong NFT type"
                     );
                 });
 

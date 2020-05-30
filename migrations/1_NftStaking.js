@@ -109,4 +109,5 @@ module.exports = async (deployer, network, accounts) => {
         );
     }
 
+    await this.stakingContract.start();
 }

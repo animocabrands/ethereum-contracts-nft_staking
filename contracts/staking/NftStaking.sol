@@ -34,11 +34,11 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         uint64 stakedWeight; // current total weight of NFTs staked by the staker
     }
 
-    // a struct container used to track staked tokens
     struct TokenInfo {
-        address owner; // owner of the staked NFT
-        uint64 depositTimestamp; // initial deposit timestamp of the NFT, in seconds since epoch
-        uint64 depositCycle; // cycle in which the token was deposited for staking
+        address owner;
+        uint32 depositCycle;
+        uint64 depositTimestamp; // seconds since epoch
+        uint32 weight;
     }
 
     // a struct container for getting around the stack limit of the
@@ -111,11 +111,8 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
     uint256 public immutable cycleLengthInSeconds;
     uint256 public immutable periodLengthInCycles;
     uint256 public immutable freezeDurationAfterStake; // initial duration that a newly staked NFT is locked before it can be with drawn from staking, in seconds
-    // uint128 public rewardPoolBase; // amount of reward pool tokens to set as the initial tokens to claim when a new snapshot is created
 
-    // mapping(address => bool) public rewardPoolProviders; // reward pool provider address => authorized flag
     mapping(address => StakerState) public stakeStates; // staker address => staker state
-    mapping(uint256 => uint256) public valueStakeWeights; // NFT classification (e.g. tier, rarity, category) => payout weight
     mapping(uint256 => TokenInfo) public tokensInfo; // NFT identifier => token info
     mapping(uint256 => uint128) public payoutSchedule; // period => payout per-cycle
 
@@ -134,11 +131,6 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         _;
     }
 
-    // modifier onlyRewardPoolProvider() {
-    //     require(rewardPoolProviders[msg.sender], "NftStaking: Not a pool reward provider");
-    //     _;
-    // }
-
     modifier isEnabled() {
         require(!_disabled, "NftStaking: Staking operations are disabled");
         _;
@@ -149,54 +141,26 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
      * @param cycleLengthInSeconds_ Length of a cycle, in seconds.
      * @param periodLengthInCycles_ Length of a dividend payout period, in cycles.
      * @param freezeDurationAfterStake_ Initial duration that a newly staked NFT is locked for before it can be withdrawn from staking, in seconds.
-    //  * @ param rewardPoolBase_ Amount of reward pool tokens to set as the initial tokens to claim when a new snapshot is created.
      * @param whitelistedNftContract_ Contract that has been whitelisted to be able to perform transfer operations of staked NFTs.
      * @param dividendToken_ The ERC20-based token used in dividend payouts.
-     * @param values NFT token classifications (e.g. tier, rarity, category).
-     * @param valueWeights Dividend reward allocation weight for each NFT token classification defined by the 'value' argument.
      */
     constructor(
         uint256 cycleLengthInSeconds_,
         uint256 periodLengthInCycles_,
         uint256 freezeDurationAfterStake_,
-        // uint128 rewardPoolBase_,
         address whitelistedNftContract_,
-        address dividendToken_,
-        uint256[] memory values,
-        uint256[] memory valueWeights
+        address dividendToken_
     ) internal {
         require(periodLengthInCycles_ != 0, "NftStaking: Zero payout period length");
-        require(values.length == valueWeights.length, "NftStaking: Mismatch in value/weight array argument lengths");
 
         _disabled = false;
 
         cycleLengthInSeconds = cycleLengthInSeconds_;
         periodLengthInCycles = periodLengthInCycles_;
         freezeDurationAfterStake = freezeDurationAfterStake_;
-        // rewardPoolBase = rewardPoolBase_;
         whitelistedNftContract = whitelistedNftContract_;
         dividendToken = dividendToken_;
-
-        for (uint256 i = 0; i < values.length; ++i) {
-            valueStakeWeights[values[i]] = valueWeights[i];
-        }
     }
-
-    // /**
-    //  * Sets the dividend token to use for dividend payouts.
-    //  * @param dividendToken_ The address of an IERC20 compatible token to use for dividend payouts.
-    //  */
-    // function setDividendToken(address dividendToken_) public onlyOwner {
-    //     dividendToken = dividendToken_;
-    // }
-
-    // /**
-    //  * Sets the period of time, in seconds, for which a newly staked token cannot be withdrawn. After the freeze duration has elapsed, the staked token can be unstaked.
-    //  * @param freezeDurationAfterStake_ Initial duration that a newly staked NFT is locked for before it can be withdrawn from staking, in seconds.
-    //  */
-    // function setFreezeDurationAfterStake(uint256 freezeDurationAfterStake_) public onlyOwner {
-    //     freezeDurationAfterStake = freezeDurationAfterStake_;
-    // }
 
     /**
      * Transfers total payout balance to the contract and starts the staking.
@@ -249,19 +213,6 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         _disabled = true;
     }
 
-    /**
-     * Handle the receipt of a single ERC1155 token type.
-     * @dev An ERC1155-compliant smart contract MUST call this function on the token recipient contract, at the end of a `safeTransferFrom` after the balance has been updated.
-     * This function MUST return `bytes4(keccak256("onERC1155Received(address,address,uint256,uint256,bytes)"))` (i.e. 0xf23a6e61) if it accepts the transfer.
-     * This function MUST revert if it rejects the transfer.
-     * Return of any other value than the prescribed keccak256 generated value MUST result in the transaction being reverted by the caller.
-     * @param //operator The address which initiated the transfer (i.e. msg.sender).
-     * @param from The address which previously owned the token.
-     * @param id The ID of the token being transferred.
-     * @param //value The amount of tokens being transferred.
-     * @param //data Additional data with no specified format.
-     * @return `bytes4(keccak256("onERC1155Received(address,address,uint256,uint256,bytes)"))`.
-     */
     function onERC1155Received(
         address /*operator*/,
         address from,
@@ -279,19 +230,6 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         return _ERC1155_RECEIVED;
     }
 
-    /**
-     * Handle the receipt of multiple ERC1155 token types.
-     * @dev An ERC1155-compliant smart contract MUST call this function on the token recipient contract, at the end of a `safeBatchTransferFrom` after the balances have been updated.
-     * This function MUST return `bytes4(keccak256("onERC1155BatchReceived(address,address,uint256[],uint256[],bytes)"))` (i.e. 0xbc197c81) if it accepts the transfer(s).
-     * This function MUST revert if it rejects the transfer(s).
-     * Return of any other value than the prescribed keccak256 generated value MUST result in the transaction being reverted by the caller.
-     * @param //operator The address which initiated the batch transfer (i.e. msg.sender).
-     * @param from The address which previously owned the token.
-     * @param ids An array containing ids of each token being transferred (order and length must match _values array).
-     * @param //values An array containing amounts of each token being transferred (order and length must match _ids array).
-     * @param //data Additional data with no specified format.
-     * @return `bytes4(keccak256("onERC1155BatchReceived(address,address,uint256[],uint256[],bytes)"))`.
-     */
     function onERC1155BatchReceived(
         address /*operator*/,
         address from,
@@ -310,42 +248,6 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         }
         return _ERC1155_BATCH_RECEIVED;
     }
-
-    // /**
-    //  * Sets the authorization state of the specified pool provider.
-    //  * @param provider The provider whose authorization state will be set.
-    //  * @param authorize The authorization state to set with.
-    //  */
-    // function setPoolProvider(address provider, bool authorize) external onlyOwner {
-    //     rewardPoolProviders[provider] = authorize;
-    // }
-
-    // /**
-    //  * Permanently increases the reward pool balance of the current and new snapshots.
-    //  * @param amount The amount to increase the reward pool balance by.
-    //  */
-    // function rewardPoolBalanceIncreased(uint128 amount) external onlyRewardPoolProvider {
-    //     // get latest reward pool snapshot and increased it
-    //     (DividendsSnapshot storage writeSnapshot, uint256 snapshotIndex) = _getOrCreateLatestCycleSnapshot(0);
-
-    //     // in-memory copy of the latest snapshot for reads, to save gas
-    //     DividendsSnapshot memory readSnapshot = writeSnapshot;
-
-    //     uint128 tokensToClaim = SafeMath.add(readSnapshot.tokensToClaim, amount).toUint128();
-
-    //     writeSnapshot.tokensToClaim = tokensToClaim;
-
-    //     emit SnapshotUpdated(
-    //         snapshotIndex,
-    //         readSnapshot.cycleRangeStart,
-    //         readSnapshot.cycleRangeEnd,
-    //         readSnapshot.stakedWeight,
-    //         tokensToClaim);
-
-    //     // update the reward pool base amount to persist the change for new
-    //     // snapshots created, moving forward
-    //     rewardPoolBase = SafeMath.add(rewardPoolBase, amount).toUint128();
-    // }
 
     /**
      * Retrieves, or creates (if one does not already exist), a dividends snapshot for the timestamp derived from the specified offset to the current time, in seconds.
@@ -805,7 +707,6 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
 
         if (totalDivsToClaim > 0) {
             // must never underflow
-            // require(IERC20(dividendToken).balanceOf(address(this)) >= totalDivsToClaim, "NftStaking: Insufficient tokens in the rewards pool");
             require(IERC20(dividendToken).balanceOf(address(this)) >= totalDivsToClaim, "NftStaking: Insufficient tokens in the rewards pool");
             require(IERC20(dividendToken).transfer(msg.sender, totalDivsToClaim), "NftStaking: Unknown failure when attempting to transfer claimed dividend rewards");
 
@@ -838,7 +739,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
             tokensInfo[tokenId].owner = address(0);
 
             // decrease stake weight based on NFT value
-            uint64 nftWeight = uint64(valueStakeWeights[_valueFromTokenId(tokenId)]);
+            // uint64 nftWeight = _getWeight(tokenId);
 
             // uint256 startCycle = Math.max(
             //     currentCycle - (currentCycle % periodLengthInCycles_) + 1, // First cycle of the current period
@@ -865,8 +766,8 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
                 startCycle = snapshot.cycleRangeEnd + 1;
 
                 // must never underflow
-                require(snapshot.stakedWeight >= nftWeight, "NftStaking: Staked weight underflow");
-                snapshot.stakedWeight -= nftWeight;
+                require(snapshot.stakedWeight >= tokenInfo.weight, "NftStaking: Staked weight underflow");
+                snapshot.stakedWeight -= tokenInfo.weight;
                 dividendsSnapshots[snapshotIndex] = snapshot;
 
                 emit SnapshotUpdated(
@@ -890,7 +791,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
             StakerState memory state = stakeStates[msg.sender];
 
             // decrease staker weight
-            state.stakedWeight -= nftWeight;
+            state.stakedWeight -= tokenInfo.weight;
             // if no more nfts left to stake - reset depositCycle
             if (state.stakedWeight == 0) {
                 state.cycleToRename = 0;
@@ -928,14 +829,15 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
      */
     function _depositNft(uint256 tokenId, address tokenOwner) internal isEnabled whenNotPaused hasStarted {
         require(whitelistedNftContract == msg.sender, "NftStaking: Caller is not the whitelisted NFT contract");
-        require(_isCorrectTokenType(tokenId), "NftStaking: Attempting to deposit an invalid token type");
+        // require(_isCorrectTokenType(tokenId), "NftStaking: Attempting to deposit an invalid token type");
 
         TokenInfo memory tokenInfo;
         tokenInfo.depositTimestamp = uint64(block.timestamp);
         tokenInfo.owner = tokenOwner;
 
+
         // add weight based on token type
-        uint64 nftWeight = uint64(valueStakeWeights[_valueFromTokenId(tokenId)]);
+        uint32 nftWeight = _validateAndGetWeight(tokenId);
 
         (DividendsSnapshot memory snapshot, uint256 snapshotIndex) = _getOrCreateLatestCycleSnapshot(freezeDurationAfterStake);
 
@@ -951,7 +853,8 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
             stakedWeight,
             snapshot.tokensToClaim);
 
-        tokenInfo.depositCycle = snapshot.cycleRangeStart;
+        tokenInfo.weight = nftWeight;
+        tokenInfo.depositCycle = uint32(snapshot.cycleRangeStart); // TODO safe cast
 
         tokensInfo[tokenId] = tokenInfo;
 
@@ -1012,19 +915,18 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
     }
 
     /**
-     * Validates whether or not the supplied NFT identifier is the correct token
-     * type allowable for staking.
-     * @param id NFT identifier used to determine if the token is valid for staking.
-     * @return True if the token can be staked, false otherwise.
+     * Validates whether or not the supplied NFT identifier is accepted for staking
+     * and retrieves its associated weight. MUST throw if the token is invalid.
+     * @param nftId uint256 NFT identifier used to determine if the token is valid for staking.
+     * @return uint64 the weight of the NFT.
      */
-    function _isCorrectTokenType(uint256 id) internal virtual pure returns(bool);
+    function _validateAndGetWeight(uint256 nftId) internal virtual view returns (uint32);
 
-    /**
-     * Retrieves NFT token classification (e.g. tier, rarity, category) from the
-     * given token identifier.
-     * @param tokenId The token identifier from which the classification value is retrieved from.
-     * @return The retrieved token classification value.
-     */
-    function _valueFromTokenId(uint256 tokenId) internal virtual pure returns(uint256);
+    // /**
+    //  * Retrieves the NFT's weight.
+    //  * @param nftId uint256 NFT identifier used to determine if the token is valid for staking.
+    //  * @return uint64 the weight of the NFT.
+    //  */
+    // function _getWeight(uint256 nftId) internal virtual view returns (uint64);
 
 }

@@ -10,20 +10,14 @@ abstract contract NftStakingTestable is NftStaking {
         uint256 cycleLength_,
         uint256 payoutPeriodLength_,
         uint256 freezeDurationAfterStake_,
-        // uint128 rewardPoolBase_,
         address whitelistedNftContract_,
-        address dividendToken_,
-        uint256[] memory values,
-        uint256[] memory valueWeights
+        address dividendToken_
     ) NftStaking(
         cycleLength_,
         payoutPeriodLength_,
         freezeDurationAfterStake_,
-        // rewardPoolBase_,
         whitelistedNftContract_,
-        dividendToken_,
-        values,
-        valueWeights
+        dividendToken_
     ) public {}
 
     function getLatestSnapshot()

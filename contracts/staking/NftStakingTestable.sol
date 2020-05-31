@@ -27,7 +27,7 @@ abstract contract NftStakingTestable is NftStaking {
         uint32 startCycle,
         uint32 endCycle,
         uint64 stakedWeight,
-        uint128 tokensToClaim
+        uint128 dividendsToClaim
     )
     {
         DividendsSnapshot memory snapshot;
@@ -40,7 +40,7 @@ abstract contract NftStakingTestable is NftStaking {
             snapshot.startCycle,
             snapshot.endCycle,
             snapshot.stakedWeight,
-            snapshot.tokensToClaim
+            snapshot.dividendsToClaim
         );
     }
 
@@ -51,7 +51,7 @@ abstract contract NftStakingTestable is NftStaking {
         uint32 startCycle,
         uint32 endCycle,
         uint64 stakedWeight,
-        uint128 tokensToClaim,
+        uint128 dividendsToClaim,
         uint256 snapshotIndex
     )
     {
@@ -61,7 +61,7 @@ abstract contract NftStakingTestable is NftStaking {
             snapshot.startCycle,
             snapshot.endCycle,
             snapshot.stakedWeight,
-            snapshot.tokensToClaim,
+            snapshot.dividendsToClaim,
             snapshotIndex
         );
     }
@@ -74,13 +74,13 @@ abstract contract NftStakingTestable is NftStaking {
         uint32 startCycle,
         uint32 endCycle,
         uint64 stakedWeight,
-        uint128 tokensToClaim
+        uint128 dividendsToClaim
     ) {
         (DividendsSnapshot memory snapshot, ) = super._getOrCreateLatestCycleSnapshot(offset);
         startCycle = snapshot.startCycle;
         endCycle = snapshot.endCycle;
         stakedWeight = snapshot.stakedWeight;
-        tokensToClaim = snapshot.tokensToClaim;
+        dividendsToClaim = snapshot.dividendsToClaim;
     }
 
     function currentPayoutPeriod() public view returns(uint256) {

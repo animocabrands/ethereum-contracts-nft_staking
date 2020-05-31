@@ -160,7 +160,7 @@ describe("NftStaking", function () {
         console.log("stakedWeight", state.stakedWeight.toNumber());
     }
 
-    function testSnapshot(startCycle, endCycle, stakedWeight, tokensToClaim) {
+    function testSnapshot(startCycle, endCycle, stakedWeight, dividendsToClaim) {
         it(`snapshot.startCycle == ${startCycle}`, function () {
             this.snapshot.startCycle.toNumber().should.be.equal(startCycle);
         });
@@ -173,8 +173,8 @@ describe("NftStaking", function () {
             this.snapshot.stakedWeight.toNumber().should.be.equal(stakedWeight);
         });
 
-        it(`snapshot.tokensToClaim == ${tokensToClaim}`, function () {
-            this.snapshot.tokensToClaim.toNumber().should.be.equal(tokensToClaim);
+        it(`snapshot.dividendsToClaim == ${dividendsToClaim}`, function () {
+            this.snapshot.dividendsToClaim.toNumber().should.be.equal(dividendsToClaim);
         });
     }
 

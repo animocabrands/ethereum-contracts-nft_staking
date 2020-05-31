@@ -160,13 +160,13 @@ describe("NftStaking", function () {
         console.log("stakedWeight", state.stakedWeight.toNumber());
     }
 
-    function testSnapshot(cycleRangeStart, cycleRangeEnd, stakedWeight, tokensToClaim) {
-        it(`snapshot.cycleRangeStart == ${cycleRangeStart}`, function () {
-            this.snapshot.cycleRangeStart.toNumber().should.be.equal(cycleRangeStart);
+    function testSnapshot(startCycle, endCycle, stakedWeight, tokensToClaim) {
+        it(`snapshot.startCycle == ${startCycle}`, function () {
+            this.snapshot.startCycle.toNumber().should.be.equal(startCycle);
         });
 
-        it(`snapshot.cycleRangeEnd == ${cycleRangeEnd}`, function () {
-            this.snapshot.cycleRangeEnd.toNumber().should.be.equal(cycleRangeEnd);
+        it(`snapshot.endCycle == ${endCycle}`, function () {
+            this.snapshot.endCycle.toNumber().should.be.equal(endCycle);
         });
 
         it(`snapshot.stakedWeight == ${stakedWeight}`, function () {
@@ -237,8 +237,8 @@ describe("NftStaking", function () {
             const numSnapshots = await this.stakingContract.totalSnapshots();
             numSnapshots.toNumber().should.be.equal(1);
             const snapshot = await this.stakingContract.getLatestSnapshot();
-            snapshot.cycleRangeStart.toNumber().should.be.equal(1);
-            snapshot.cycleRangeEnd.toNumber().should.be.equal(1);
+            snapshot.startCycle.toNumber().should.be.equal(1);
+            snapshot.endCycle.toNumber().should.be.equal(1);
         });
 
         it("must emit the SnapshotCreated event", async function () {
@@ -261,8 +261,8 @@ describe("NftStaking", function () {
             const numSnapshots = await this.stakingContract.totalSnapshots();
             numSnapshots.toNumber().should.be.equal(1);
             const snapshot = await this.stakingContract.getLatestSnapshot();
-            snapshot.cycleRangeStart.toNumber().should.be.equal(1);
-            snapshot.cycleRangeEnd.toNumber().should.be.equal(1);
+            snapshot.startCycle.toNumber().should.be.equal(1);
+            snapshot.endCycle.toNumber().should.be.equal(1);
         });
 
         it("must not emit the SnapshotCreated event", async function () {
@@ -287,8 +287,8 @@ describe("NftStaking", function () {
             numSnapshots.toNumber().should.be.equal(2);
 
             const snapshot = await this.stakingContract.getLatestSnapshot();
-            snapshot.cycleRangeStart.toNumber().should.be.equal(8);
-            snapshot.cycleRangeEnd.toNumber().should.be.equal(8);
+            snapshot.startCycle.toNumber().should.be.equal(8);
+            snapshot.endCycle.toNumber().should.be.equal(8);
         });
 
         it("must emit the SnapshotCreated event", async function () {
@@ -312,8 +312,8 @@ describe("NftStaking", function () {
             numSnapshots.toNumber().should.be.equal(3);
 
             const snapshot = await this.stakingContract.getLatestSnapshot();
-            snapshot.cycleRangeStart.toNumber().should.be.equal(9);
-            snapshot.cycleRangeEnd.toNumber().should.be.equal(9);
+            snapshot.startCycle.toNumber().should.be.equal(9);
+            snapshot.endCycle.toNumber().should.be.equal(9);
         });
 
         it("must emit the SnapshotCreated event", async function () {

@@ -24,8 +24,8 @@ abstract contract NftStakingTestable is NftStaking {
     public
     view
     returns(
-        uint32 cycleRangeStart,
-        uint32 cycleRangeEnd,
+        uint32 startCycle,
+        uint32 endCycle,
         uint64 stakedWeight,
         uint128 tokensToClaim
     )
@@ -37,8 +37,8 @@ abstract contract NftStakingTestable is NftStaking {
         }
 
         return (
-            snapshot.cycleRangeStart,
-            snapshot.cycleRangeEnd,
+            snapshot.startCycle,
+            snapshot.endCycle,
             snapshot.stakedWeight,
             snapshot.tokensToClaim
         );
@@ -48,8 +48,8 @@ abstract contract NftStakingTestable is NftStaking {
     public
     view
     returns(
-        uint32 cycleRangeStart,
-        uint32 cycleRangeEnd,
+        uint32 startCycle,
+        uint32 endCycle,
         uint64 stakedWeight,
         uint128 tokensToClaim,
         uint256 snapshotIndex
@@ -58,8 +58,8 @@ abstract contract NftStakingTestable is NftStaking {
         DividendsSnapshot memory snapshot;
         (snapshot, snapshotIndex) = _findDividendsSnapshot(targetCycle);
         return (
-            snapshot.cycleRangeStart,
-            snapshot.cycleRangeEnd,
+            snapshot.startCycle,
+            snapshot.endCycle,
             snapshot.stakedWeight,
             snapshot.tokensToClaim,
             snapshotIndex
@@ -71,14 +71,14 @@ abstract contract NftStakingTestable is NftStaking {
     }
 
     function getOrCreateLatestCycleSnapshot(uint256 offset) public returns(
-        uint32 cycleRangeStart,
-        uint32 cycleRangeEnd,
+        uint32 startCycle,
+        uint32 endCycle,
         uint64 stakedWeight,
         uint128 tokensToClaim
     ) {
         (DividendsSnapshot memory snapshot, ) = super._getOrCreateLatestCycleSnapshot(offset);
-        cycleRangeStart = snapshot.cycleRangeStart;
-        cycleRangeEnd = snapshot.cycleRangeEnd;
+        startCycle = snapshot.startCycle;
+        endCycle = snapshot.endCycle;
         stakedWeight = snapshot.stakedWeight;
         tokensToClaim = snapshot.tokensToClaim;
     }

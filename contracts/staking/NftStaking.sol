@@ -258,7 +258,6 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
     function _getOrCreateLatestCycleSnapshot(uint256 offsetIntoFuture) internal returns(DividendsSnapshot storage, uint256) {
         uint32 currentCycle = uint32(_getCycle(now + offsetIntoFuture));
         uint256 totalSnapshots = dividendsSnapshots.length;
-        // uint128 initialTokensToClaim = rewardPoolBase;
         uint128 initialTokensToClaim = 0;
 
         // empty snapshot history

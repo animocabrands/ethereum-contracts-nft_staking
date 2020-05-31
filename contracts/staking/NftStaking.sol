@@ -82,7 +82,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         address indexed from, // staker claiming the dividends
         uint256 snapshotStartIndex, // claim snapshot starting index
         uint256 snapshotEndIndex, // claim snapshot ending index
-        uint128 amount // amount of dividends claimed
+        uint256 amount // amount of dividends claimed
     );
 
     // emitted when a new snapshot is created
@@ -190,7 +190,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
             payoutSchedule[period] = payoutPerCycle;
         }
         totalPayout = totalPayout.add(
-            (endPeriod - startPeriod + 1)
+            endPeriod.sub(startPeriod).add(1)
             .mul(payoutPerCycle)
             .mul(periodLengthInCycles)
         );
@@ -256,7 +256,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
      * @return The index of the retrieved snapshot.
      */
     function _getOrCreateLatestCycleSnapshot(uint256 offsetIntoFuture) internal returns(DividendsSnapshot storage, uint256) {
-        uint32 currentCycle = uint32(_getCycle(now + offsetIntoFuture));
+        uint32 currentCycle = uint32(_getCycle(now.add(offsetIntoFuture)));
         uint256 totalSnapshots = dividendsSnapshots.length;
         uint128 initialDividendsToClaim = 0;
 
@@ -267,7 +267,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
             // return _addNewSnapshot(uint32(_getCycle(block.timestamp)), currentCycle, 0, initialDividendsToClaim);
         }
 
-        uint256 snapshotIndex = totalSnapshots - 1;
+        uint256 snapshotIndex = totalSnapshots.sub(1);
 
         // get the latest snapshot
         DividendsSnapshot storage writeSnapshot = dividendsSnapshots[snapshotIndex];
@@ -283,7 +283,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
 
         uint256 periodLengthInCycles_ = periodLengthInCycles;
         uint256 currentPeriod = _getCurrentPeriod(periodLengthInCycles_);
-        uint32 previousCycle = currentCycle - 1;
+        uint32 previousCycle = SafeMath.sub(currentCycle, 1).toUint32();
 
         // latest snapshot is for the current payout period
         if (currentPeriod == _getPeriod(readSnapshot.startCycle, periodLengthInCycles_)) {
@@ -312,7 +312,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
 
         // latest snapshot is for an earlier payout period
 
-        uint32 previousPeriodEndCycle = ((currentPeriod - 1) * periodLengthInCycles_).toUint32();
+        uint32 previousPeriodEndCycle = currentPeriod.sub(1).mul(periodLengthInCycles_).toUint32();
 
         // latest snapshot didn't end on the end of the previous payout period
         if (readSnapshot.endCycle != previousPeriodEndCycle) {
@@ -332,7 +332,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         if ((readSnapshot.stakedWeight != 0) && (previousPeriodEndCycle != previousCycle)) {
             // create a new snapshot to capture the unaccounted cycles in the
             // current payout period, up-to the previous cycle (inclusive)
-            (readSnapshot, ) = _addNewSnapshot(previousPeriodEndCycle + 1, previousCycle, readSnapshot.stakedWeight, initialDividendsToClaim);
+            (readSnapshot, ) = _addNewSnapshot(SafeMath.add(previousPeriodEndCycle, 1).toUint32(), previousCycle, readSnapshot.stakedWeight, initialDividendsToClaim);
         }
 
         if (readSnapshot.stakedWeight == 0) {
@@ -363,7 +363,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
 
         dividendsSnapshots.push(snapshot);
 
-        uint256 snapshotIndex = dividendsSnapshots.length - 1;
+        uint256 snapshotIndex = dividendsSnapshots.length.sub(1);
 
         emit SnapshotCreated(
             snapshotIndex,
@@ -390,7 +390,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
      * @return The cycle (index-1 based) at the specified timestamp.
      */
     function _getCycle(uint256 ts) internal view returns(uint32) {
-        return ((ts - startTimestamp) / cycleLengthInSeconds + 1).toUint32();
+        return ts.sub(startTimestamp).div(cycleLengthInSeconds).add(1).toUint32();
     }
 
     /**
@@ -421,7 +421,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
             return 0;
         }
         // index is 1 based
-        return (cycle - 1) / periodLengthInCycles_ + 1;
+        return SafeMath.sub(cycle, 1).div(periodLengthInCycles_).add(1);
     }
 
     /**
@@ -451,7 +451,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         }
 
         uint256 periodToClaim = _getPeriod(state.cycleToRename, periodLengthInCycles_);
-        return _getCurrentPeriod(periodLengthInCycles_) - periodToClaim;
+        return _getCurrentPeriod(periodLengthInCycles_).sub(periodToClaim);
     }
 
     /**
@@ -473,8 +473,8 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         }
 
         // handle overflow
-        if (startPeriod + periodsToClaim < periodsToClaim) {
-            periodsToClaim = type(uint256).max - startPeriod;
+        if (startPeriod.add(periodsToClaim) < periodsToClaim) {
+            periodsToClaim = type(uint256).max.sub(startPeriod);
         }
 
         StakerState memory state = stakeStates[msg.sender];
@@ -487,12 +487,12 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
             params.depositCycle = state.cycleToRename;
         } else {
             // or later then latest deposit
-            params.depositCycle = ((startPeriod - 1) * params.periodLengthInCycles + 1).toUint32();
+            params.depositCycle = startPeriod.sub(1).mul(params.periodLengthInCycles).add(1).toUint32();
         }
 
         params.periodToClaim = _getPeriod(params.depositCycle, params.periodLengthInCycles);
 
-        uint256 updatedPeriod = params.periodToClaim + periodsToClaim;
+        uint256 updatedPeriod = params.periodToClaim.add(periodsToClaim);
         if (updatedPeriod <= params.currentPeriod) {
             params.currentPeriod = updatedPeriod;
         }
@@ -500,8 +500,8 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         (DividendsSnapshot memory snapshot, uint256 snapshotIndex) = _findDividendsSnapshot(params.depositCycle);
 
         params.startSnapshotIndex = snapshotIndex;
-        params.lastSnapshotIndex = dividendsSnapshots.length - 1;
-        params.nextPeriodCycle = (params.periodToClaim * params.periodLengthInCycles + 1).toUint32();
+        params.lastSnapshotIndex = dividendsSnapshots.length.sub(1);
+        params.nextPeriodCycle = params.periodToClaim.mul(params.periodLengthInCycles).add(1).toUint32();
         params.payoutPerCycle = payoutSchedule[params.periodToClaim];
 
         params.startCycle = snapshot.startCycle;
@@ -510,22 +510,22 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         // if cycle start payout period is earlier than requested - align to the beginning of requested period
         // happens when claiming has been stopped inside inner while loop when iterating inside snapshot longer than 1 payout period
         if (_getPeriod(params.startCycle, params.periodLengthInCycles) < params.periodToClaim) {
-            params.startCycle = ((params.periodToClaim - 1) * params.periodLengthInCycles + 1).toUint32();
+            params.startCycle = params.periodToClaim.sub(1).mul(params.periodLengthInCycles).add(1).toUint32();
         }
 
         // iterate over snapshots one by one until current payout period is met
         while (params.periodToClaim < params.currentPeriod) {
             if (snapshot.stakedWeight > 0 && snapshot.dividendsToClaim > 0) {
                 // avoid division by zero
-                uint128 dividendsToClaim = ((state.stakedWeight * _DIVS_PRECISION / snapshot.stakedWeight) * snapshot.dividendsToClaim / _DIVS_PRECISION).toUint128();
+                uint128 dividendsToClaim = SafeMath.mul(state.stakedWeight, _DIVS_PRECISION).div(snapshot.stakedWeight).mul(snapshot.dividendsToClaim).div(_DIVS_PRECISION).toUint128();
                 require(snapshot.dividendsToClaim >= dividendsToClaim, "NftStaking: Tokens to claim exceeds the snapshot balance");
 
-                totalDividendsToClaim += dividendsToClaim;
+                totalDividendsToClaim = SafeMath.add(totalDividendsToClaim, dividendsToClaim).toUint128();
             }
 
             if (snapshotIndex == params.lastSnapshotIndex) {
                 // last snapshot, align range end to the end of the previous payout period
-                snapshot.endCycle = ((params.currentPeriod - 1) * params.periodLengthInCycles).toUint32();
+                snapshot.endCycle = params.currentPeriod.sub(1).mul(params.periodLengthInCycles).toUint32();
                 params.endCycle = snapshot.endCycle;
             }
 
@@ -534,19 +534,24 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
                 while (params.startCycle <= snapshot.endCycle) {
                     // if start and end are not from same snapshot (occurs when more than 1 payout period was inactive)
                     if (_getPeriod(params.startCycle, params.periodLengthInCycles) != _getPeriod(params.endCycle, params.periodLengthInCycles)) {
-                        params.endCycle = (_getPeriod(params.startCycle, params.periodLengthInCycles) * params.periodLengthInCycles).toUint32();
+                        params.endCycle = _getPeriod(params.startCycle, params.periodLengthInCycles).mul(params.periodLengthInCycles).toUint32();
                     }
 
-                    totalDividendsToClaim += ((state.stakedWeight * _DIVS_PRECISION / snapshot.stakedWeight) * params.payoutPerCycle * (params.endCycle - params.startCycle + 1) / _DIVS_PRECISION).toUint128();
+                    uint256 temp = SafeMath.mul(state.stakedWeight, _DIVS_PRECISION);
+                    temp = temp.div(snapshot.stakedWeight);
+                    temp = temp.mul(params.payoutPerCycle);
+                    temp = temp.mul(SafeMath.sub(params.endCycle, params.startCycle).add(1));
+                    temp = temp.div(_DIVS_PRECISION);
+                    totalDividendsToClaim = temp.add(totalDividendsToClaim).toUint128();
 
                     // this snapshot is across several payout periods
                     if (params.endCycle != snapshot.endCycle) {
-                        params.periodToClaim = _getPeriod(params.endCycle, params.periodLengthInCycles) + 1;
-                        params.startCycle = ((params.periodToClaim - 1) * params.periodLengthInCycles + 1).toUint32();
+                        params.periodToClaim = _getPeriod(params.endCycle, params.periodLengthInCycles).add(1);
+                        params.startCycle = params.periodToClaim.sub(1).mul(params.periodLengthInCycles).add(1).toUint32();
                         params.payoutPerCycle = payoutSchedule[params.periodToClaim];
-                        params.nextPeriodCycle = (params.periodToClaim * params.periodLengthInCycles + 1).toUint32();
+                        params.nextPeriodCycle = params.periodToClaim.mul(params.periodLengthInCycles).add(1).toUint32();
 
-                        loops++;
+                        loops = loops.add(1);
                         if (loops >= periodsToClaim) {
                             break;
                         }
@@ -556,13 +561,13 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
                 }
             }
 
-            params.depositCycle = params.endCycle + 1;
+            params.depositCycle = SafeMath.add(params.endCycle, 1).toUint32();
 
             if (params.nextPeriodCycle <= params.depositCycle) {
                 params.periodToClaim = _getPeriod(params.depositCycle, params.periodLengthInCycles);
                 params.payoutPerCycle = payoutSchedule[params.periodToClaim];
-                params.nextPeriodCycle = (params.periodToClaim * params.periodLengthInCycles + 1).toUint32();
-                loops++;
+                params.nextPeriodCycle = params.periodToClaim.mul(params.periodLengthInCycles).add(1).toUint32();
+                loops = loops.add(1);
             }
 
             if (loops >= periodsToClaim) {
@@ -574,7 +579,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
                 break;
             }
 
-            snapshotIndex++;
+            snapshotIndex = snapshotIndex.add(1);
             snapshot = dividendsSnapshots[snapshotIndex];
 
             params.startCycle = snapshot.startCycle;
@@ -611,8 +616,8 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         (DividendsSnapshot memory snapshot, uint256 snapshotIndex) = _findDividendsSnapshot(state.cycleToRename);
 
         params.startSnapshotIndex = snapshotIndex;
-        params.lastSnapshotIndex = dividendsSnapshots.length - 1;
-        params.nextPeriodCycle = (params.periodToClaim * params.periodLengthInCycles + 1).toUint32();
+        params.lastSnapshotIndex = dividendsSnapshots.length.sub(1);
+        params.nextPeriodCycle = params.periodToClaim.mul(params.periodLengthInCycles).add(1).toUint32();
         params.payoutPerCycle = payoutSchedule[params.periodToClaim];
 
         params.startCycle = snapshot.startCycle;
@@ -621,17 +626,17 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         // if cycle start payout period is earlier than requested - align to the beginning of requested period
         // happens when claiming has been stopped inside inner while loop when iterating inside snapshot longer than 1 payout period
         if (_getPeriod(params.startCycle, params.periodLengthInCycles) < params.periodToClaim) {
-            params.startCycle = ((params.periodToClaim - 1) * params.periodLengthInCycles + 1).toUint32();
+            params.startCycle = params.periodToClaim.sub(1).mul(params.periodLengthInCycles).add(1).toUint32();
         }
 
         // iterate over snapshots one by one until current payout period is met
         while (params.periodToClaim < params.currentPeriod) {
             if (snapshot.stakedWeight > 0 && snapshot.dividendsToClaim > 0) {
                 // avoid division by zero
-                uint128 dividendsToClaim = ((state.stakedWeight * _DIVS_PRECISION / snapshot.stakedWeight) * snapshot.dividendsToClaim / _DIVS_PRECISION).toUint128();
+                uint128 dividendsToClaim = SafeMath.mul(state.stakedWeight, _DIVS_PRECISION).div(snapshot.stakedWeight).mul(snapshot.dividendsToClaim).div(_DIVS_PRECISION).toUint128();
                 require(snapshot.dividendsToClaim >= dividendsToClaim, "NftStaking: Tokens to claim exceeds the snapshot balance");
 
-                snapshot.dividendsToClaim -= dividendsToClaim;
+                snapshot.dividendsToClaim = SafeMath.sub(snapshot.dividendsToClaim, dividendsToClaim).toUint128();
                 dividendsSnapshots[snapshotIndex] = snapshot;
 
                 emit SnapshotUpdated(
@@ -641,12 +646,12 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
                     snapshot.stakedWeight,
                     snapshot.dividendsToClaim);
 
-                totalDividendsToClaim += dividendsToClaim;
+                totalDividendsToClaim = SafeMath.add(totalDividendsToClaim, dividendsToClaim).toUint128();
             }
 
             if (snapshotIndex == params.lastSnapshotIndex) {
                 // last snapshot, align range end to the end of the previous payout period
-                snapshot.endCycle = ((params.currentPeriod - 1) * params.periodLengthInCycles).toUint32();
+                snapshot.endCycle = params.currentPeriod.sub(1).mul(params.periodLengthInCycles).toUint32();
                 params.endCycle = snapshot.endCycle;
             }
 
@@ -655,19 +660,24 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
                 while (params.startCycle <= snapshot.endCycle) {
                     // if start and end are not from same snapshot (occurs when more than 1 payout period was inactive)
                     if (_getPeriod(params.startCycle, params.periodLengthInCycles) != _getPeriod(params.endCycle, params.periodLengthInCycles)) {
-                        params.endCycle = (_getPeriod(params.startCycle, params.periodLengthInCycles) * params.periodLengthInCycles).toUint32();
+                        params.endCycle = _getPeriod(params.startCycle, params.periodLengthInCycles).mul(params.periodLengthInCycles).toUint32();
                     }
 
-                    totalDividendsToClaim += ((state.stakedWeight * _DIVS_PRECISION / snapshot.stakedWeight) * params.payoutPerCycle * (params.endCycle - params.startCycle + 1) / _DIVS_PRECISION).toUint128();
+                    uint256 temp = SafeMath.mul(state.stakedWeight, _DIVS_PRECISION);
+                    temp = temp.div(snapshot.stakedWeight);
+                    temp = temp.mul(params.payoutPerCycle);
+                    temp = temp.mul(SafeMath.sub(params.endCycle, params.startCycle).add(1));
+                    temp = temp.div(_DIVS_PRECISION);
+                    totalDividendsToClaim = temp.add(totalDividendsToClaim).toUint128();
 
                     // this snapshot is across several payout periods
                     if (params.endCycle != snapshot.endCycle) {
-                        params.periodToClaim = _getPeriod(params.endCycle, params.periodLengthInCycles) + 1;
-                        params.startCycle = ((params.periodToClaim - 1) * params.periodLengthInCycles + 1).toUint32();
+                        params.periodToClaim = _getPeriod(params.endCycle, params.periodLengthInCycles).add(1);
+                        params.startCycle = params.periodToClaim.sub(1).mul(params.periodLengthInCycles).add(1).toUint32();
                         params.payoutPerCycle = payoutSchedule[params.periodToClaim];
-                        params.nextPeriodCycle = (params.periodToClaim * params.periodLengthInCycles + 1).toUint32();
+                        params.nextPeriodCycle = params.periodToClaim.mul(params.periodLengthInCycles).add(1).toUint32();
 
-                        loops++;
+                        loops = loops.add(1);
                         if (loops >= periodsToClaim) {
                             break;
                         }
@@ -677,13 +687,13 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
                 }
             }
 
-            state.cycleToRename = params.endCycle + 1;
+            state.cycleToRename = SafeMath.add(params.endCycle, 1).toUint32();
 
             if (params.nextPeriodCycle <= state.cycleToRename) {
                 params.periodToClaim = _getPeriod(state.cycleToRename, params.periodLengthInCycles);
                 params.payoutPerCycle = payoutSchedule[params.periodToClaim];
-                params.nextPeriodCycle = (params.periodToClaim * params.periodLengthInCycles + 1).toUint32();
-                loops++;
+                params.nextPeriodCycle = params.periodToClaim.mul(params.periodLengthInCycles).add(1).toUint32();
+                loops = loops.add(1);
             }
 
             if (loops >= periodsToClaim) {
@@ -695,7 +705,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
                 break;
             }
 
-            snapshotIndex++;
+            snapshotIndex = snapshotIndex.add(1);
             snapshot = dividendsSnapshots[snapshotIndex];
 
             params.startCycle = snapshot.startCycle;
@@ -732,7 +742,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         // the caller
         if (!_disabled) {
             require(_getUnclaimedPayoutPeriods(msg.sender, periodLengthInCycles_) == 0, "NftStaking: Dividends are not claimed");
-            require(now - tokenInfo.depositTimestamp > freezeDurationAfterStake, "NftStaking: Staking freeze duration has not yet elapsed");
+            require(now.sub(tokenInfo.depositTimestamp) > freezeDurationAfterStake, "NftStaking: Staking freeze duration has not yet elapsed");
 
             // reset to indicate that token was withdrawn
             tokensInfo[tokenId].owner = address(0);
@@ -746,7 +756,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
             // ).toUint32();
 
             // Decrease staking weight for every snapshot for the current payout period
-            uint32 startCycle = ((_getPeriod(currentCycle, periodLengthInCycles_) - 1) * periodLengthInCycles_ + 1).toUint32();
+            uint32 startCycle = _getPeriod(currentCycle, periodLengthInCycles_).sub(1).mul(periodLengthInCycles_).add(1).toUint32();
 
             // uint32 startCycle =
             //     ((_getPeriod(currentCycle, periodLengthInCycles_) - 1) // Previous payout period
@@ -758,15 +768,15 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
             }
 
             (DividendsSnapshot memory snapshot, uint256 snapshotIndex) = _findDividendsSnapshot(startCycle);
-            uint256 lastSnapshotIndex = dividendsSnapshots.length - 1;
+            uint256 lastSnapshotIndex = dividendsSnapshots.length.sub(1);
 
             // Decrease staking weight for every snapshot for the current payout period
             while (startCycle <= currentCycle) {
-                startCycle = snapshot.endCycle + 1;
+                startCycle = SafeMath.add(snapshot.endCycle, 1).toUint32();
 
                 // must never underflow
                 require(snapshot.stakedWeight >= tokenInfo.weight, "NftStaking: Staked weight underflow");
-                snapshot.stakedWeight -= tokenInfo.weight;
+                snapshot.stakedWeight = SafeMath.sub(snapshot.stakedWeight, tokenInfo.weight).toUint64();
                 dividendsSnapshots[snapshotIndex] = snapshot;
 
                 emit SnapshotUpdated(
@@ -778,7 +788,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
 
                 // outside the range of current snapshot, query next
                 if (startCycle > snapshot.endCycle) {
-                    snapshotIndex++;
+                    snapshotIndex = snapshotIndex.add(1);
                     if (snapshotIndex > lastSnapshotIndex) {
                         // reached the end of snapshots
                         break;
@@ -790,7 +800,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
             StakerState memory state = stakeStates[msg.sender];
 
             // decrease staker weight
-            state.stakedWeight -= tokenInfo.weight;
+            state.stakedWeight = SafeMath.sub(state.stakedWeight, tokenInfo.weight).toUint64();
             // if no more nfts left to stake - reset depositCycle
             if (state.stakedWeight == 0) {
                 state.cycleToRename = 0;
@@ -840,7 +850,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
 
         (DividendsSnapshot memory snapshot, uint256 snapshotIndex) = _getOrCreateLatestCycleSnapshot(freezeDurationAfterStake);
 
-        uint64 stakedWeight = snapshot.stakedWeight + nftWeight;
+        uint64 stakedWeight = SafeMath.add(snapshot.stakedWeight, nftWeight).toUint64();
 
         // increase current snapshot total staked weight
         dividendsSnapshots[snapshotIndex].stakedWeight = stakedWeight;
@@ -863,7 +873,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
             state.cycleToRename = snapshot.startCycle;
         }
 
-        state.stakedWeight += nftWeight;
+        state.stakedWeight = SafeMath.add(state.stakedWeight, nftWeight).toUint64();
         stakeStates[tokenOwner] = state;
 
         emit Deposit(tokenOwner, tokenId, getCurrentCycle());
@@ -881,12 +891,12 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
     returns(DividendsSnapshot memory snapshot, uint256 snapshotIndex)
     {
         uint256 low = 0;
-        uint256 high = dividendsSnapshots.length - 1;
+        uint256 high = dividendsSnapshots.length.sub(1);
         uint256 mid = 0;
 
         while (low <= high) {
             // overflow protected midpoint calculation
-            mid = low + ((high - low) / 2);
+            mid = low.add(high.sub(low).div(2));
 
             snapshot = dividendsSnapshots[mid];
 
@@ -896,14 +906,14 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
                 }
 
                 // outside by left side of the range
-                high = mid - 1;
+                high = mid.sub(1);
             } else if (snapshot.endCycle < cycle) {
                 if (mid == type(uint256).max) {
                     break;
                 }
 
                 // outside by right side of the range
-                low = mid + 1;
+                low = mid.add(1);
             } else {
                 break;
             }

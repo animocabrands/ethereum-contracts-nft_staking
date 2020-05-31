@@ -840,11 +840,8 @@ describe("NftStaking", function () {
                     periods[1].toNumber().should.be.equal(0);
                 });
 
-                it("must have 0 unclaimed payouts period left after attempt to claim negative periods (overflow)", async function () {
-                    await shouldClaimDivs(-1, 10000, staker, true).call(this);
-
-                    const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
-                    periods[1].toNumber().should.be.equal(0);
+                it("must revert after attempt to claim negative periods (overflow)", async function () {
+                    await expectRevert(shouldClaimDivs(-1, 10000, staker, true).call(this), "SafeMath: addition overflow");
                 });
 
                 describe("when 1 period was claimed", function () {

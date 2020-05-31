@@ -30,7 +30,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
 
     // a struct container used to track a staker's aggregate staking info
     struct StakerState {
-        uint32 cycleToRename; // beginning cycle from which a staker may claim dividend rewards for staked NFTs
+        uint32 unclaimedCycle; // beginning cycle from which a staker may claim dividend rewards for staked NFTs
         uint64 stakedWeight; // current total weight of NFTs staked by the staker
     }
 
@@ -433,7 +433,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         StakerState memory state = stakeStates[msg.sender];
         uint256 periodLengthInCycles_ = periodLengthInCycles;
         return (
-            _getPeriod(state.cycleToRename, periodLengthInCycles_),
+            _getPeriod(state.unclaimedCycle, periodLengthInCycles_),
             _getUnclaimedPayoutPeriods(msg.sender, periodLengthInCycles_)
         );
     }
@@ -450,7 +450,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
             return 0;
         }
 
-        uint256 periodToClaim = _getPeriod(state.cycleToRename, periodLengthInCycles_);
+        uint256 periodToClaim = _getPeriod(state.unclaimedCycle, periodLengthInCycles_);
         return _getCurrentPeriod(periodLengthInCycles_).sub(periodToClaim);
     }
 
@@ -482,9 +482,9 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         uint256 loops = 0;
         uint128 totalDividendsToClaim = 0;
 
-        if (_getPeriod(state.cycleToRename, params.periodLengthInCycles) >= startPeriod) {
+        if (_getPeriod(state.unclaimedCycle, params.periodLengthInCycles) >= startPeriod) {
             // if requested payout period is earlier then deposit
-            params.depositCycle = state.cycleToRename;
+            params.depositCycle = state.unclaimedCycle;
         } else {
             // or later then latest deposit
             params.depositCycle = startPeriod.sub(1).mul(params.periodLengthInCycles).add(1).toUint32();
@@ -612,8 +612,8 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         params.currentPeriod = _getCurrentPeriod(params.periodLengthInCycles);
 
         // payout cycles starts from 1
-        params.periodToClaim = _getPeriod(state.cycleToRename, params.periodLengthInCycles);
-        (DividendsSnapshot memory snapshot, uint256 snapshotIndex) = _findDividendsSnapshot(state.cycleToRename);
+        params.periodToClaim = _getPeriod(state.unclaimedCycle, params.periodLengthInCycles);
+        (DividendsSnapshot memory snapshot, uint256 snapshotIndex) = _findDividendsSnapshot(state.unclaimedCycle);
 
         params.startSnapshotIndex = snapshotIndex;
         params.lastSnapshotIndex = dividendsSnapshots.length.sub(1);
@@ -687,10 +687,10 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
                 }
             }
 
-            state.cycleToRename = SafeMath.add(params.endCycle, 1).toUint32();
+            state.unclaimedCycle = SafeMath.add(params.endCycle, 1).toUint32();
 
-            if (params.nextPeriodCycle <= state.cycleToRename) {
-                params.periodToClaim = _getPeriod(state.cycleToRename, params.periodLengthInCycles);
+            if (params.nextPeriodCycle <= state.unclaimedCycle) {
+                params.periodToClaim = _getPeriod(state.unclaimedCycle, params.periodLengthInCycles);
                 params.payoutPerCycle = payoutSchedule[params.periodToClaim];
                 params.nextPeriodCycle = params.periodToClaim.mul(params.periodLengthInCycles).add(1).toUint32();
                 loops = loops.add(1);
@@ -801,9 +801,9 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
 
             // decrease staker weight
             state.stakedWeight = SafeMath.sub(state.stakedWeight, tokenInfo.weight).toUint64();
-            // if no more nfts left to stake - reset depositCycle
+            // if no more nfts left to stake - reset unclaimedCycle
             if (state.stakedWeight == 0) {
-                state.cycleToRename = 0;
+                state.unclaimedCycle = 0;
             }
 
             stakeStates[msg.sender] = state;
@@ -867,10 +867,10 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
 
         tokensInfo[tokenId] = tokenInfo;
 
-        // increase staker weight and set deposit cycle to correct one from snapshot
+        // increase staker weight and set unclaimed start cycle to correct one from snapshot
         StakerState memory state = stakeStates[tokenOwner];
         if (state.stakedWeight == 0) {
-            state.cycleToRename = snapshot.startCycle;
+            state.unclaimedCycle = snapshot.startCycle;
         }
 
         state.stakedWeight = SafeMath.add(state.stakedWeight, nftWeight).toUint64();

@@ -156,7 +156,7 @@ describe("NftStaking", function () {
         const state = await this.stakingContract.stakeStates(from);
 
         console.log("===== Staker's State", from);
-        console.log("cycleToRename", state.cycleToRename.toNumber());
+        console.log("unclaimedCycle", state.unclaimedCycle.toNumber());
         console.log("stakedWeight", state.stakedWeight.toNumber());
     }
 
@@ -459,7 +459,7 @@ describe("NftStaking", function () {
 
                 it("must have depositCycle == " + (1 + FreezePeriodInDays), async function () {
                     const stakerState = await this.stakingContract.stakeStates(staker);
-                    stakerState.cycleToRename.toNumber().should.be.equal(1 + FreezePeriodInDays);
+                    stakerState.unclaimedCycle.toNumber().should.be.equal(1 + FreezePeriodInDays);
                 });
 
                 it("must emit the SnapshotCreated event", async function () {
@@ -532,9 +532,9 @@ describe("NftStaking", function () {
                     stakerState.stakedWeight.toNumber().should.be.equal(111);
                 });
 
-                it("must have cycleToRename == 2", async function () {
+                it("must have unclaimedCycle == 2", async function () {
                     const stakerState = await this.stakingContract.stakeStates(staker);
-                    stakerState.cycleToRename.toNumber().should.be.equal(2);
+                    stakerState.unclaimedCycle.toNumber().should.be.equal(2);
                 });
 
                 it("must emit the SnapshotCreated event", async function () {
@@ -558,9 +558,9 @@ describe("NftStaking", function () {
 
                 const periodsToAdvance = 3;
 
-                it("staker must have cycleToRename == 0 before staking", async function () {
+                it("staker must have unclaimedCycle == 0 before staking", async function () {
                     const stakerState = await this.stakingContract.stakeStates(staker);
-                    stakerState.cycleToRename.toNumber().should.be.equal(0);
+                    stakerState.unclaimedCycle.toNumber().should.be.equal(0);
                 });
 
                 it("must stake successfully", async function () {
@@ -572,13 +572,13 @@ describe("NftStaking", function () {
                 describe(`staker must have depositCycle == ${targetDepositCycle}`, function () {
                     it("immediately after staking", async function () {
                         const stakerState = await this.stakingContract.stakeStates(staker);
-                        stakerState.cycleToRename.toNumber().should.be.equal(targetDepositCycle);
+                        stakerState.unclaimedCycle.toNumber().should.be.equal(targetDepositCycle);
                     });
 
                     it("after 2 additional payout periods after staking", async function () {
                         await time.increase(PeriodLengthInSeconds * 2);
                         const stakerState = await this.stakingContract.stakeStates(staker);
-                        stakerState.cycleToRename.toNumber().should.be.equal(targetDepositCycle);
+                        stakerState.unclaimedCycle.toNumber().should.be.equal(targetDepositCycle);
                     });
                 });
 

@@ -82,7 +82,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         address indexed from, // staker claiming the dividends
         uint256 snapshotStartIndex, // claim snapshot starting index
         uint256 snapshotEndIndex, // claim snapshot ending index
-        uint256 amount // amount of dividends claimed
+        uint128 amount // amount of dividends claimed
     );
 
     // emitted when a new snapshot is created
@@ -517,7 +517,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         while (params.periodToClaim < params.currentPeriod) {
             if (snapshot.stakedWeight > 0 && snapshot.tokensToClaim > 0) {
                 // avoid division by zero
-                uint128 tokensToClaim = uint128((state.stakedWeight * _DIVS_PRECISION / snapshot.stakedWeight) * snapshot.tokensToClaim / _DIVS_PRECISION);
+                uint128 tokensToClaim = ((state.stakedWeight * _DIVS_PRECISION / snapshot.stakedWeight) * snapshot.tokensToClaim / _DIVS_PRECISION).toUint128();
                 require(snapshot.tokensToClaim >= tokensToClaim, "NftStaking: Tokens to claim exceeds the snapshot balance");
 
                 totalDivsToClaim += tokensToClaim;
@@ -537,7 +537,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
                         params.endCycle = (_getPeriod(params.startCycle, params.periodLengthInCycles) * params.periodLengthInCycles).toUint32();
                     }
 
-                    totalDivsToClaim += uint128((state.stakedWeight * _DIVS_PRECISION / snapshot.stakedWeight) * params.payoutPerCycle * (params.endCycle - params.startCycle + 1) / _DIVS_PRECISION);
+                    totalDivsToClaim += ((state.stakedWeight * _DIVS_PRECISION / snapshot.stakedWeight) * params.payoutPerCycle * (params.endCycle - params.startCycle + 1) / _DIVS_PRECISION).toUint128();
 
                     // this snapshot is across several payout periods
                     if (params.endCycle != snapshot.endCycle) {
@@ -628,7 +628,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         while (params.periodToClaim < params.currentPeriod) {
             if (snapshot.stakedWeight > 0 && snapshot.tokensToClaim > 0) {
                 // avoid division by zero
-                uint128 tokensToClaim = uint128((state.stakedWeight * _DIVS_PRECISION / snapshot.stakedWeight) * snapshot.tokensToClaim / _DIVS_PRECISION);
+                uint128 tokensToClaim = ((state.stakedWeight * _DIVS_PRECISION / snapshot.stakedWeight) * snapshot.tokensToClaim / _DIVS_PRECISION).toUint128();
                 require(snapshot.tokensToClaim >= tokensToClaim, "NftStaking: Tokens to claim exceeds the snapshot balance");
 
                 snapshot.tokensToClaim -= tokensToClaim;
@@ -658,7 +658,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
                         params.endCycle = (_getPeriod(params.startCycle, params.periodLengthInCycles) * params.periodLengthInCycles).toUint32();
                     }
 
-                    totalDivsToClaim += uint128((state.stakedWeight * _DIVS_PRECISION / snapshot.stakedWeight) * params.payoutPerCycle * (params.endCycle - params.startCycle + 1) / _DIVS_PRECISION);
+                    totalDivsToClaim += ((state.stakedWeight * _DIVS_PRECISION / snapshot.stakedWeight) * params.payoutPerCycle * (params.endCycle - params.startCycle + 1) / _DIVS_PRECISION).toUint128();
 
                     // this snapshot is across several payout periods
                     if (params.endCycle != snapshot.endCycle) {

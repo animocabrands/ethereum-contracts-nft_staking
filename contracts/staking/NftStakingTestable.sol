@@ -44,7 +44,7 @@ abstract contract NftStakingTestable is NftStaking {
         );
     }
 
-    function dividendsSnapshot(uint256 targetCycle)
+    function dividendsSnapshot(uint32 targetCycle)
     public
     view
     returns(

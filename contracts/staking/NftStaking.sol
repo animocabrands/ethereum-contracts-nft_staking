@@ -853,7 +853,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
             snapshot.tokensToClaim);
 
         tokenInfo.weight = nftWeight;
-        tokenInfo.depositCycle = uint32(snapshot.cycleRangeStart); // TODO safe cast
+        tokenInfo.depositCycle = snapshot.cycleRangeStart;
 
         tokensInfo[tokenId] = tokenInfo;
 

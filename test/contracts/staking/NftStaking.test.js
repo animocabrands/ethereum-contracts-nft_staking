@@ -671,14 +671,16 @@ describe("NftStaking", function () {
 
             it("must equal 0 within the 1st payout period", async function () {
                 await time.increase(1);
-                const cycles = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
-                cycles[1].toNumber().should.be.equal(0);
+                const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
+                periods[0].toNumber().should.be.equal(0);
+                periods[1].toNumber().should.be.equal(0);
             });
 
             it("must equal 0 within the 2nd payout period", async function () {
                 await time.increase(PeriodLengthInSeconds);
-                const cycles = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
-                cycles[1].toNumber().should.be.equal(0);
+                const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
+                periods[0].toNumber().should.be.equal(0);
+                periods[1].toNumber().should.be.equal(0);
             });
 
             it("must equal 0 within the nth payout period", async function () {
@@ -686,8 +688,9 @@ describe("NftStaking", function () {
                 const nthCycle = 10;
                 const additonalCyclesToAdvance = nthCycle - currentCycle.toNumber();
                 await time.increase(PeriodLengthInSeconds * additonalCyclesToAdvance);
-                const cycles = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
-                cycles[1].toNumber().should.be.equal(0);
+                const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
+                periods[0].toNumber().should.be.equal(0);
+                periods[1].toNumber().should.be.equal(0);
             });
         });
 
@@ -702,12 +705,14 @@ describe("NftStaking", function () {
             it("must equal 0 within the 1st payout period", async function () {
                 await time.increase(1);
                 const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
+                periods[0].toNumber().should.be.equal(1);
                 periods[1].toNumber().should.be.equal(0);
             });
 
             it("must equal 1 within the 2nd payout period", async function () {
                 await time.increase(PeriodLengthInSeconds);
                 const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
+                periods[0].toNumber().should.be.equal(1);
                 periods[1].toNumber().should.be.equal(1);
             });
 
@@ -717,6 +722,7 @@ describe("NftStaking", function () {
                 const additonalCyclesToAdvance = nthCycle - currentCycle.toNumber();
                 await time.increase(PeriodLengthInSeconds * additonalCyclesToAdvance);
                 const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
+                periods[0].toNumber().should.be.equal(1);
                 periods[1].toNumber().should.be.equal(nthCycle - 1);
             });
         });
@@ -735,17 +741,19 @@ describe("NftStaking", function () {
                 });
 
                 describe("when divs were not claimed", function () {
-                    it("must be 1", async function () {
+                    it("must be 1,1", async function () {
                         const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
                         periods[0].toNumber().should.be.equal(1);
+                        periods[1].toNumber().should.be.equal(1);
                     });
                 });
 
                 describe("when divs were claimed", function () {
-                    it("must be 2", async function () {
+                    it("must be 2,0", async function () {
                         await this.stakingContract.claimDividends(1, { from: staker });
                         const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
                         periods[0].toNumber().should.be.equal(2);
+                        periods[1].toNumber().should.be.equal(0);
                     });
                 });
             });
@@ -771,33 +779,37 @@ describe("NftStaking", function () {
                 });
 
                 describe("when divs were not claimed", function () {
-                    it("must be 1", async function () {
+                    it("must be 1,3", async function () {
                         const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
                         periods[0].toNumber().should.be.equal(1);
+                        periods[1].toNumber().should.be.equal(3);
                     });
                 });
 
                 describe("when divs for 1 payout period were claimed", function () {
-                    it("must be 2", async function () {
+                    it("must be 2,2", async function () {
                         await this.stakingContract.claimDividends(1, { from: staker });
                         const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
                         periods[0].toNumber().should.be.equal(2);
+                        periods[1].toNumber().should.be.equal(2);
                     });
                 });
 
                 describe("when divs for 2 payout periods were claimed", function () {
-                    it("must be 3", async function () {
+                    it("must be 3,1", async function () {
                         await this.stakingContract.claimDividends(2, { from: staker });
                         const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
                         periods[0].toNumber().should.be.equal(3);
+                        periods[1].toNumber().should.be.equal(1);
                     });
                 });
 
                 describe("when divs for 3 payout periods were claimed", function () {
-                    it("must be 4", async function () {
+                    it("must be 4,0", async function () {
                         await this.stakingContract.claimDividends(3, { from: staker });
                         const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
                         periods[0].toNumber().should.be.equal(4);
+                        periods[1].toNumber().should.be.equal(0);
                     });
                 });
             });
@@ -837,6 +849,7 @@ describe("NftStaking", function () {
                     await shouldClaimDivs(100, 10000, staker, true).call(this);
 
                     const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
+                    periods[0].toNumber().should.be.equal(3);
                     periods[1].toNumber().should.be.equal(0);
                 });
 
@@ -850,6 +863,7 @@ describe("NftStaking", function () {
                     it("must have 1 unclaimed payout period left after ", async function () {
                         this.receipt = await this.stakingContract.claimDividends(1, { from: staker });
                         const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
+                        periods[0].toNumber().should.be.equal(2);
                         periods[1].toNumber().should.be.equal(1);
                     });
 
@@ -867,6 +881,7 @@ describe("NftStaking", function () {
                     it("must have 0 unclaimed payouts period left after 2 periods claimed", async function () {
                         this.receipt = await this.stakingContract.claimDividends(2, { from: staker });
                         const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
+                        periods[0].toNumber().should.be.equal(3);
                         periods[1].toNumber().should.be.equal(0);
                     });
 
@@ -904,6 +919,7 @@ describe("NftStaking", function () {
                     this.receipt = await this.stakingContract.claimDividends(1, { from: staker });
 
                     const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
+                    periods[0].toNumber().should.be.equal(1);
                     periods[1].toNumber().should.be.equal(0);
                 });
 
@@ -937,22 +953,23 @@ describe("NftStaking", function () {
                 await time.increase(PeriodLengthInSeconds * 1000);
             })
 
-            function testUnclaimedPeriods(amount) {
-                it(`must have ${amount} unclaimed payout periods`, async function () {
+            function testUnclaimedPeriods(startPeriod, amount) {
+                it(`must have ${amount} unclaimed payout periods from period #${startPeriod}`, async function () {
                     // await debug_state.call(this, staker);
                     const upp = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
+                    upp[0].toNumber().should.be.equal(startPeriod);
                     upp[1].toNumber().should.be.equal(amount);
                 });
             }
 
             it("must claim 60 tokens when claimed 1 payout period", shouldClaimDivs(1, 60, staker, true));
-            testUnclaimedPeriods(999);
+            testUnclaimedPeriods(2, 999);
 
             it("must claim 210 tokens when claimed 3 more payout periods", shouldClaimDivs(3, 210, staker, true));
-            testUnclaimedPeriods(996);
+            testUnclaimedPeriods(5, 996);
 
             it("must claim 700 tokens when claimed 10 more payout periods", shouldClaimDivs(10, 700, staker, true));
-            testUnclaimedPeriods(986);
+            testUnclaimedPeriods(15, 986);
         });
     });
 

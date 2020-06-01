@@ -44,16 +44,16 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
     // a struct container for getting around the stack limit of the
     // claimDividends() and estimatePayout() functions
     struct ClaimDivsParams {
+        uint256 periodLengthInCycles;
         uint256 currentPeriod;
         uint256 periodToClaim;
         uint256 startSnapshotIndex;
         uint256 lastSnapshotIndex;
-        uint32 nextPeriodCycle;
         uint256 payoutPerCycle;
+        uint32 depositCycle;
         uint32 startCycle;
         uint32 endCycle;
-        uint256 periodLengthInCycles;
-        uint32 depositCycle;
+        uint32 nextPeriodCycle;
     }
 
     // emitted when the staking starts

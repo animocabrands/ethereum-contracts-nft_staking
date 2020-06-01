@@ -84,7 +84,7 @@ abstract contract NftStakingTestable is NftStaking {
     }
 
     function currentPayoutPeriod() public view returns(uint256) {
-        StakerState memory state = stakeStates[msg.sender];
+        StakerState memory state = stakerStates[msg.sender];
         if (state.stakedWeight == 0) {
             return 0;
         }

@@ -729,7 +729,7 @@ abstract contract NftStaking is Ownable, ERC1155TokenReceiver {
      * @dev While the contract is enabled, reverts if NFT is being withdrawn before the staking freeze duration has elapsed.
      * @param tokenId The token identifier, referencing the NFT being withdrawn.
      */
-    function withdrawNft(uint256 tokenId) external virtual {
+    function withdrawNft(uint256 tokenId) external virtual divsClaimed(msg.sender) {
         TokenInfo memory tokenInfo = tokensInfo[tokenId];
         require(tokenInfo.owner == msg.sender, "NftStaking: Token owner doesn't match or token was already withdrawn before");
 

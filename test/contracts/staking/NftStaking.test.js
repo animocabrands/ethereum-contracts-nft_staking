@@ -219,7 +219,7 @@ describe("NftStaking", function () {
                 );
             }
             await this.stakingContract.start({ from: creator });
-            console.log(`Staking started, total payout: ${(await(this.dividendToken.balanceOf(this.stakingContract.address)))}`);
+            // console.log(`Staking started, total payout: ${(await(this.dividendToken.balanceOf(this.stakingContract.address)))}`);
         }
     }
 
@@ -1201,16 +1201,16 @@ describe("NftStaking", function () {
                         daysPassed -= payoutPeriodInDays;
                         const estimationResult = await this.stakingContract.estimatePayout(1, 1, { from: staker });
                         console.log(`${estimationResult}`);
-                        await debug_PrintAllSnapshots.call(this);
-                        await debug_Cycles.call(this, staker);
-                        await debug_state.call(this, staker);
+                        // await debug_PrintAllSnapshots.call(this);
+                        // await debug_Cycles.call(this, staker);
+                        // await debug_state.call(this, staker);
                         await this.stakingContract.claimDividends(1, { from: staker });
                     }
                 }
 
                 await time.increase(FreezePeriodSeconds.add(new BN(1)).toNumber());
 
-                await debug_PrintAllSnapshots.call(this);
+                // await debug_PrintAllSnapshots.call(this);
             });
 
             describe("withdraw 1st NFT (Common), update staker state and snapshot", function () {
@@ -1410,9 +1410,9 @@ describe("NftStaking", function () {
         var should = require('chai').should();
         return async function () {
             // estimate max here
-            await debug_PrintAllSnapshots.call(this);
-            await debug_Cycles.call(this, staker);
-            await debug_state.call(this, staker);
+            // await debug_PrintAllSnapshots.call(this);
+            // await debug_Cycles.call(this, staker);
+            // await debug_state.call(this, staker);
             const estimationResult = await this.stakingContract.estimatePayout(1, divsToClaim, { from });
             let receipt = await this.stakingContract.claimDividends(divsToClaim, { from });
 
@@ -1475,9 +1475,9 @@ describe("NftStaking", function () {
     describe("estimatePayout", function () {
         function shouldEstimate(amount, start, count) {
             it(`must estimate ${amount} between [${start}, ${start + count - 1}] periods`, async function () {
-                await debug_PrintAllSnapshots.call(this);
-                await debug_Cycles.call(this, staker);
-                await debug_state.call(this, staker);
+                // await debug_PrintAllSnapshots.call(this);
+                // await debug_Cycles.call(this, staker);
+                // await debug_state.call(this, staker);
                 const estimatedAmount = await this.stakingContract.estimatePayout(start, count, { from: staker });
                 estimatedAmount.toNumber().should.be.equal(amount);
             });

@@ -259,11 +259,9 @@ abstract contract NftStaking is Ownable, ERC1155TokenReceiver {
         uint256 totalSnapshots = dividendsSnapshots.length;
         uint128 initialDividendsToClaim = 0;
 
-        // empty snapshot history
         if (totalSnapshots == 0) {
-            // create the very first snapshot for the current cycle
+            // create the very first snapshot, for the current cycle
             return _addNewSnapshot(currentCycle, currentCycle, 0, initialDividendsToClaim);
-            // return _addNewSnapshot(uint32(_getCycle(now)), currentCycle, 0, initialDividendsToClaim);
         }
 
         uint256 snapshotIndex = totalSnapshots.sub(1);
@@ -271,74 +269,96 @@ abstract contract NftStaking is Ownable, ERC1155TokenReceiver {
         // get the latest snapshot
         DividendsSnapshot storage writeSnapshot = dividendsSnapshots[snapshotIndex];
 
+        uint256 periodLengthInCycles_ = periodLengthInCycles;
+        uint256 currentPeriod = _getPeriod(currentCycle, periodLengthInCycles_);
+
         // latest snapshot ends on the current cycle
         if (writeSnapshot.endCycle == currentCycle) {
-            // this is the very latest snapshot
+            // return the latest snapshot
             return (writeSnapshot, snapshotIndex);
         }
+
+        // latest snapshot ends on an earlier cycle
+
+        uint32 previousCycle = SafeMath.sub(currentCycle, 1).toUint32();
 
         // in-memory copy of the latest snapshot for reads, to save gas
         DividendsSnapshot memory readSnapshot = writeSnapshot;
 
-        uint256 periodLengthInCycles_ = periodLengthInCycles;
-        uint256 currentPeriod = _getCurrentPeriod(periodLengthInCycles_);
-        uint32 previousCycle = SafeMath.sub(currentCycle, 1).toUint32();
-
-        // latest snapshot is for the current payout period
-        if (currentPeriod == _getPeriod(readSnapshot.startCycle, periodLengthInCycles_)) {
-            // latest snapshot didn't end on the previous cycle
-            if (readSnapshot.endCycle != previousCycle) {
-                // simply extend the latest snapshot to capture the unaccounted
-                // cycles from where the last snapshot ended, up-to the previous
-                // cycle (inclusive)
-                writeSnapshot.endCycle = previousCycle;
-
-                emit SnapshotUpdated(
-                    snapshotIndex,
-                    readSnapshot.startCycle,
-                    previousCycle,
-                    readSnapshot.stakedWeight,
-                    readSnapshot.dividendsToClaim);
-            }
-
+        // latest snapshot ends on the previous cycle
+        if (readSnapshot.endCycle == previousCycle) {
+            // if latest snapshot has no staked weight - move it to the new
+            // snapshot
             if (readSnapshot.stakedWeight == 0) {
                 initialDividendsToClaim = readSnapshot.dividendsToClaim;
             }
 
-            // create a new latest snapshot for the current cycle
+            // create and return the new latest snapshot, for the current cycle,
+            // with staked weight from previous snapshot
             return _addNewSnapshot(currentCycle, currentCycle, readSnapshot.stakedWeight, initialDividendsToClaim);
         }
 
-        // latest snapshot is for an earlier payout period
+        // latest snapshot ends on an earlier cycle than the previous cycle
+        // (i.e. it has unaccounted-for cycles)
+
+        // latest snapshot is within the current period
+        if (_getPeriod(readSnapshot.startCycle, periodLengthInCycles_) == currentPeriod) {
+            // extend the latest snapshot to capture the unaccounted-for cycles
+            // from where the last snapshot ended, up-to the previous cycle
+            // (inclusive)
+            readSnapshot.endCycle = previousCycle;
+            writeSnapshot.endCycle = previousCycle;
+
+            emit SnapshotUpdated(
+                snapshotIndex,
+                readSnapshot.startCycle,
+                readSnapshot.endCycle,
+                readSnapshot.stakedWeight,
+                readSnapshot.dividendsToClaim);
+
+            // if latest snapshot has no staked weight - move it to the new
+            // snapshot
+            if (readSnapshot.stakedWeight == 0) {
+                initialDividendsToClaim = readSnapshot.dividendsToClaim;
+            }
+
+            // create and return the new latest snapshot, for the current cycle,
+            // with staked weight from previous snapshot
+            return _addNewSnapshot(currentCycle, currentCycle, readSnapshot.stakedWeight, initialDividendsToClaim);
+        }
+
+        // latest snapshot starts in an earlier period
 
         uint32 previousPeriodEndCycle = currentPeriod.sub(1).mul(periodLengthInCycles_).toUint32();
 
-        // latest snapshot didn't end on the end of the previous payout period
+        // latest snapshot doesn't align with the end of the previous period
         if (readSnapshot.endCycle != previousPeriodEndCycle) {
-            // align the latest snapshot to the end of the previous payout period
+            // align current snapshot to the end of the previous payout period
+            readSnapshot.endCycle = previousPeriodEndCycle;
             writeSnapshot.endCycle = previousPeriodEndCycle;
 
             emit SnapshotUpdated(
                 snapshotIndex,
                 readSnapshot.startCycle,
-                previousPeriodEndCycle,
+                readSnapshot.endCycle,
                 readSnapshot.stakedWeight,
                 readSnapshot.dividendsToClaim);
         }
 
-        // there are tokens staked and cycles unaccounted for in the current
-        // payout period
-        if ((readSnapshot.stakedWeight != 0) && (previousPeriodEndCycle != previousCycle)) {
-            // create a new snapshot to capture the unaccounted cycles in the
-            // current payout period, up-to the previous cycle (inclusive)
-            (readSnapshot, ) = _addNewSnapshot(SafeMath.add(previousPeriodEndCycle, 1).toUint32(), previousCycle, readSnapshot.stakedWeight, initialDividendsToClaim);
+        // if somebody staked already and there are cycles skipped
+        if (readSnapshot.stakedWeight != 0 && readSnapshot.endCycle != previousCycle) {
+            uint32 currentPeriodStartCycle = SafeMath.add(readSnapshot.endCycle, 1).toUint32();
+            (readSnapshot, ) = _addNewSnapshot(currentPeriodStartCycle, previousCycle, readSnapshot.stakedWeight, 0);
         }
 
+        // if latest snapshot has no staked weight - move it to the new
+        // snapshot
         if (readSnapshot.stakedWeight == 0) {
             initialDividendsToClaim = readSnapshot.dividendsToClaim;
         }
 
-        // create a new latest snapshot for the current cycle
+        // create and return the new latest snapshot, for the current cycle,
+        // with staked weight from previous snapshot
         return _addNewSnapshot(currentCycle, currentCycle, readSnapshot.stakedWeight, initialDividendsToClaim);
     }
 

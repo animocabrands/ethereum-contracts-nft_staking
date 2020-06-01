@@ -847,6 +847,10 @@ abstract contract NftStaking is Ownable, ERC1155TokenReceiver {
         tokenInfo.depositTimestamp = now.toUint64();
         tokenInfo.owner = tokenOwner;
 
+        // returned 'latest' snapshot will either be a new snapshot for the
+        // current (or possibly next, due to the freeze duration) cycle, or an
+        // existing one starting at the current (or possibly next, due to the
+        // freeze duration) cycle
         (DividendsSnapshot memory snapshot, uint256 snapshotIndex) = _getSnapshot(freezeDurationAfterStake);
 
         uint64 stakedWeight = SafeMath.add(snapshot.stakedWeight, nftWeight).toUint64();
@@ -862,6 +866,10 @@ abstract contract NftStaking is Ownable, ERC1155TokenReceiver {
             snapshot.dividendsToClaim);
 
         tokenInfo.weight = nftWeight;
+
+        // because of the nature of the snapshot that was retrieved, the token
+        // deposit cycle is guaranteed to be in alignment with the start of the
+        // latest snapshot
         tokenInfo.depositCycle = snapshot.startCycle;
 
         tokensInfo[tokenId] = tokenInfo;
@@ -869,7 +877,10 @@ abstract contract NftStaking is Ownable, ERC1155TokenReceiver {
         // increase staker weight and set unclaimed start cycle to correct one from snapshot
         StakerState memory stakerState = stakerStates[tokenOwner];
         if (stakerState.stakedWeight == 0) {
-            stakerState.nextUnclaimedPeriodStartCycle = snapshot.startCycle;
+            // nothing is currently staked by the staker so reset/initialize
+            // the next unclaimed period start cycle to the token deposit cycle
+            // for unclaimed payout period tracking
+            stakerState.nextUnclaimedPeriodStartCycle = tokenInfo.depositCycle;
         }
 
         stakerState.stakedWeight = SafeMath.add(stakerState.stakedWeight, nftWeight).toUint64();

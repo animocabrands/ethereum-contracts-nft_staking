@@ -6,13 +6,12 @@ import "@openzeppelin/contracts/math/Math.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/SafeCast.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@animoca/ethereum-contracts-erc20_base/contracts/token/ERC20/IERC20.sol";
 import "@animoca/ethereum-contracts-assets_inventory/contracts/token/ERC721/IERC721.sol";
 import "@animoca/ethereum-contracts-assets_inventory/contracts/token/ERC1155/IERC1155.sol";
 import "@animoca/ethereum-contracts-assets_inventory/contracts/token/ERC1155/ERC1155TokenReceiver.sol";
 
-abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
+abstract contract NftStaking is Ownable, ERC1155TokenReceiver {
 
     using SafeMath for uint256;
     using SafeCast for uint256;
@@ -836,16 +835,17 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
      * @param tokenId Identifier of the staked NFT.
      * @param tokenOwner Owner of the staked NFT.
      */
-    function _depositNft(uint256 tokenId, address tokenOwner) internal isEnabled whenNotPaused hasStarted {
+    function _depositNft(
+        uint256 tokenId,
+        address tokenOwner
+    ) internal isEnabled hasStarted {
         require(whitelistedNftContract == msg.sender, "NftStaking: Caller is not the whitelisted NFT contract");
-        // require(_isCorrectTokenType(tokenId), "NftStaking: Attempting to deposit an invalid token type");
+
+        uint32 nftWeight = _validateAndGetWeight(tokenId);
 
         TokenInfo memory tokenInfo;
         tokenInfo.depositTimestamp = now.toUint64();
         tokenInfo.owner = tokenOwner;
-
-        // add weight based on token type
-        uint32 nftWeight = _validateAndGetWeight(tokenId);
 
         (DividendsSnapshot memory snapshot, uint256 snapshotIndex) = _getSnapshot(freezeDurationAfterStake);
 

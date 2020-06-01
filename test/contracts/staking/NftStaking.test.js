@@ -233,7 +233,7 @@ describe("NftStaking", function () {
         });
 
         it("must create the latest snapshot", async function () {
-            this.receipt = await this.stakingContract.getOrCreateLatestCycleSnapshot(0);
+            this.receipt = await this.stakingContract.getSnapshot(0);
             const numSnapshots = await this.stakingContract.totalSnapshots();
             numSnapshots.toNumber().should.be.equal(1);
             const snapshot = await this.stakingContract.getLatestSnapshot();
@@ -257,7 +257,7 @@ describe("NftStaking", function () {
 
         it("must retrieve the latest snapshot", async function () {
             await time.increase(1);
-            this.receipt = await this.stakingContract.getOrCreateLatestCycleSnapshot(0);
+            this.receipt = await this.stakingContract.getSnapshot(0);
             const numSnapshots = await this.stakingContract.totalSnapshots();
             numSnapshots.toNumber().should.be.equal(1);
             const snapshot = await this.stakingContract.getLatestSnapshot();
@@ -281,7 +281,7 @@ describe("NftStaking", function () {
 
         it("must create a new latest snapshot", async function () {
             await time.increase(PeriodLengthInSeconds);
-            this.receipt = await this.stakingContract.getOrCreateLatestCycleSnapshot(0);
+            this.receipt = await this.stakingContract.getSnapshot(0);
 
             const numSnapshots = await this.stakingContract.totalSnapshots();
             numSnapshots.toNumber().should.be.equal(2);
@@ -306,7 +306,7 @@ describe("NftStaking", function () {
         });
 
         it("must create a new latest snapshot but 1 day ahead", async function () {
-            this.receipt = await this.stakingContract.getOrCreateLatestCycleSnapshot(DayInSeconds);
+            this.receipt = await this.stakingContract.getSnapshot(DayInSeconds);
 
             let numSnapshots = await this.stakingContract.totalSnapshots();
             numSnapshots.toNumber().should.be.equal(3);

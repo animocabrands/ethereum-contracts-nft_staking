@@ -255,7 +255,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
      * @return The dividends snapshot, or a newly created one, for the timestamp derived from the specified offset to the current time.
      * @return The index of the retrieved snapshot.
      */
-    function _getOrCreateLatestCycleSnapshot(uint256 offsetIntoFuture) internal returns(DividendsSnapshot storage, uint256) {
+    function _getSnapshot(uint256 offsetIntoFuture) internal returns(DividendsSnapshot storage, uint256) {
         uint32 currentCycle = uint32(_getCycle(now.add(offsetIntoFuture)));
         uint256 totalSnapshots = dividendsSnapshots.length;
         uint128 initialDividendsToClaim = 0;
@@ -848,7 +848,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         // add weight based on token type
         uint32 nftWeight = _validateAndGetWeight(tokenId);
 
-        (DividendsSnapshot memory snapshot, uint256 snapshotIndex) = _getOrCreateLatestCycleSnapshot(freezeDurationAfterStake);
+        (DividendsSnapshot memory snapshot, uint256 snapshotIndex) = _getSnapshot(freezeDurationAfterStake);
 
         uint64 stakedWeight = SafeMath.add(snapshot.stakedWeight, nftWeight).toUint64();
 

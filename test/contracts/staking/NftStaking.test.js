@@ -669,21 +669,21 @@ describe("NftStaking", function () {
             before(doFreshDeploy);
             before(start());
 
-            it("must equal 0 within the 1st payout period", async function () {
+            it("must equal 0,0 within the 1st payout period", async function () {
                 await time.increase(1);
                 const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
                 periods[0].toNumber().should.be.equal(0);
                 periods[1].toNumber().should.be.equal(0);
             });
 
-            it("must equal 0 within the 2nd payout period", async function () {
+            it("must equal 0,0 within the 2nd payout period", async function () {
                 await time.increase(PeriodLengthInSeconds);
                 const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
                 periods[0].toNumber().should.be.equal(0);
                 periods[1].toNumber().should.be.equal(0);
             });
 
-            it("must equal 0 within the nth payout period", async function () {
+            it("must equal 0,0 within the nth payout period", async function () {
                 const currentCycle = await this.stakingContract.getCurrentCycle();
                 const nthCycle = 10;
                 const additonalCyclesToAdvance = nthCycle - currentCycle.toNumber();
@@ -694,7 +694,7 @@ describe("NftStaking", function () {
             });
         });
 
-        describe("after staking", function () {
+        describe("after staking 1 nft", function () {
             before(doFreshDeploy);
             before(start());
 
@@ -702,21 +702,21 @@ describe("NftStaking", function () {
                 await this.nftContract.transferFrom(staker, this.stakingContract.address, CarNFTs[0].tokenId, { from: staker });
             });
 
-            it("must equal 0 within the 1st payout period", async function () {
+            it("must equal 1,0 within the 1st payout period", async function () {
                 await time.increase(1);
                 const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
                 periods[0].toNumber().should.be.equal(1);
                 periods[1].toNumber().should.be.equal(0);
             });
 
-            it("must equal 1 within the 2nd payout period", async function () {
+            it("must equal 1,1 within the 2nd payout period", async function () {
                 await time.increase(PeriodLengthInSeconds);
                 const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
                 periods[0].toNumber().should.be.equal(1);
                 periods[1].toNumber().should.be.equal(1);
             });
 
-            it("must equal n-1 within the nth payout period", async function () {
+            it("must equal 1,n-1 within the nth payout period", async function () {
                 const currentCycle = await this.stakingContract.getCurrentPayoutPeriod();
                 const nthCycle = 3;
                 const additonalCyclesToAdvance = nthCycle - currentCycle.toNumber();
@@ -725,9 +725,68 @@ describe("NftStaking", function () {
                 periods[0].toNumber().should.be.equal(1);
                 periods[1].toNumber().should.be.equal(nthCycle - 1);
             });
+
+            it("must equal 1,n-1 within the (n + 1)th payout period", async function () {
+                const currentCycle = await this.stakingContract.getCurrentPayoutPeriod();
+                const nthCycle = 3 + 1;
+                const additonalCyclesToAdvance = nthCycle - currentCycle.toNumber();
+                await time.increase(PeriodLengthInSeconds * additonalCyclesToAdvance);
+                const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
+                periods[0].toNumber().should.be.equal(1);
+                periods[1].toNumber().should.be.equal(nthCycle - 1);
+            });
         });
 
-        describe("start unclaimed period", function () {
+        describe("start unclaimed period after staking", function () {
+            beforeEach(doFreshDeploy);
+            beforeEach(start());
+
+            function testUnclaimedPayoutPeriodsAfterPayoutPeriodsClaimed(periodsElapsedBefore, periodsElapsedAfter, periodsToClaim) {
+                describe(`when ${periodsToClaim} payout periods are claimed`, function () {
+                    const periods0 = periodsElapsedBefore + Math.min(periodsToClaim + 1, periodsElapsedAfter + 1);
+                    const periods1 = periodsElapsedBefore + periodsElapsedAfter + 1 - periods0;
+
+                    it(`should have ${periods0}, ${periods1} unclaimed payout periods`, async function () {
+                        await this.stakingContract.claimDividends(periodsToClaim, { from: staker });
+                        const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
+                        periods[0].toNumber().should.be.equal(periods0);
+                        periods[1].toNumber().should.be.equal(periods1);
+                        true.should.be.true;
+                    });
+                });
+            }
+
+            function testUnclaimedPayoutPeriodsAfterPayoutPeriodsPassedAfter(periodsElapsedBefore, periodsElapsedAfter) {
+                describe(`after ${periodsElapsedAfter} payout periods have passed after staking`, function () {
+                    beforeEach(async function () {
+                        await time.increase(PeriodLengthInSeconds * periodsElapsedAfter);
+                    });
+
+                    testUnclaimedPayoutPeriodsAfterPayoutPeriodsClaimed(periodsElapsedBefore, periodsElapsedAfter, 0);
+                    testUnclaimedPayoutPeriodsAfterPayoutPeriodsClaimed(periodsElapsedBefore, periodsElapsedAfter, 1);
+                    testUnclaimedPayoutPeriodsAfterPayoutPeriodsClaimed(periodsElapsedBefore, periodsElapsedAfter, 2);
+                });
+            }
+
+            function testUnclaimedPayoutPeriodsAfterPayoutPeriodsPassedBefore(periodsElapsedBefore) {
+                describe(`after ${periodsElapsedBefore} payout periods have passed before staking`, function () {
+                    beforeEach(async function () {
+                        await time.increase(PeriodLengthInSeconds * periodsElapsedBefore);
+                        await this.nftContract.transferFrom(staker, this.stakingContract.address, CarNFTs[0].tokenId, { from: staker });
+                    });
+
+                    testUnclaimedPayoutPeriodsAfterPayoutPeriodsPassedAfter(periodsElapsedBefore, 0);
+                    testUnclaimedPayoutPeriodsAfterPayoutPeriodsPassedAfter(periodsElapsedBefore, 1);
+                    testUnclaimedPayoutPeriodsAfterPayoutPeriodsPassedAfter(periodsElapsedBefore, 2);
+                });
+            }
+
+            testUnclaimedPayoutPeriodsAfterPayoutPeriodsPassedBefore(0);
+            testUnclaimedPayoutPeriodsAfterPayoutPeriodsPassedBefore(1);
+            testUnclaimedPayoutPeriodsAfterPayoutPeriodsPassedBefore(3);
+        });
+
+        describe("start unclaimed period after staking", function () {
             beforeEach(doFreshDeploy);
             beforeEach(start());
 
@@ -735,30 +794,7 @@ describe("NftStaking", function () {
                 await this.nftContract.transferFrom(staker, this.stakingContract.address, CarNFTs[0].tokenId, { from: staker });
             });
 
-            describe("after 1 payout period passed", function () {
-                beforeEach(async function () {
-                    await time.increase(PeriodLengthInSeconds);
-                });
-
-                describe("when divs were not claimed", function () {
-                    it("must be 1,1", async function () {
-                        const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
-                        periods[0].toNumber().should.be.equal(1);
-                        periods[1].toNumber().should.be.equal(1);
-                    });
-                });
-
-                describe("when divs were claimed", function () {
-                    it("must be 2,0", async function () {
-                        await this.stakingContract.claimDividends(1, { from: staker });
-                        const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
-                        periods[0].toNumber().should.be.equal(2);
-                        periods[1].toNumber().should.be.equal(0);
-                    });
-                });
-            });
-
-            describe("after 3 payout periods passed and after each passed period somebody staked once more", function () {
+            describe("after a total of 4 nfts have been staked, separated by a payout period", function () {
                 const nfts = [
                     { tokenId: createTestNft(CarRarities.Common, Types.Car), rarity: CarRarities.Common },
                     { tokenId: createTestNft(CarRarities.Common, Types.Car), rarity: CarRarities.Common },
@@ -807,6 +843,15 @@ describe("NftStaking", function () {
                 describe("when divs for 3 payout periods were claimed", function () {
                     it("must be 4,0", async function () {
                         await this.stakingContract.claimDividends(3, { from: staker });
+                        const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
+                        periods[0].toNumber().should.be.equal(4);
+                        periods[1].toNumber().should.be.equal(0);
+                    });
+                });
+
+                describe("when divs for 4 payout periods were claimed", function () {
+                    it("must be 4,0", async function () {
+                        await this.stakingContract.claimDividends(4, { from: staker });
                         const periods = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
                         periods[0].toNumber().should.be.equal(4);
                         periods[1].toNumber().should.be.equal(0);

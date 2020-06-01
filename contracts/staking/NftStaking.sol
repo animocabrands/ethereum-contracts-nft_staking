@@ -264,7 +264,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         if (totalSnapshots == 0) {
             // create the very first snapshot for the current cycle
             return _addNewSnapshot(currentCycle, currentCycle, 0, initialDividendsToClaim);
-            // return _addNewSnapshot(uint32(_getCycle(block.timestamp)), currentCycle, 0, initialDividendsToClaim);
+            // return _addNewSnapshot(uint32(_getCycle(now)), currentCycle, 0, initialDividendsToClaim);
         }
 
         uint256 snapshotIndex = totalSnapshots.sub(1);
@@ -381,7 +381,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
      */
     function getCurrentCycle() public view returns(uint32) {
         // index is 1 based
-        return _getCycle(block.timestamp);
+        return _getCycle(now);
     }
 
     /**
@@ -841,7 +841,7 @@ abstract contract NftStaking is Ownable, Pausable, ERC1155TokenReceiver {
         // require(_isCorrectTokenType(tokenId), "NftStaking: Attempting to deposit an invalid token type");
 
         TokenInfo memory tokenInfo;
-        tokenInfo.depositTimestamp = uint64(block.timestamp);
+        tokenInfo.depositTimestamp = now.toUint64();
         tokenInfo.owner = tokenOwner;
 
         // add weight based on token type

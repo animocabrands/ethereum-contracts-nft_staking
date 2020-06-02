@@ -31,7 +31,7 @@ abstract contract NftStaking is INftStaking, ERC1155TokenReceiver, Ownable {
     // a struct container used to track a staker's aggregate staking info
     struct StakerState {
         // TODO change to last claim token index
-        uint32 nextUnclaimedPeriodStartCycle; // beginning cycle from which a staker may claim dividend rewards for staked NFTs
+        uint32 nextClaimableCycle; // beginning cycle from which a staker may claim dividend rewards for staked NFTs
         uint64 stakedWeight; // current total weight of NFTs staked by the staker
     }
 
@@ -349,7 +349,7 @@ abstract contract NftStaking is INftStaking, ERC1155TokenReceiver, Ownable {
         StakerState memory stakerState = stakerStates[msg.sender];
         uint256 periodLengthInCycles_ = periodLengthInCycles;
         return (
-            _getPeriod(stakerState.nextUnclaimedPeriodStartCycle, periodLengthInCycles_),
+            _getPeriod(stakerState.nextClaimableCycle, periodLengthInCycles_),
             _getUnclaimedPayoutPeriods(msg.sender, periodLengthInCycles_)
         );
     }
@@ -366,7 +366,7 @@ abstract contract NftStaking is INftStaking, ERC1155TokenReceiver, Ownable {
             return 0;
         }
 
-        uint256 periodToClaim = _getPeriod(stakerState.nextUnclaimedPeriodStartCycle, periodLengthInCycles_);
+        uint256 periodToClaim = _getPeriod(stakerState.nextClaimableCycle, periodLengthInCycles_);
         return _getCurrentPeriod(periodLengthInCycles_).sub(periodToClaim);
     }
 
@@ -407,8 +407,8 @@ abstract contract NftStaking is INftStaking, ERC1155TokenReceiver, Ownable {
         $.currentPeriod = _getCurrentPeriod($.periodLengthInCycles);
 
         // payout cycles starts from 1
-        $.periodToClaim = _getPeriod(stakerState.nextUnclaimedPeriodStartCycle, $.periodLengthInCycles);
-        (DividendsSnapshot memory snapshot, uint256 snapshotIndex) = _findDividendsSnapshot(stakerState.nextUnclaimedPeriodStartCycle);
+        $.periodToClaim = _getPeriod(stakerState.nextClaimableCycle, $.periodLengthInCycles);
+        (DividendsSnapshot memory snapshot, uint256 snapshotIndex) = _findDividendsSnapshot(stakerState.nextClaimableCycle);
 
         $.startSnapshotIndex = snapshotIndex;
         $.lastSnapshotIndex = dividendsSnapshots.length.sub(1);
@@ -431,10 +431,10 @@ abstract contract NftStaking is INftStaking, ERC1155TokenReceiver, Ownable {
                 ).toUint128();
             }
 
-            stakerState.nextUnclaimedPeriodStartCycle = $.endCycle + 1;
+            stakerState.nextClaimableCycle = $.endCycle + 1;
 
-            if ($.nextPeriodCycle <= stakerState.nextUnclaimedPeriodStartCycle) {
-                $.periodToClaim = _getPeriod(stakerState.nextUnclaimedPeriodStartCycle, $.periodLengthInCycles);
+            if ($.nextPeriodCycle <= stakerState.nextClaimableCycle) {
+                $.periodToClaim = _getPeriod(stakerState.nextClaimableCycle, $.periodLengthInCycles);
                 $.payoutPerCycle = payoutSchedule[$.periodToClaim];
                 $.nextPeriodCycle = $.periodToClaim.mul($.periodLengthInCycles).add(1).toUint32();
                 ++loops;
@@ -535,9 +535,9 @@ abstract contract NftStaking is INftStaking, ERC1155TokenReceiver, Ownable {
             // Decrease stakerState weight
             StakerState memory stakerState = stakerStates[msg.sender];
             stakerState.stakedWeight = SafeMath.sub(stakerState.stakedWeight, tokenInfo.weight).toUint64();
-            // if no more nfts left to stake - reset nextUnclaimedPeriodStartCycle
+            // if no more nfts left to stake - reset nextClaimableCycle
             if (stakerState.stakedWeight == 0) {
-                stakerState.nextUnclaimedPeriodStartCycle = 0;
+                stakerState.nextClaimableCycle = 0;
             }
 
             stakerStates[msg.sender] = stakerState;
@@ -606,7 +606,7 @@ abstract contract NftStaking is INftStaking, ERC1155TokenReceiver, Ownable {
             // nothing is currently staked by the staker so reset/initialize
             // the next unclaimed period start cycle to the token deposit cycle
             // for unclaimed payout period tracking
-            stakerState.nextUnclaimedPeriodStartCycle = tokenInfo.depositCycle;
+            stakerState.nextClaimableCycle = tokenInfo.depositCycle;
         }
 
         stakerState.stakedWeight = SafeMath.add(stakerState.stakedWeight, nftWeight).toUint64();

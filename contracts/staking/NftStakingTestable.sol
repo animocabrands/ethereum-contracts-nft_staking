@@ -70,13 +70,18 @@ abstract contract NftStakingTestable is NftStaking {
         return dividendsSnapshots.length;
     }
 
-    function getSnapshot(uint256 offset) public returns(
+    function getOrCreateSnapshot() public returns(
+        uint256 period,
         uint32 startCycle,
         uint32 endCycle,
         uint64 stakedWeight,
         uint128 dividendsToClaim
     ) {
-        (DividendsSnapshot memory snapshot, ) = super._getSnapshot(offset);
+        _updateSnapshots(0);
+        uint256 snapshotIndex = dividendsSnapshots.length - 1;
+        DividendsSnapshot memory snapshot = dividendsSnapshots[snapshotIndex];
+
+        period = snapshot.period;
         startCycle = snapshot.startCycle;
         endCycle = snapshot.endCycle;
         stakedWeight = snapshot.stakedWeight;

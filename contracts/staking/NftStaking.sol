@@ -402,53 +402,53 @@ abstract contract NftStaking is INftStaking, ERC1155TokenReceiver, Ownable {
         uint256 loops = 0;
         uint128 totalDividendsToClaim = 0;
 
-        ClaimDivsParams memory _;
-        _.periodLengthInCycles = periodLengthInCycles;
-        _.currentPeriod = _getCurrentPeriod(_.periodLengthInCycles);
+        ClaimDivsParams memory $;
+        $.periodLengthInCycles = periodLengthInCycles;
+        $.currentPeriod = _getCurrentPeriod($.periodLengthInCycles);
 
         // payout cycles starts from 1
-        _.periodToClaim = _getPeriod(stakerState.nextUnclaimedPeriodStartCycle, _.periodLengthInCycles);
+        $.periodToClaim = _getPeriod(stakerState.nextUnclaimedPeriodStartCycle, $.periodLengthInCycles);
         (DividendsSnapshot memory snapshot, uint256 snapshotIndex) = _findDividendsSnapshot(stakerState.nextUnclaimedPeriodStartCycle);
 
-        _.startSnapshotIndex = snapshotIndex;
-        _.lastSnapshotIndex = dividendsSnapshots.length.sub(1);
-        _.nextPeriodCycle = _.periodToClaim.mul(_.periodLengthInCycles).add(1).toUint32();
-        _.payoutPerCycle = payoutSchedule[_.periodToClaim];
+        $.startSnapshotIndex = snapshotIndex;
+        $.lastSnapshotIndex = dividendsSnapshots.length.sub(1);
+        $.nextPeriodCycle = $.periodToClaim.mul($.periodLengthInCycles).add(1).toUint32();
+        $.payoutPerCycle = payoutSchedule[$.periodToClaim];
 
-        _.startCycle = snapshot.startCycle;
-        _.endCycle = snapshot.endCycle;
+        $.startCycle = snapshot.startCycle;
+        $.endCycle = snapshot.endCycle;
 
         // iterate over snapshots one by one until reaching current period
-        while (_.periodToClaim < _.currentPeriod) {
-            _.snapshotPayout = SafeMath.mul(payoutSchedule[_.periodToClaim], snapshot.endCycle - snapshot.startCycle + 1);
-            if (snapshot.stakedWeight > 0 && _.snapshotPayout > 0) {
+        while ($.periodToClaim < $.currentPeriod) {
+            $.snapshotPayout = SafeMath.mul(payoutSchedule[$.periodToClaim], snapshot.endCycle - snapshot.startCycle + 1);
+            if (snapshot.stakedWeight > 0 && $.snapshotPayout > 0) {
 
                 totalDividendsToClaim = SafeMath.add(
                     totalDividendsToClaim,
                     SafeMath.mul(stakerState.stakedWeight, _DIVS_PRECISION)
                             .div(snapshot.stakedWeight)
-                            .mul(_.snapshotPayout).div(_DIVS_PRECISION)
+                            .mul($.snapshotPayout).div(_DIVS_PRECISION)
                 ).toUint128();
             }
 
-            stakerState.nextUnclaimedPeriodStartCycle = _.endCycle + 1;
+            stakerState.nextUnclaimedPeriodStartCycle = $.endCycle + 1;
 
-            if (_.nextPeriodCycle <= stakerState.nextUnclaimedPeriodStartCycle) {
-                _.periodToClaim = _getPeriod(stakerState.nextUnclaimedPeriodStartCycle, _.periodLengthInCycles);
-                _.payoutPerCycle = payoutSchedule[_.periodToClaim];
-                _.nextPeriodCycle = _.periodToClaim.mul(_.periodLengthInCycles).add(1).toUint32();
+            if ($.nextPeriodCycle <= stakerState.nextUnclaimedPeriodStartCycle) {
+                $.periodToClaim = _getPeriod(stakerState.nextUnclaimedPeriodStartCycle, $.periodLengthInCycles);
+                $.payoutPerCycle = payoutSchedule[$.periodToClaim];
+                $.nextPeriodCycle = $.periodToClaim.mul($.periodLengthInCycles).add(1).toUint32();
                 ++loops;
             }
 
-            if (loops >= periodsToClaim || snapshotIndex == _.lastSnapshotIndex) {
+            if (loops >= periodsToClaim || snapshotIndex == $.lastSnapshotIndex) {
                 break;
             }
 
             ++snapshotIndex;
             snapshot = dividendsSnapshots[snapshotIndex];
 
-            _.startCycle = snapshot.startCycle;
-            _.endCycle = snapshot.endCycle;
+            $.startCycle = snapshot.startCycle;
+            $.endCycle = snapshot.endCycle;
         }
 
         stakerStates[msg.sender] = stakerState;
@@ -461,7 +461,7 @@ abstract contract NftStaking is INftStaking, ERC1155TokenReceiver, Ownable {
 
             emit DividendsClaimed(
                 msg.sender,
-                _.startSnapshotIndex,
+                $.startSnapshotIndex,
                 uint256(snapshotIndex),
                 totalDividendsToClaim);
         }

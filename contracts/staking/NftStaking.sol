@@ -23,11 +23,9 @@ abstract contract NftStaking is INftStaking, ERC1155TokenReceiver, Ownable {
     // dividends, over time
     struct DividendsSnapshot {
         uint256 period;
-        // uint255 durationInCycles;
         uint32 startCycle; // starting cycle of the snapshot
         uint32 endCycle; // ending cycle of the snapshot
         uint64 stakedWeight; // current total weight of all NFTs staked
-        uint128 dividendsToClaim; // current total dividends available for payout across the snapshot duration
     }
 
     // a struct container used to track a staker's aggregate staking info
@@ -393,11 +391,11 @@ abstract contract NftStaking is INftStaking, ERC1155TokenReceiver, Ownable {
      */
     function claimDividends(uint256 periodsToClaim) external isEnabled hasStarted {
 
-        _updateSnapshots(0);
-
         if (periodsToClaim == 0 || dividendsSnapshots.length == 0) {
             return;
         }
+
+        _updateSnapshots(0);
 
         StakerState memory stakerState = stakerStates[msg.sender];
 
@@ -431,12 +429,6 @@ abstract contract NftStaking is INftStaking, ERC1155TokenReceiver, Ownable {
                             .div(snapshot.stakedWeight)
                             .mul(_.snapshotPayout).div(_DIVS_PRECISION)
                 ).toUint128();
-            }
-
-            if (snapshotIndex == _.lastSnapshotIndex) {
-                // last snapshot, align range end to the end of the previous payout period
-                snapshot.endCycle = _.currentPeriod.sub(1).mul(_.periodLengthInCycles).toUint32();
-                _.endCycle = snapshot.endCycle;
             }
 
             stakerState.nextUnclaimedPeriodStartCycle = _.endCycle + 1;
@@ -498,7 +490,7 @@ abstract contract NftStaking is INftStaking, ERC1155TokenReceiver, Ownable {
         } else {
             // Make the current snapshot end at previous cycle
             --dividendsSnapshots[snapshotIndex].endCycle;
-            
+
             // Add a new snapshot starting at the current cycle with updated weight
             (snapshot_, snapshotIndex_) = _addNewSnapshot(snapshot.period, currentCycle, currentCycle, weight);
         }

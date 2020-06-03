@@ -142,11 +142,13 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint128 payoutPerCycle
     ) public onlyOwner {
         require(startPeriod > 0 && startPeriod <= endPeriod, "NftStaking: wrong period range");
+
         for (uint256 period = startPeriod; period < endPeriod; ++period) {
             payoutSchedule[period] = payoutPerCycle;
         }
+
         totalPayout = totalPayout.add(
-            endPeriod.sub(startPeriod).add(1)
+            (endPeriod.sub(startPeriod) + 1)
             .mul(payoutPerCycle)
             .mul(periodLengthInCycles)
         );
@@ -334,8 +336,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         (Snapshot memory snapshot, uint256 snapshotIndex) = _findSnapshot(stakerState.nextClaimableCycle);
 
         $.startSnapshotIndex = snapshotIndex;
-        $.lastSnapshotIndex = snapshots.length.sub(1);
-        $.nextPeriodCycle = $.periodToClaim.mul($.periodLengthInCycles).add(1).toUint32();
+        $.lastSnapshotIndex = snapshots.length - 1;
+        $.nextPeriodCycle = ($.periodToClaim.mul($.periodLengthInCycles) + 1).toUint32();
         $.payoutPerCycle = payoutSchedule[$.periodToClaim];
 
         $.startCycle = snapshot.startCycle;
@@ -343,7 +345,13 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
         // iterate over snapshots one by one until reaching current period
         while ($.periodToClaim < $.currentPeriod) {
-            $.snapshotPayout = SafeMath.mul(payoutSchedule[$.periodToClaim], snapshot.endCycle - snapshot.startCycle + 1);
+            $.snapshotPayout = SafeMath.mul(
+                payoutSchedule[$.periodToClaim],
+                SafeMath.sub(
+                    snapshot.endCycle,
+                    snapshot.startCycle) + 1
+            );
+
             if (snapshot.stake > 0 && $.snapshotPayout > 0) {
 
                 totalDividendsToClaim = SafeMath.add(
@@ -359,7 +367,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             if ($.nextPeriodCycle <= stakerState.nextClaimableCycle) {
                 $.periodToClaim = _getPeriod(stakerState.nextClaimableCycle, $.periodLengthInCycles);
                 $.payoutPerCycle = payoutSchedule[$.periodToClaim];
-                $.nextPeriodCycle = $.periodToClaim.mul($.periodLengthInCycles).add(1).toUint32();
+                $.nextPeriodCycle = ($.periodToClaim.mul($.periodLengthInCycles) + 1).toUint32();
                 ++loops;
             }
 
@@ -557,7 +565,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @return The cycle (index-1 based) at the specified timestamp.
      */
     function _getCycle(uint256 ts) internal view returns(uint32) {
-        return ts.sub(startTimestamp).div(cycleLengthInSeconds).add(1).toUint32();
+        return (ts.sub(startTimestamp).div(cycleLengthInSeconds) + 1).toUint32();
     }
 
      /**
@@ -580,7 +588,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             return 0;
         }
         // index is 1 based
-        return SafeMath.sub(cycle, 1).div(periodLengthInCycles_).add(1);
+        return SafeMath.div(cycle - 1, periodLengthInCycles_) + 1;
     }
 
     /**
@@ -704,7 +712,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     returns(Snapshot memory snapshot, uint256 snapshotIndex)
     {
         uint256 low = 0;
-        uint256 high = snapshots.length.sub(1);
+        uint256 high = snapshots.length - 1;
         uint256 mid = 0;
 
         while (low <= high) {
@@ -719,14 +727,14 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                 }
 
                 // outside by left side of the range
-                high = mid.sub(1);
+                high = mid - 1;
             } else if (snapshot.endCycle < cycle) {
                 if (mid == type(uint256).max) {
                     break;
                 }
 
                 // outside by right side of the range
-                low = mid.add(1);
+                low = mid + 1;
             } else {
                 break;
             }

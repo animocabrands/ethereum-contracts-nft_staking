@@ -295,26 +295,13 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         emit NftUnstaked(msg.sender, tokenId, currentCycle);
     }
 
-    struct ClaimDivsParams {
-        uint256 periodLengthInCycles;
-        uint256 currentPeriod;
-        uint256 periodToClaim;
-        uint256 startSnapshotIndex;
-        uint256 lastSnapshotIndex;
-        uint256 payoutPerCycle;
-        uint256 snapshotPayout;
-        uint32 startCycle;
-        uint32 endCycle;
-        uint32 nextPeriodCycle;
-    }
-
     /**
      * Claims the dividends for the specified number of periods.
      * @param periodsToClaim The maximum number of dividend payout periods to claim for.
      */
     function claimDividends(uint256 periodsToClaim) external isEnabled hasStarted {
-
-        if (periodsToClaim == 0 || snapshots.length == 0) {
+        // claiming 0 periods or no snapshots to claim from
+        if ((periodsToClaim == 0) || (snapshots.length == 0)) {
             return;
         }
 
@@ -322,78 +309,94 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
         StakerState memory stakerState = stakerStates[msg.sender];
 
-        uint256 loops = 0;
+        // nothing staked to claim from
+        if (stakerState.stake == 0) {
+            return;
+        }
+
+        uint256 periodLengthInCycles_ = periodLengthInCycles;
+        uint256 currentPeriod = _getCurrentPeriod(periodLengthInCycles_);
+        uint256 periodToClaim = _getPeriod(stakerState.nextClaimableCycle, periodLengthInCycles_);
+
+        // attempting to claim for the current period. the claim for the current
+        // period is always excluded from the claim calculation since it hasn't
+        // completed yet
+        if (periodToClaim == currentPeriod) {
+            return;
+        }
+
+        uint256 payoutPerCycle = payoutSchedule[periodToClaim];
+        uint256 periodToClaimEndCycle = periodToClaim.mul(periodLengthInCycles_);
         uint128 totalDividendsToClaim = 0;
 
-        ClaimDivsParams memory $;
-        $.periodLengthInCycles = periodLengthInCycles;
-        $.currentPeriod = _getCurrentPeriod($.periodLengthInCycles);
-
-        // payout cycles starts from 1
-        $.periodToClaim = _getPeriod(stakerState.nextClaimableCycle, $.periodLengthInCycles);
         (Snapshot memory snapshot, uint256 snapshotIndex) = _findSnapshot(stakerState.nextClaimableCycle);
 
-        $.startSnapshotIndex = snapshotIndex;
-        $.lastSnapshotIndex = snapshots.length - 1;
-        $.nextPeriodCycle = ($.periodToClaim.mul($.periodLengthInCycles) + 1).toUint32();
-        $.payoutPerCycle = payoutSchedule[$.periodToClaim];
+        // cached for the DividendsClaimed event
+        uint256 startSnapshotIndex = snapshotIndex;
 
-        $.startCycle = snapshot.startCycle;
-        $.endCycle = snapshot.endCycle;
+        // iterate over snapshots one by one until reaching current period. this
+        // loop assumes that (1) there is at least one snapshot within each,
+        // (2) snapshots are aligned back-to-back, (3) each period is spanned
+        // by snapshots (i.e. no cycle gaps), and (4) snapshots do not span
+        // across periods
+        while (periodToClaim < currentPeriod) {
+            // there are dividends to calculate in this loop iteration
+            if ((snapshot.stake != 0) && (payoutPerCycle != 0)) {
+                // calculate the staker's snapshot dividends
+                uint256 dividendsToClaim = SafeMath.sub(snapshot.endCycle, snapshot.startCycle) + 1;
+                dividendsToClaim = dividendsToClaim.mul(payoutPerCycle);
+                dividendsToClaim = dividendsToClaim.mul(_DIVS_PRECISION);
+                dividendsToClaim = dividendsToClaim.mul(stakerState.stake).div(snapshot.stake);
+                dividendsToClaim = dividendsToClaim.div(_DIVS_PRECISION);
 
-        // iterate over snapshots one by one until reaching current period
-        while ($.periodToClaim < $.currentPeriod) {
-            $.snapshotPayout = SafeMath.mul(
-                payoutSchedule[$.periodToClaim],
-                SafeMath.sub(
-                    snapshot.endCycle,
-                    snapshot.startCycle) + 1
-            );
-
-            if (snapshot.stake > 0 && $.snapshotPayout > 0) {
-
-                totalDividendsToClaim = SafeMath.add(
-                    totalDividendsToClaim,
-                    SafeMath.mul(stakerState.stake, _DIVS_PRECISION)
-                            .div(snapshot.stake)
-                            .mul($.snapshotPayout).div(_DIVS_PRECISION)
-                ).toUint128();
+                // update the total dividends to claim
+                totalDividendsToClaim = SafeMath.add(totalDividendsToClaim, dividendsToClaim).toUint128();
             }
 
-            stakerState.nextClaimableCycle = $.endCycle + 1;
-
-            if ($.nextPeriodCycle <= stakerState.nextClaimableCycle) {
-                $.periodToClaim = _getPeriod(stakerState.nextClaimableCycle, $.periodLengthInCycles);
-                $.payoutPerCycle = payoutSchedule[$.periodToClaim];
-                $.nextPeriodCycle = ($.periodToClaim.mul($.periodLengthInCycles) + 1).toUint32();
-                ++loops;
+            // snapshot is the last one in the period to claim
+            if (snapshot.endCycle == periodToClaimEndCycle) {
+                // advance the period state for the next loop iteration
+                ++periodToClaim;
+                payoutPerCycle = payoutSchedule[periodToClaim];
+                periodToClaimEndCycle = periodToClaim.mul(periodLengthInCycles_);
             }
 
-            if (loops >= periodsToClaim || snapshotIndex == $.lastSnapshotIndex) {
-                break;
-            }
-
+            // advance the snapshot for the next loop iteration
             ++snapshotIndex;
             snapshot = snapshots[snapshotIndex];
 
-            $.startCycle = snapshot.startCycle;
-            $.endCycle = snapshot.endCycle;
+            // all requested periods to claim have been made. checking the
+            // periods to claim at the end of the loop cycle to ensure that
+            // the exiting state is consistent across all terminating loop
+            // conditions
+            if (--periodsToClaim == 0) {
+                break;
+            }
         }
 
-        stakerStates[msg.sender] = stakerState;
+        // loop will exit with its loop variables updated for the next
+        // claimable period/snapshot/cycle
 
-        if (totalDividendsToClaim > 0) {
-            require(
-                IERC20(dividendToken).transfer(msg.sender, totalDividendsToClaim),
-                "NftStaking: Unknown failure when attempting to transfer claimed dividend rewards"
-            );
+        // advance the staker's next claimable cycle for each call of this
+        // function. this should be done even when no dividends to claim were
+        // found, to save from reprocessing fruitless periods in subsequent
+        // calls
+        stakerStates[msg.sender].nextClaimableCycle = snapshot.startCycle;
 
-            emit DividendsClaimed(
-                msg.sender,
-                $.startSnapshotIndex,
-                uint256(snapshotIndex),
-                totalDividendsToClaim);
+        // no dividends to claim were found across the processed periods
+        if (totalDividendsToClaim == 0) {
+            return;
         }
+
+        require(
+            IERC20(dividendToken).transfer(msg.sender, totalDividendsToClaim),
+            "NftStaking: Unknown failure when attempting to transfer claimed dividend rewards");
+
+        emit DividendsClaimed(
+            msg.sender,
+            startSnapshotIndex,
+            snapshotIndex - 1,
+            totalDividendsToClaim);
     }
 
     /**

@@ -230,6 +230,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      */
     function unstakeNft(uint256 tokenId) external virtual {
         TokenInfo memory tokenInfo = tokensInfo[tokenId];
+
         require(tokenInfo.owner == msg.sender, "NftStaking: Token owner doesn't match or token was already withdrawn before");
 
         uint32 currentCycle = getCurrentCycle();
@@ -238,29 +239,33 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         // reduce the gas requirements for the caller
         if (!disabled) {
             uint256 periodLengthInCycles_ = periodLengthInCycles;
+
             require(_getUnclaimedPayoutPeriods(msg.sender, periodLengthInCycles_) == 0, "NftStaking: Dividends are not claimed");
             require(now > tokenInfo.depositTimestamp + freezeDurationAfterStake, "NftStaking: Token is still frozen");
 
             ensureSnapshots(0);
 
-            tokensInfo[tokenId].owner = address(0);
-
             uint256 snapshotIndex = snapshots.length - 1;
             Snapshot memory snapshot = snapshots[snapshotIndex];
 
-            // Decrease snapshot's stake
-            (snapshot, snapshotIndex) = _updateSnapshotStake(
+            // decrease the latest snapshot's stake
+            _updateSnapshotStake(
                 snapshot,
                 snapshotIndex,
-                snapshot.stake - tokenInfo.stake,
-                currentCycle
-            );
+                SafeMath.sub(snapshot.stake, tokenInfo.stake).toUint64(),
+                currentCycle);
 
-            // Decrease stakerState stake
+            // clear the token owner to ensure that it cannot be unstaked again
+            // without being re-staked
+            tokensInfo[tokenId].owner = address(0);
+
+            // decrease the staker's stake
             StakerState memory stakerState = stakerStates[msg.sender];
             stakerState.stake = SafeMath.sub(stakerState.stake, tokenInfo.stake).toUint64();
-            // if no more nfts left to stake - reset nextClaimableCycle
+
+            // nothing is currently staked by the staker
             if (stakerState.stake == 0) {
+                // clear the next claimable cycle
                 stakerState.nextClaimableCycle = 0;
             }
 
@@ -594,32 +599,46 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         return _getCurrentPeriod(periodLengthInCycles_).sub(periodToClaim);
     }
 
+    /**
+     * Updates the snapshot stake at the current cycle. It will update the
+     * latest snapshot if it starts at the current cycle, otherwise will adjust
+     * the snapshots range end back by one cycle (the previous cycle) and
+     * create a new snapshot for the current cycle with the stake update.
+     * @param snapshot The snapshot whose stake is being updated.
+     * @param snapshotIndex The index of the snapshot being updated.
+     * @param stake The stake to update the latest snapshot with.
+     * @param currentCycle The current staking cycle.
+     */
     function _updateSnapshotStake(
         Snapshot memory snapshot,
         uint256 snapshotIndex,
         uint64 stake,
         uint32 currentCycle
-    ) internal returns (Snapshot memory snapshot_, uint256 snapshotIndex_)
+    ) internal
     {
         if (snapshot.startCycle == currentCycle) {
-            // If the snapshot starts at the current cycle, update its stake
-            snapshot_ = snapshot;
-            snapshot_.stake = stake;
-            snapshotIndex_ = snapshotIndex;
-            snapshots[snapshotIndex] = snapshot_;
+            // if the snapshot starts at the current cycle, update its stake
+            // since this is the only time we can update an existing snapshot
+            snapshots[snapshotIndex].stake = stake;
 
             emit SnapshotUpdated(
-                snapshotIndex_,
-                snapshot_.startCycle,
-                snapshot_.endCycle,
+                snapshotIndex,
+                snapshot.startCycle,
+                snapshot.endCycle,
                 stake);
 
         } else {
-            // Make the current snapshot end at previous cycle
+            // make the current snapshot end at previous cycle, since the stake
+            // for a new snapshot at the current cycle will be updated
             --snapshots[snapshotIndex].endCycle;
 
-            // Add a new snapshot starting at the current cycle with updated stake
-            (snapshot_, snapshotIndex_) = _addNewSnapshot(snapshot.period, currentCycle, currentCycle, stake);
+            // Note: no need to emit the SnapshotUpdated event, from adjusting
+            // the snapshot range, since the purpose of the event is to report
+            // changes in stake weight
+
+            // add a new snapshot starting at the current cycle with stake
+            // update
+            _addNewSnapshot(snapshot.period, currentCycle, currentCycle, stake);
         }
     }
 
@@ -642,35 +661,35 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint256 snapshotIndex = snapshots.length - 1;
         Snapshot memory snapshot = snapshots[snapshotIndex];
 
-        // Increase snapshot's stake
-        (snapshot, snapshotIndex) = _updateSnapshotStake(
+        // increase the latest snapshot's stake
+        _updateSnapshotStake(
             snapshot,
             snapshotIndex,
-            snapshot.stake + nftWeight,
-            currentCycle
-        );
+            SafeMath.add(snapshot.stake, nftWeight).toUint64(),
+            currentCycle);
 
+        // set the staked token's info
         TokenInfo memory tokenInfo;
         tokenInfo.depositTimestamp = now.toUint64();
         tokenInfo.owner = tokenOwner;
         tokenInfo.stake = nftWeight;
-
         tokenInfo.depositCycle = currentCycle;
         tokensInfo[tokenId] = tokenInfo;
 
-        // increase stake and set unclaimed start cycle to correct one from snapshot
         StakerState memory stakerState = stakerStates[tokenOwner];
+
         if (stakerState.stake == 0) {
             // nothing is currently staked by the staker so reset/initialize
-            // the next unclaimed period start cycle to the token deposit cycle
-            // for unclaimed payout period tracking
-            stakerState.nextClaimableCycle = tokenInfo.depositCycle;
+            // the next claimable cycle to the current cycle for unclaimed
+            // payout period tracking
+            stakerState.nextClaimableCycle = currentCycle;
         }
 
+        // increase the staker's stake
         stakerState.stake = SafeMath.add(stakerState.stake, nftWeight).toUint64();
         stakerStates[tokenOwner] = stakerState;
 
-        emit NftStaked(tokenOwner, tokenId, getCurrentCycle());
+        emit NftStaked(tokenOwner, tokenId, currentCycle);
     }
 
     /**

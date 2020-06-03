@@ -316,7 +316,7 @@ describe.only('NftStaking', function () {
 
                         describe('when unstaking a Common NFT', function () {
                             before(async function () {
-                                this.receipt = await this.stakingContract.withdrawNft(TokenIds[0], { from: staker });
+                                this.receipt = await this.stakingContract.unstakeNft(TokenIds[0], { from: staker });
                             });
 
                             shouldHaveNumberOfSnapshots(4);

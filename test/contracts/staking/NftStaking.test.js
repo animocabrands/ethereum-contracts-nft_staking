@@ -23,7 +23,7 @@ const FreezePeriodInDays = Math.ceil(FreezePeriodInSeconds.toNumber() / DayInSec
 const DividendTokenInitialBalance = toWei('10000000000');
 
 const ClaimDividendsEvent = "ClaimedDivs";
-// const WithdrawNftEvent = "Withdraw";
+// const unstakeNftEvent = "Withdraw";
 // const DepositNftEvent = "Deposit";
 
 const fullDebug = true;
@@ -1052,7 +1052,7 @@ describe("NftStaking", function () {
         });
     });
 
-    describe("withdrawNft", function () {
+    describe("unstakeNft", function () {
         describe("when 1 NFT (Common) is staked", async function () {
             before(doFreshDeploy);
             before(start());
@@ -1062,16 +1062,16 @@ describe("NftStaking", function () {
             });
 
             it("must fail to withdraw NFT staked by different account", async function () {
-                await expectRevert(this.stakingContract.withdrawNft(CarNFTs[0].tokenId, { from: otherAccounts[0] }), "NftStaking: Token owner doesn't match or token was already withdrawn before");
+                await expectRevert(this.stakingContract.unstakeNft(CarNFTs[0].tokenId, { from: otherAccounts[0] }), "NftStaking: Token owner doesn't match or token was already withdrawn before");
             });
 
             it("must fail to withdraw within frozen period", async function () {
-                await expectRevert(this.stakingContract.withdrawNft(CarNFTs[0].tokenId, { from: staker }), "NftStaking: Staking freeze duration has not yet elapsed");
+                await expectRevert(this.stakingContract.unstakeNft(CarNFTs[0].tokenId, { from: staker }), "NftStaking: Staking freeze duration has not yet elapsed");
             });
 
             it("must able to withdraw right after frozen period", async function () {
                 await time.increase(FreezePeriodInSeconds.add(new BN(1)).toNumber());
-                this.receipt = await this.stakingContract.withdrawNft(CarNFTs[0].tokenId, { from: staker });
+                this.receipt = await this.stakingContract.unstakeNft(CarNFTs[0].tokenId, { from: staker });
             });
 
             it("must emit the SnapshotUpdated event", async function () {
@@ -1094,7 +1094,7 @@ describe("NftStaking", function () {
             });
 
             it("must able to withdraw 1st NFT after freeze period passed", async function () {
-                this.receipt = await this.stakingContract.withdrawNft(CarNFTs[0].tokenId, { from: staker });
+                this.receipt = await this.stakingContract.unstakeNft(CarNFTs[0].tokenId, { from: staker });
             });
 
             it("must emit the SnapshotUpdated event", async function () {
@@ -1106,14 +1106,14 @@ describe("NftStaking", function () {
 
             it("must fail to withdraw 2nd NFT", async function () {
                 await expectRevert(
-                    this.stakingContract.withdrawNft(CarNFTs[1].tokenId, { from: staker }),
+                    this.stakingContract.unstakeNft(CarNFTs[1].tokenId, { from: staker }),
                     "NftStaking: Staking freeze duration has not yet elapsed"
                 );
             });
 
             it("must able to withdraw 2nd NFTs after 1 more freeze period passed", async function () {
                 await time.increase(FreezePeriodInSeconds.toNumber() + 1);
-                this.receipt = await this.stakingContract.withdrawNft(CarNFTs[1].tokenId, { from: staker });
+                this.receipt = await this.stakingContract.unstakeNft(CarNFTs[1].tokenId, { from: staker });
             });
 
             it("must emit the SnapshotUpdated event", async function () {
@@ -1146,14 +1146,14 @@ describe("NftStaking", function () {
 
             it("must fail to withdraw 1st NFT (Common) without claiming", async function () {
                 await expectRevert(
-                    this.stakingContract.withdrawNft(nfts[0].tokenId, { from: otherAccounts[0] }),
+                    this.stakingContract.unstakeNft(nfts[0].tokenId, { from: otherAccounts[0] }),
                     "NftStaking: Dividends are not claimed"
                 );
             });
 
             it("must fail to withdraw 2nd NFT (Epic) without claiming", async function () {
                 await expectRevert(
-                    this.stakingContract.withdrawNft(nfts[1].tokenId, { from: otherAccounts[1] }),
+                    this.stakingContract.unstakeNft(nfts[1].tokenId, { from: otherAccounts[1] }),
                     "NftStaking: Dividends are not claimed"
                 );
             });
@@ -1163,7 +1163,7 @@ describe("NftStaking", function () {
             it("must withdraw", async function () {
                 let unclaimedDivsLeft = await this.stakingContract.getUnclaimedPayoutPeriods({ from: staker });
                 await this.stakingContract.claimDividends(unclaimedDivsLeft[1], { from: staker });
-                this.receipt = await this.stakingContract.withdrawNft(tokenId, { from: staker });
+                this.receipt = await this.stakingContract.unstakeNft(tokenId, { from: staker });
             });
 
             it(`must have staked weight == ${stakedWeight}`, async function () {
@@ -1710,7 +1710,7 @@ describe("NftStaking", function () {
                 await this.nftContract.transferFrom(otherAccounts[1], this.stakingContract.address, nfts[1].tokenId, { from: otherAccounts[1] });
 
                 await time.increase(FreezePeriodInSeconds.add(new BN(1)).toNumber());
-                await this.stakingContract.withdrawNft(nfts[0].tokenId, { from: otherAccounts[0] });
+                await this.stakingContract.unstakeNft(nfts[0].tokenId, { from: otherAccounts[0] });
                 // advance to the end of the payout period
                 await time.increase(PeriodLengthInSeconds - FreezePeriodInSeconds.toNumber() + 1);
             });

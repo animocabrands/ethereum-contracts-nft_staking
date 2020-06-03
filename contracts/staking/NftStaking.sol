@@ -400,6 +400,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * will be applied if it equals zero.
      */
     function updateSnapshots(uint256 maxSnapshotsToAdd) public {
+
         uint256 periodLengthInCycles_ = periodLengthInCycles;
         uint32 currentCycle = uint32(_getCycle(now));
         uint256 currentPeriod = _getPeriod(currentCycle, periodLengthInCycles_);

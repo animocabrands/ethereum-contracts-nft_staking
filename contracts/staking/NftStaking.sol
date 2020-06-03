@@ -234,7 +234,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
         require(tokenInfo.owner == msg.sender, "NftStaking: Token owner doesn't match or token was already withdrawn before");
 
-        uint32 currentCycle = getCurrentCycle();
+        uint32 currentCycle = _getCycle(now);
 
         // by-pass operations if the contract is disabled, to avoid unnecessary calculations and
         // reduce the gas requirements for the caller
@@ -497,7 +497,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * Retrieves the current cycle (index-1 based).
      * @return The current cycle (index-1 based).
      */
-    function getCurrentCycle() public view returns(uint32) {
+    function getCurrentCycle() external view returns(uint32) {
         // index is 1 based
         return _getCycle(now);
     }
@@ -575,7 +575,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
       * @return The current payout period (index-1 based).
       */
     function _getCurrentPeriod(uint256 periodLengthInCycles_) internal view returns(uint256) {
-        return _getPeriod(getCurrentCycle(), periodLengthInCycles_);
+        return _getPeriod(_getCycle(now), periodLengthInCycles_);
     }
 
     /**
@@ -666,7 +666,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
         ensureSnapshots(0);
 
-        uint32 currentCycle = getCurrentCycle();
+        uint32 currentCycle = _getCycle(now);
         uint256 snapshotIndex = snapshots.length - 1;
         Snapshot memory snapshot = snapshots[snapshotIndex];
 

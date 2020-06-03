@@ -25,28 +25,28 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     );
 
     event NftStaked(
-        address indexed staker,
-        uint256 indexed tokenId,
-        uint32 indexed cycle
+        address staker,
+        uint256 tokenId,
+        uint32 cycle
     );
 
     event NftUnstaked(
-        address indexed staker,
-        uint256 indexed tokenId,
-        uint32 indexed cycle
+        address staker,
+        uint256 tokenId,
+        uint32 cycle
     );
 
     event DividendsClaimed(
-        address indexed staker,
+        address staker,
         uint256 snapshotStartIndex,
         uint256 snapshotEndIndex,
         uint256 amount
     );
 
     event SnapshotUpdated(
-        uint256 indexed index, // index (index-0 based) of the snapshot in the history list
-        uint32 indexed startCycle,
-        uint32 indexed endCycle,
+        uint256 index, // index (index-0 based) of the snapshot in the history list
+        uint32 startCycle,
+        uint32 endCycle,
         uint64 totalWeight // Total weight of all NFTs staked
     );
 

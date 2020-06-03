@@ -47,28 +47,28 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint256 index, // index (index-0 based) of the snapshot in the history list
         uint32 startCycle,
         uint32 endCycle,
-        uint64 totalWeight // Total weight of all NFTs staked
+        uint64 stake // Total stake of all NFTs
     );
 
-    // a struct container used to track aggregate changes in staked weight over time
+    // a struct container used to track aggregate changes in stake over time
     struct Snapshot {
         uint256 period;
         uint32 startCycle;
         uint32 endCycle;
-        uint64 stakedWeight; // cumulative weight of all NFTs staked
+        uint64 stake; // cumulative stake of all NFTs staked
     }
 
     // a struct container used to track a staker's aggregate staking state
     struct StakerState {
         uint32 nextClaimableCycle;
-        uint64 stakedWeight;
+        uint64 stake;
     }
 
     struct TokenInfo {
         address owner;
         uint32 depositCycle;
         uint64 depositTimestamp; // seconds since epoch
-        uint32 weight;
+        uint32 stake;
     }
 
     bool public disabled = false; // flags whether or not the contract is disabled
@@ -234,9 +234,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
         uint32 currentCycle = getCurrentCycle();
 
-        // by-pass staked weight operations if the contract is disabled, to
-        // avoid unnecessary calculations and reduce the gas requirements for
-        // the caller
+        // by-pass operations if the contract is disabled, to avoid unnecessary calculations and
+        // reduce the gas requirements for the caller
         if (!disabled) {
             uint256 periodLengthInCycles_ = periodLengthInCycles;
             require(_getUnclaimedPayoutPeriods(msg.sender, periodLengthInCycles_) == 0, "NftStaking: Dividends are not claimed");
@@ -249,19 +248,19 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             uint256 snapshotIndex = snapshots.length - 1;
             Snapshot memory snapshot = snapshots[snapshotIndex];
 
-            // Decrease snapshot's weight
-            (snapshot, snapshotIndex) = _updateSnapshotWeight(
+            // Decrease snapshot's stake
+            (snapshot, snapshotIndex) = _updateSnapshotStake(
                 snapshot,
                 snapshotIndex,
-                snapshot.stakedWeight - tokenInfo.weight,
+                snapshot.stake - tokenInfo.stake,
                 currentCycle
             );
 
-            // Decrease stakerState weight
+            // Decrease stakerState stake
             StakerState memory stakerState = stakerStates[msg.sender];
-            stakerState.stakedWeight = SafeMath.sub(stakerState.stakedWeight, tokenInfo.weight).toUint64();
+            stakerState.stake = SafeMath.sub(stakerState.stake, tokenInfo.stake).toUint64();
             // if no more nfts left to stake - reset nextClaimableCycle
-            if (stakerState.stakedWeight == 0) {
+            if (stakerState.stake == 0) {
                 stakerState.nextClaimableCycle = 0;
             }
 
@@ -340,12 +339,12 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         // iterate over snapshots one by one until reaching current period
         while ($.periodToClaim < $.currentPeriod) {
             $.snapshotPayout = SafeMath.mul(payoutSchedule[$.periodToClaim], snapshot.endCycle - snapshot.startCycle + 1);
-            if (snapshot.stakedWeight > 0 && $.snapshotPayout > 0) {
+            if (snapshot.stake > 0 && $.snapshotPayout > 0) {
 
                 totalDividendsToClaim = SafeMath.add(
                     totalDividendsToClaim,
-                    SafeMath.mul(stakerState.stakedWeight, _DIVS_PRECISION)
-                            .div(snapshot.stakedWeight)
+                    SafeMath.mul(stakerState.stake, _DIVS_PRECISION)
+                            .div(snapshot.stake)
                             .mul($.snapshotPayout).div(_DIVS_PRECISION)
                 ).toUint128();
             }
@@ -421,7 +420,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                     snapshotIndex,
                     readSnapshot.startCycle,
                     readSnapshot.endCycle,
-                    readSnapshot.stakedWeight);
+                    readSnapshot.stake);
         } else {
             while (readSnapshot.period < currentPeriod) {
                 // Update the latest snapshot
@@ -432,14 +431,14 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                     snapshotIndex,
                     readSnapshot.startCycle,
                     readSnapshot.endCycle,
-                    readSnapshot.stakedWeight);
+                    readSnapshot.stake);
 
                 // create a new snapshot
                 (writeSnapshot, snapshotIndex) = _addNewSnapshot(
                     readSnapshot.period + 1,
                     readSnapshot.endCycle + 1,
                     readSnapshot.endCycle + periodLengthInCycles_.toUint32(),
-                    readSnapshot.stakedWeight);
+                    readSnapshot.stake);
 
                 ++totalSnapshots;
                 if (maxSnapshotsToAdd != 0 && (totalSnapshots - initialTotalSnapshots) >= maxSnapshotsToAdd) {
@@ -487,7 +486,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * Adds a new dividends snapshot to the snapshot history list.
      * @param cycleStart Starting cycle for the new snapshot.
      * @param cycleEnd Ending cycle for the new snapshot.
-     * @param stakedWeight Initial staked weight for the new snapshot.
+     * @param stake Initial stake for the new snapshot.
      * @return The newly created snapshot.
      * @return The index of the newly created snapshot.
      */
@@ -495,14 +494,14 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint256 period,
         uint32 cycleStart,
         uint32 cycleEnd,
-        uint64 stakedWeight
+        uint64 stake
     ) internal returns(Snapshot storage, uint256)
     {
         Snapshot memory snapshot;
         snapshot.period = period;
         snapshot.startCycle = cycleStart;
         snapshot.endCycle = cycleEnd;
-        snapshot.stakedWeight = stakedWeight;
+        snapshot.stake = stake;
 
         snapshots.push(snapshot);
 
@@ -512,7 +511,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             snapshotIndex,
             snapshot.startCycle,
             snapshot.endCycle,
-            snapshot.stakedWeight);
+            snapshot.stake);
 
         return (snapshots[snapshotIndex], snapshotIndex);
     }
@@ -557,7 +556,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      */
     function _getUnclaimedPayoutPeriods(address sender, uint256 periodLengthInCycles_) internal view returns(uint256) {
         StakerState memory stakerState = stakerStates[sender];
-        if (stakerState.stakedWeight == 0) {
+        if (stakerState.stake == 0) {
             return 0;
         }
 
@@ -565,17 +564,17 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         return _getCurrentPeriod(periodLengthInCycles_).sub(periodToClaim);
     }
 
-    function _updateSnapshotWeight(
+    function _updateSnapshotStake(
         Snapshot memory snapshot,
         uint256 snapshotIndex,
-        uint64 weight,
+        uint64 stake,
         uint32 currentCycle
     ) internal returns (Snapshot memory snapshot_, uint256 snapshotIndex_)
     {
         if (snapshot.startCycle == currentCycle) {
-            // If the snapshot starts at the current cycle, update its staked weight
+            // If the snapshot starts at the current cycle, update its stake
             snapshot_ = snapshot;
-            snapshot_.stakedWeight = weight;
+            snapshot_.stake = stake;
             snapshotIndex_ = snapshotIndex;
             snapshots[snapshotIndex] = snapshot_;
 
@@ -583,14 +582,14 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                 snapshotIndex_,
                 snapshot_.startCycle,
                 snapshot_.endCycle,
-                weight);
+                stake);
 
         } else {
             // Make the current snapshot end at previous cycle
             --snapshots[snapshotIndex].endCycle;
 
-            // Add a new snapshot starting at the current cycle with updated weight
-            (snapshot_, snapshotIndex_) = _addNewSnapshot(snapshot.period, currentCycle, currentCycle, weight);
+            // Add a new snapshot starting at the current cycle with updated stake
+            (snapshot_, snapshotIndex_) = _addNewSnapshot(snapshot.period, currentCycle, currentCycle, stake);
         }
     }
 
@@ -613,32 +612,32 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint256 snapshotIndex = snapshots.length - 1;
         Snapshot memory snapshot = snapshots[snapshotIndex];
 
-        // Increase snapshot's weight
-        (snapshot, snapshotIndex) = _updateSnapshotWeight(
+        // Increase snapshot's stake
+        (snapshot, snapshotIndex) = _updateSnapshotStake(
             snapshot,
             snapshotIndex,
-            snapshot.stakedWeight + nftWeight,
+            snapshot.stake + nftWeight,
             currentCycle
         );
 
         TokenInfo memory tokenInfo;
         tokenInfo.depositTimestamp = now.toUint64();
         tokenInfo.owner = tokenOwner;
-        tokenInfo.weight = nftWeight;
+        tokenInfo.stake = nftWeight;
 
         tokenInfo.depositCycle = currentCycle;
         tokensInfo[tokenId] = tokenInfo;
 
-        // increase staker weight and set unclaimed start cycle to correct one from snapshot
+        // increase stake and set unclaimed start cycle to correct one from snapshot
         StakerState memory stakerState = stakerStates[tokenOwner];
-        if (stakerState.stakedWeight == 0) {
+        if (stakerState.stake == 0) {
             // nothing is currently staked by the staker so reset/initialize
             // the next unclaimed period start cycle to the token deposit cycle
             // for unclaimed payout period tracking
             stakerState.nextClaimableCycle = tokenInfo.depositCycle;
         }
 
-        stakerState.stakedWeight = SafeMath.add(stakerState.stakedWeight, nftWeight).toUint64();
+        stakerState.stake = SafeMath.add(stakerState.stake, nftWeight).toUint64();
         stakerStates[tokenOwner] = stakerState;
 
         emit NftStaked(tokenOwner, tokenId, getCurrentCycle());

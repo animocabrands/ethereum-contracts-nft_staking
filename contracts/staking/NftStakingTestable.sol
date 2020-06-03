@@ -26,7 +26,7 @@ abstract contract NftStakingTestable is NftStaking {
     returns(
         uint32 startCycle,
         uint32 endCycle,
-        uint64 stakedWeight
+        uint64 stake
     )
     {
         Snapshot memory snapshot;
@@ -38,7 +38,7 @@ abstract contract NftStakingTestable is NftStaking {
         return (
             snapshot.startCycle,
             snapshot.endCycle,
-            snapshot.stakedWeight
+            snapshot.stake
         );
     }
 
@@ -48,7 +48,7 @@ abstract contract NftStakingTestable is NftStaking {
     returns(
         uint32 startCycle,
         uint32 endCycle,
-        uint64 stakedWeight,
+        uint64 stake,
         uint256 snapshotIndex
     )
     {
@@ -57,7 +57,7 @@ abstract contract NftStakingTestable is NftStaking {
         return (
             snapshot.startCycle,
             snapshot.endCycle,
-            snapshot.stakedWeight,
+            snapshot.stake,
             snapshotIndex
         );
     }
@@ -70,7 +70,7 @@ abstract contract NftStakingTestable is NftStaking {
         uint256 period,
         uint32 startCycle,
         uint32 endCycle,
-        uint64 stakedWeight
+        uint64 stake
     ) {
         updateSnapshots(0);
         uint256 snapshotIndex = snapshots.length - 1;
@@ -79,12 +79,12 @@ abstract contract NftStakingTestable is NftStaking {
         period = snapshot.period;
         startCycle = snapshot.startCycle;
         endCycle = snapshot.endCycle;
-        stakedWeight = snapshot.stakedWeight;
+        stake = snapshot.stake;
     }
 
     function currentPayoutPeriod() public view returns(uint256) {
         StakerState memory state = stakerStates[msg.sender];
-        if (state.stakedWeight == 0) {
+        if (state.stake == 0) {
             return 0;
         }
 

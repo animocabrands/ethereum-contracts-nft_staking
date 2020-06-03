@@ -601,13 +601,13 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
         startSnapshotIndex = snapshotIndex;
 
-        // iterate over snapshots one by one until reaching the last period.
-        // this loop assumes that (1) there is at least one snapshot within
-        // each, (2) snapshots are aligned back-to-back, (3) each period is
-        // spanned by snapshots (i.e. no cycle gaps), (4) snapshots do not
+        // iterate over period snapshots one by one until reaching the last
+        // period. this loop assumes that (1) there is at least one snapshot
+        // within each, (2) snapshots are aligned back-to-back, (3) each period
+        // is spanned by snapshots (i.e. no cycle gaps), (4) snapshots do not
         // span across multiple periods (i.e. bound within a single period),
         // and (5) that it will be executed for at least 1 iteration
-        while (periodToClaim < lastPeriod) {
+        while (true) {
             // there are dividends to calculate in this loop iteration
             if ((snapshot.stake != 0) && (payoutPerCycle != 0)) {
                 // calculate the staker's snapshot dividends
@@ -623,8 +623,13 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
             // snapshot is the last one in the period to claim
             if (snapshot.endCycle == periodToClaimEndCycle) {
+                // the last claimable period has been reached, or all requested
+                // periods to claim have been made
+                if ((++periodToClaim == lastPeriod) || (--periodsToClaim == 0)) {
+                    break;
+                }
+
                 // advance the period state for the next loop iteration
-                ++periodToClaim;
                 payoutPerCycle = payoutSchedule[periodToClaim];
                 periodToClaimEndCycle = periodToClaim.mul(periodLengthInCycles_);
             }
@@ -632,20 +637,9 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             // advance the snapshot for the next loop iteration
             ++snapshotIndex;
             snapshot = snapshots[snapshotIndex];
-
-            // all requested periods to claim have been made. checking the
-            // periods to claim at the end of the loop cycle to ensure that
-            // the exiting state is consistent across all terminating loop
-            // conditions
-            if (--periodsToClaim == 0) {
-                break;
-            }
         }
 
-        // loop will exit with its loop variables updated for the next
-        // claimable period/snapshot/cycle
-
-        endSnapshotIndex = snapshotIndex - 1;
+        endSnapshotIndex = snapshotIndex;
     }
 
     /**

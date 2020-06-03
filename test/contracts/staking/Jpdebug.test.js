@@ -287,14 +287,16 @@ describe.only('NftStaking', function () {
             });
 
             shouldHaveCurrentCycle(4);
-            shouldHaveStakerState({ nextClaimableCycle: 0, stakedWeight: 0 });
+            shouldHaveNumberOfSnapshots(0);
+            shouldHaveStakerState({ nextClaimableCycle: 0, stake: 0 });
 
             describe('when staking a Common NFT', function () {
                 before(async function () {
                     this.receipt = await this.nftContract.transferFrom(staker, this.stakingContract.address, TokenIds[0], { from: staker });
                 });
 
-                shouldHaveStakerState({ nextClaimableCycle: 4, stakedWeight: 1 });
+                shouldHaveNumberOfSnapshots(1);
+                shouldHaveStakerState({ nextClaimableCycle: 4, stake: 1 });
                 shouldHaveStaked(staker, TokenIds[0], 4);
 
                 describe('when 2 periods have passed after staking', function () {
@@ -302,7 +304,7 @@ describe.only('NftStaking', function () {
                         await time.increase(PayoutPeriodLengthInSeconds.toNumber() * 2);
                     });
 
-                    shouldHaveNumberOfSnapshots(1);
+                    shouldHaveCurrentCycle(18);
 
                     describe('when claiming 2 periods', function () {
                         before(async function () {
@@ -310,8 +312,7 @@ describe.only('NftStaking', function () {
                         });
 
                         shouldHaveNumberOfSnapshots(3);
-                        shouldHaveCurrentCycle(18);
-                        shouldHaveStakerState({ nextClaimableCycle: 15, stakedWeight: 1 });
+                        shouldHaveStakerState({ nextClaimableCycle: 15, stake: 1 });
                         shouldHaveClaimedDividends(staker, 0, 1, 11000); // 4 cycles in period 1 + 7 cycles in period 2
 
                         describe('when unstaking a Common NFT', function () {
@@ -320,7 +321,7 @@ describe.only('NftStaking', function () {
                             });
 
                             shouldHaveNumberOfSnapshots(4);
-                            shouldHaveStakerState({ nextClaimableCycle: 0, stakedWeight: 0 });
+                            shouldHaveStakerState({ nextClaimableCycle: 0, stake: 0 });
                             shouldHaveUnstaked(staker, TokenIds[0], 18);
                         });
                     });

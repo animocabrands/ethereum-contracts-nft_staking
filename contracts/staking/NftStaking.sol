@@ -10,14 +10,45 @@ import "@animoca/ethereum-contracts-erc20_base/contracts/token/ERC20/IERC20.sol"
 import "@animoca/ethereum-contracts-assets_inventory/contracts/token/ERC721/IERC721.sol";
 import "@animoca/ethereum-contracts-assets_inventory/contracts/token/ERC1155/IERC1155.sol";
 import "@animoca/ethereum-contracts-assets_inventory/contracts/token/ERC1155/ERC1155TokenReceiver.sol";
-import "./INftStaking.sol";
 
-abstract contract NftStaking is INftStaking, ERC1155TokenReceiver, Ownable {
+abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     using SafeMath for uint256;
     using SafeCast for uint256;
 
     uint256 internal constant _DIVS_PRECISION = 10 ** 10;
+
+    event PayoutSet(
+        uint256 startPeriod,
+        uint256 endPeriod,
+        uint128 payoutPerCycle
+    );
+
+    event NftStaked(
+        address indexed staker,
+        uint256 indexed tokenId,
+        uint32 indexed cycle // the cycle in which the token was deposited
+    );
+
+    event NftUnstaked(
+        address indexed staker,
+        uint256 indexed tokenId,
+        uint32 indexed cycle
+    );
+
+    event DividendsClaimed(
+        address indexed staker,
+        uint256 snapshotStartIndex,
+        uint256 snapshotEndIndex,
+        uint256 amount
+    );
+
+    event SnapshotUpdated(
+        uint256 indexed index, // index (index-0 based) of the snapshot in the history list
+        uint32 indexed startCycle,
+        uint32 indexed endCycle,
+        uint64 totalWeight // Total weight of all NFTs staked
+    );
 
     // a struct container used to track aggregate changes in staked tokens and
     // dividends, over time
@@ -101,17 +132,7 @@ abstract contract NftStaking is INftStaking, ERC1155TokenReceiver, Ownable {
         dividendToken = dividendToken_;
     }
 
-    /**
-     * Transfers total payout balance to the contract and starts the staking.
-     */
-    function start() public onlyOwner {
-        require(
-            IERC20(dividendToken).transferFrom(msg.sender, address(this), totalPayout),
-            "NftStaking: failed to transfer the total payout"
-        );
-
-        startTimestamp = now;
-    }
+//////////////////////////////////////// Admin Functions //////////////////////////////////////////
 
     /**
      * Set the payout for a range of periods.
@@ -136,9 +157,22 @@ abstract contract NftStaking is INftStaking, ERC1155TokenReceiver, Ownable {
 
         emit PayoutSet(startPeriod, endPeriod, payoutPerCycle);
     }
+    
+    
+    /**
+     * Transfers total payout balance to the contract and starts the staking.
+     */
+    function start() public onlyOwner {
+        require(
+            IERC20(dividendToken).transferFrom(msg.sender, address(this), totalPayout),
+            "NftStaking: failed to transfer the total payout"
+        );
+
+        startTimestamp = now;
+    }
 
     /**
-     * Withdraws a specified amount of dividends from the contract reward pool.
+     * Withdraws a specified amount of dividend tokens from the contract.
      * @param amount The amount to withdraw.
      */
     function withdrawDivsPool(uint256 amount) public onlyOwner {
@@ -151,6 +185,8 @@ abstract contract NftStaking is INftStaking, ERC1155TokenReceiver, Ownable {
     function disable() public onlyOwner {
         _disabled = true;
     }
+
+////////////////////////////////////// ERC1155TokenReceiver ///////////////////////////////////////
 
     function onERC1155Received(
         address /*operator*/,
@@ -165,7 +201,7 @@ abstract contract NftStaking is INftStaking, ERC1155TokenReceiver, Ownable {
     divsClaimed(from)
     returns (bytes4)
     {
-        _depositNft(id, from);
+        _stakeNft(id, from);
         return _ERC1155_RECEIVED;
     }
 
@@ -183,193 +219,81 @@ abstract contract NftStaking is INftStaking, ERC1155TokenReceiver, Ownable {
     returns (bytes4)
     {
         for (uint256 i = 0; i < ids.length; ++i) {
-            _depositNft(ids[i], from);
+            _stakeNft(ids[i], from);
         }
         return _ERC1155_BATCH_RECEIVED;
     }
 
+////////////////////////////////////////// INftStaking ////////////////////////////////////////////
+
     /**
-     * @dev if the latest snapshot is related to a past period, creates a 
-     * snapshot for each missing past period (if any) and one for the
-     * current period (if needed). Updates the latest snapshot to end on
-     * current cycle if not already.
-     * @param maxSnapshotsToAdd the limit of snapshots to create. No limit
-     * will be applied if it equals zero.
+     * Unstakes a deposited NFT from the contract.
+     * @dev Reverts if the caller is not the original owner of the NFT.
+     * @dev While the contract is enabled, reverts if there are outstanding dividends to be claimed.
+     * @dev While the contract is enabled, reverts if NFT is being withdrawn before the staking freeze duration has elapsed.
+     * @param tokenId The token identifier, referencing the NFT being withdrawn.
      */
-    function _updateSnapshots(uint256 maxSnapshotsToAdd) internal {
-        uint256 periodLengthInCycles_ = periodLengthInCycles;
-        uint32 currentCycle = uint32(_getCycle(now));
-        uint256 currentPeriod = _getPeriod(currentCycle, periodLengthInCycles_);
-        uint256 initialTotalSnapshots = dividendsSnapshots.length;
-        uint256 totalSnapshots = initialTotalSnapshots;
-        uint256 snapshotIndex = totalSnapshots - 1;
+    function unstakeNft(uint256 tokenId) external virtual {
+        TokenInfo memory tokenInfo = tokensInfo[tokenId];
+        require(tokenInfo.owner == msg.sender, "NftStaking: Token owner doesn't match or token was already withdrawn before");
 
-        if (dividendsSnapshots.length == 0) {
-            // create the very first snapshot, starting at the current cycle
-            _addNewSnapshot(currentPeriod, currentCycle, currentCycle, 0);
-            return;
-        }
+        uint32 currentCycle = getCurrentCycle();
 
-        // get the latest snapshot
-        DividendsSnapshot storage writeSnapshot = dividendsSnapshots[snapshotIndex];
-        DividendsSnapshot memory readSnapshot = writeSnapshot;
+        // by-pass staked weight operations if the contract is disabled, to
+        // avoid unnecessary calculations and reduce the gas requirements for
+        // the caller
+        if (!_disabled) {
+            uint256 periodLengthInCycles_ = periodLengthInCycles;
+            require(_getUnclaimedPayoutPeriods(msg.sender, periodLengthInCycles_) == 0, "NftStaking: Dividends are not claimed");
+            require(now > tokenInfo.depositTimestamp + freezeDurationAfterStake, "NftStaking: Token is still frozen");
 
-        if (readSnapshot.period == currentPeriod) {
-            readSnapshot.endCycle = currentCycle;
-            // readSnapshot.duration = currentCycle % periodLengthInCycles_;
-            dividendsSnapshots[snapshotIndex] = readSnapshot;
-            writeSnapshot = dividendsSnapshots[snapshotIndex];
-            emit SnapshotUpdated(
-                    snapshotIndex,
-                    readSnapshot.startCycle,
-                    readSnapshot.endCycle,
-                    readSnapshot.stakedWeight);
-        } else {
-            while (readSnapshot.period < currentPeriod) {
-                // Update the latest snapshot
-                readSnapshot.endCycle = SafeMath.mul(readSnapshot.period, periodLengthInCycles_).toUint32();
-                // readSnapshot.duration = periodLengthInCycles_;
-                dividendsSnapshots[snapshotIndex] = readSnapshot;
-                writeSnapshot = dividendsSnapshots[snapshotIndex];
-                emit SnapshotUpdated(
-                    snapshotIndex,
-                    readSnapshot.startCycle,
-                    readSnapshot.endCycle,
-                    readSnapshot.stakedWeight);
+            updateSnapshots(0);
 
-                // create a new snapshot
-                (writeSnapshot, snapshotIndex) = _addNewSnapshot(
-                    readSnapshot.period + 1, // period
-                    // (readSnapshot.period == currentPeriod - 1) ? // duration
-                    //     currentCycle % periodLengthInCycles_ : // exact count if we are creating the current snapshot
-                    //     readperiodLengthInCycles_, // full period duration otherwise
-                    readSnapshot.endCycle + 1,
-                    readSnapshot.endCycle + periodLengthInCycles_.toUint32(),
-                    readSnapshot.stakedWeight);
+            tokensInfo[tokenId].owner = address(0);
 
-                ++totalSnapshots;
-                if (maxSnapshotsToAdd != 0 && (totalSnapshots - initialTotalSnapshots) >= maxSnapshotsToAdd) {
-                    break;
-                }
-                readSnapshot = writeSnapshot;
+            uint256 snapshotIndex = dividendsSnapshots.length - 1;
+            DividendsSnapshot memory snapshot = dividendsSnapshots[snapshotIndex];
+
+            // Decrease snapshot's weight
+            (snapshot, snapshotIndex) = _updateSnapshotWeight(
+                snapshot,
+                snapshotIndex,
+                snapshot.stakedWeight - tokenInfo.weight,
+                currentCycle
+            );
+
+            // Decrease stakerState weight
+            StakerState memory stakerState = stakerStates[msg.sender];
+            stakerState.stakedWeight = SafeMath.sub(stakerState.stakedWeight, tokenInfo.weight).toUint64();
+            // if no more nfts left to stake - reset nextClaimableCycle
+            if (stakerState.stakedWeight == 0) {
+                stakerState.nextClaimableCycle = 0;
             }
-        }
-    }
 
-    /**
-     * Adds a new dividends snapshot to the snapshot history list.
-     * @param cycleStart Starting cycle for the new snapshot.
-     * @param cycleEnd Ending cycle for the new snapshot.
-     * @param stakedWeight Initial staked weight for the new snapshot.
-     * @return The newly created snapshot.
-     * @return The index of the newly created snapshot.
-     */
-    function _addNewSnapshot(
-        uint256 period,
-        // uint256 durationInCycles,
-        uint32 cycleStart,
-        uint32 cycleEnd,
-        uint64 stakedWeight
-    ) internal returns(DividendsSnapshot storage, uint256)
-    {
-        DividendsSnapshot memory snapshot;
-        snapshot.period = period;
-        snapshot.startCycle = cycleStart;
-        snapshot.endCycle = cycleEnd;
-        snapshot.stakedWeight = stakedWeight;
-
-        dividendsSnapshots.push(snapshot);
-
-        uint256 snapshotIndex = dividendsSnapshots.length - 1;
-
-        emit SnapshotUpdated(
-            snapshotIndex,
-            snapshot.startCycle,
-            snapshot.endCycle,
-            snapshot.stakedWeight);
-
-        return (dividendsSnapshots[snapshotIndex], snapshotIndex);
-    }
-
-    /**
-     * Retrieves the current cycle (index-1 based).
-     * @return The current cycle (index-1 based).
-     */
-    function getCurrentCycle() public view returns(uint32) {
-        // index is 1 based
-        return _getCycle(now);
-    }
-
-    /**
-     * Retrieves the cycle (index-1 based) at the specified timestamp.
-     * @param ts The timestamp for which the cycle is derived from.
-     * @return The cycle (index-1 based) at the specified timestamp.
-     */
-    function _getCycle(uint256 ts) internal view returns(uint32) {
-        return ts.sub(startTimestamp).div(cycleLengthInSeconds).add(1).toUint32();
-    }
-
-    /**
-     * Retrieves the current payout period (index-1 based).
-     * @return The current payout period (index-1 based).
-     */
-     function getCurrentPayoutPeriod() external view returns(uint256) {
-         return _getCurrentPeriod(periodLengthInCycles);
-     }
-
-     /**
-      * Retrieves the current payout period (index-1 based).
-      * @param periodLengthInCycles_ Length of a dividend payout period, in cycles.
-      * @return The current payout period (index-1 based).
-      */
-     function _getCurrentPeriod(uint256 periodLengthInCycles_) internal view returns(uint256) {
-         return _getPeriod(getCurrentCycle(), periodLengthInCycles_);
-     }
-
-    /**
-     * Retrieves the payout period (index-1 based) for the specified cycle and payout period length.
-     * @param cycle The cycle within the payout period to retrieve.
-     * @param periodLengthInCycles_ Length of a dividend payout period, in cycles.
-     * @return The payout period (index-1 based) for the specified cycle and payout period length.
-     */
-    function _getPeriod(uint32 cycle, uint256 periodLengthInCycles_) internal pure returns(uint256) {
-        if (cycle == 0) {
-            return 0;
-        }
-        // index is 1 based
-        return SafeMath.sub(cycle, 1).div(periodLengthInCycles_).add(1);
-    }
-
-    /**
-     * Retrieves the first unclaimed payout period (index-1 based) and number of unclaimed payout periods.
-     * @return The first unclaimed payout period (index-1 based).
-     * @return The number of unclaimed payout periods.
-     */
-    function getUnclaimedPayoutPeriods() external view returns(uint256, uint256) {
-        StakerState memory stakerState = stakerStates[msg.sender];
-        uint256 periodLengthInCycles_ = periodLengthInCycles;
-        return (
-            _getPeriod(stakerState.nextClaimableCycle, periodLengthInCycles_),
-            _getUnclaimedPayoutPeriods(msg.sender, periodLengthInCycles_)
-        );
-    }
-
-    /**
-     * Retrieves the number of unclaimed payout periods for the specified staker.
-     * @param sender The staker whose number of unclaimed payout periods will be retrieved.
-     * @param periodLengthInCycles_ Length of a dividend payout period, in cycles.
-     * @return The number of unclaimed payout periods for the specified staker.
-     */
-    function _getUnclaimedPayoutPeriods(address sender, uint256 periodLengthInCycles_) internal view returns(uint256) {
-        StakerState memory stakerState = stakerStates[sender];
-        if (stakerState.stakedWeight == 0) {
-            return 0;
+            stakerStates[msg.sender] = stakerState;
         }
 
-        uint256 periodToClaim = _getPeriod(stakerState.nextClaimableCycle, periodLengthInCycles_);
-        return _getCurrentPeriod(periodLengthInCycles_).sub(periodToClaim);
-    }
+        try IERC1155(whitelistedNftContract).safeTransferFrom(address(this), msg.sender, tokenId, 1, "") {
+        } catch Error(string memory /*reason*/) {
+            // This is executed in case evert was called inside
+            // getData and a reason string was provided.
 
+            // attempting a non-safe transferFrom() of the token in the case
+            // that the failure was caused by a ethereum client wallet
+            // implementation that does not support safeTransferFrom()
+            IERC721(whitelistedNftContract).transferFrom(address(this), msg.sender, tokenId);
+        } catch (bytes memory /*lowLevelData*/) {
+            // This is executed in case revert() was used or there was
+            // a failing assertion, division by zero, etc. inside getData.
+
+            // attempting a non-safe transferFrom() of the token in the case
+            // that the failure was caused by a ethereum client wallet
+            // implementation that does not support safeTransferFrom()
+            IERC721(whitelistedNftContract).transferFrom(address(this), msg.sender, tokenId);
+        }
+
+        emit NftUnstaked(msg.sender, tokenId, currentCycle);
+    }
 
     struct ClaimDivsParams {
         uint256 periodLengthInCycles;
@@ -395,7 +319,7 @@ abstract contract NftStaking is INftStaking, ERC1155TokenReceiver, Ownable {
             return;
         }
 
-        _updateSnapshots(0);
+        updateSnapshots(0);
 
         StakerState memory stakerState = stakerStates[msg.sender];
 
@@ -467,6 +391,182 @@ abstract contract NftStaking is INftStaking, ERC1155TokenReceiver, Ownable {
         }
     }
 
+    /**
+     * @dev if the latest snapshot is related to a past period, creates a 
+     * snapshot for each missing past period (if any) and one for the
+     * current period (if needed). Updates the latest snapshot to end on
+     * current cycle if not already.
+     * @param maxSnapshotsToAdd the limit of snapshots to create. No limit
+     * will be applied if it equals zero.
+     */
+    function updateSnapshots(uint256 maxSnapshotsToAdd) public {
+        uint256 periodLengthInCycles_ = periodLengthInCycles;
+        uint32 currentCycle = uint32(_getCycle(now));
+        uint256 currentPeriod = _getPeriod(currentCycle, periodLengthInCycles_);
+        uint256 initialTotalSnapshots = dividendsSnapshots.length;
+        uint256 totalSnapshots = initialTotalSnapshots;
+        uint256 snapshotIndex = totalSnapshots - 1;
+
+        if (dividendsSnapshots.length == 0) {
+            // create the initial snapshot, starting at the current cycle
+            _addNewSnapshot(currentPeriod, currentCycle, currentCycle, 0);
+            return;
+        }
+
+        // get the latest snapshot
+        DividendsSnapshot storage writeSnapshot = dividendsSnapshots[snapshotIndex];
+        DividendsSnapshot memory readSnapshot = writeSnapshot;
+
+        if (readSnapshot.period == currentPeriod) {
+            readSnapshot.endCycle = currentCycle;
+            dividendsSnapshots[snapshotIndex] = readSnapshot;
+            writeSnapshot = dividendsSnapshots[snapshotIndex];
+            emit SnapshotUpdated(
+                    snapshotIndex,
+                    readSnapshot.startCycle,
+                    readSnapshot.endCycle,
+                    readSnapshot.stakedWeight);
+        } else {
+            while (readSnapshot.period < currentPeriod) {
+                // Update the latest snapshot
+                readSnapshot.endCycle = SafeMath.mul(readSnapshot.period, periodLengthInCycles_).toUint32();
+                dividendsSnapshots[snapshotIndex] = readSnapshot;
+                writeSnapshot = dividendsSnapshots[snapshotIndex];
+                emit SnapshotUpdated(
+                    snapshotIndex,
+                    readSnapshot.startCycle,
+                    readSnapshot.endCycle,
+                    readSnapshot.stakedWeight);
+
+                // create a new snapshot
+                (writeSnapshot, snapshotIndex) = _addNewSnapshot(
+                    readSnapshot.period + 1,
+                    readSnapshot.endCycle + 1,
+                    readSnapshot.endCycle + periodLengthInCycles_.toUint32(),
+                    readSnapshot.stakedWeight);
+
+                ++totalSnapshots;
+                if (maxSnapshotsToAdd != 0 && (totalSnapshots - initialTotalSnapshots) >= maxSnapshotsToAdd) {
+                    break;
+                }
+                readSnapshot = writeSnapshot;
+            }
+        }
+    }
+
+    /**
+     * Retrieves the current cycle (index-1 based).
+     * @return The current cycle (index-1 based).
+     */
+    function getCurrentCycle() public view returns(uint32) {
+        // index is 1 based
+        return _getCycle(now);
+    }
+
+    /**
+     * Retrieves the current payout period (index-1 based).
+     * @return The current payout period (index-1 based).
+     */
+    function getCurrentPayoutPeriod() external view returns(uint256) {
+        return _getCurrentPeriod(periodLengthInCycles);
+    }
+
+    /**
+     * Retrieves the first unclaimed payout period (index-1 based) and number of unclaimed payout periods.
+     * @return The first unclaimed payout period (index-1 based).
+     * @return The number of unclaimed payout periods.
+     */
+    function getUnclaimedPayoutPeriods() external view returns(uint256, uint256) {
+        StakerState memory stakerState = stakerStates[msg.sender];
+        uint256 periodLengthInCycles_ = periodLengthInCycles;
+        return (
+            _getPeriod(stakerState.nextClaimableCycle, periodLengthInCycles_),
+            _getUnclaimedPayoutPeriods(msg.sender, periodLengthInCycles_)
+        );
+    }
+
+    /**
+     * Adds a new dividends snapshot to the snapshot history list.
+     * @param cycleStart Starting cycle for the new snapshot.
+     * @param cycleEnd Ending cycle for the new snapshot.
+     * @param stakedWeight Initial staked weight for the new snapshot.
+     * @return The newly created snapshot.
+     * @return The index of the newly created snapshot.
+     */
+    function _addNewSnapshot(
+        uint256 period,
+        uint32 cycleStart,
+        uint32 cycleEnd,
+        uint64 stakedWeight
+    ) internal returns(DividendsSnapshot storage, uint256)
+    {
+        DividendsSnapshot memory snapshot;
+        snapshot.period = period;
+        snapshot.startCycle = cycleStart;
+        snapshot.endCycle = cycleEnd;
+        snapshot.stakedWeight = stakedWeight;
+
+        dividendsSnapshots.push(snapshot);
+
+        uint256 snapshotIndex = dividendsSnapshots.length - 1;
+
+        emit SnapshotUpdated(
+            snapshotIndex,
+            snapshot.startCycle,
+            snapshot.endCycle,
+            snapshot.stakedWeight);
+
+        return (dividendsSnapshots[snapshotIndex], snapshotIndex);
+    }
+
+    /**
+     * Retrieves the cycle (index-1 based) at the specified timestamp.
+     * @param ts The timestamp for which the cycle is derived from.
+     * @return The cycle (index-1 based) at the specified timestamp.
+     */
+    function _getCycle(uint256 ts) internal view returns(uint32) {
+        return ts.sub(startTimestamp).div(cycleLengthInSeconds).add(1).toUint32();
+    }
+
+     /**
+      * Retrieves the current payout period (index-1 based).
+      * @param periodLengthInCycles_ Length of a dividend payout period, in cycles.
+      * @return The current payout period (index-1 based).
+      */
+    function _getCurrentPeriod(uint256 periodLengthInCycles_) internal view returns(uint256) {
+        return _getPeriod(getCurrentCycle(), periodLengthInCycles_);
+    }
+
+    /**
+     * Retrieves the payout period (index-1 based) for the specified cycle and payout period length.
+     * @param cycle The cycle within the payout period to retrieve.
+     * @param periodLengthInCycles_ Length of a dividend payout period, in cycles.
+     * @return The payout period (index-1 based) for the specified cycle and payout period length.
+     */
+    function _getPeriod(uint32 cycle, uint256 periodLengthInCycles_) internal pure returns(uint256) {
+        if (cycle == 0) {
+            return 0;
+        }
+        // index is 1 based
+        return SafeMath.sub(cycle, 1).div(periodLengthInCycles_).add(1);
+    }
+
+    /**
+     * Retrieves the number of unclaimed payout periods for the specified staker.
+     * @param sender The staker whose number of unclaimed payout periods will be retrieved.
+     * @param periodLengthInCycles_ Length of a dividend payout period, in cycles.
+     * @return The number of unclaimed payout periods for the specified staker.
+     */
+    function _getUnclaimedPayoutPeriods(address sender, uint256 periodLengthInCycles_) internal view returns(uint256) {
+        StakerState memory stakerState = stakerStates[sender];
+        if (stakerState.stakedWeight == 0) {
+            return 0;
+        }
+
+        uint256 periodToClaim = _getPeriod(stakerState.nextClaimableCycle, periodLengthInCycles_);
+        return _getCurrentPeriod(periodLengthInCycles_).sub(periodToClaim);
+    }
+
     function _updateSnapshotWeight(
         DividendsSnapshot memory snapshot,
         uint256 snapshotIndex,
@@ -497,80 +597,11 @@ abstract contract NftStaking is INftStaking, ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * Unstakes a deposited NFT from the contract.
-     * @dev Reverts if the caller is not the original owner of the NFT.
-     * @dev While the contract is enabled, reverts if there are outstanding dividends to be claimed.
-     * @dev While the contract is enabled, reverts if NFT is being withdrawn before the staking freeze duration has elapsed.
-     * @param tokenId The token identifier, referencing the NFT being withdrawn.
-     */
-    function withdrawNft(uint256 tokenId) external virtual {
-        TokenInfo memory tokenInfo = tokensInfo[tokenId];
-        require(tokenInfo.owner == msg.sender, "NftStaking: Token owner doesn't match or token was already withdrawn before");
-
-        uint32 currentCycle = getCurrentCycle();
-
-        // by-pass staked weight operations if the contract is disabled, to
-        // avoid unnecessary calculations and reduce the gas requirements for
-        // the caller
-        if (!_disabled) {
-            uint256 periodLengthInCycles_ = periodLengthInCycles;
-            require(_getUnclaimedPayoutPeriods(msg.sender, periodLengthInCycles_) == 0, "NftStaking: Dividends are not claimed");
-            require(now > tokenInfo.depositTimestamp + freezeDurationAfterStake, "NftStaking: Token is still frozen");
-
-            _updateSnapshots(0);
-
-            tokensInfo[tokenId].owner = address(0);
-
-            uint256 snapshotIndex = dividendsSnapshots.length - 1;
-            DividendsSnapshot memory snapshot = dividendsSnapshots[snapshotIndex];
-
-            // Decrease snapshot's weight
-            (snapshot, snapshotIndex) = _updateSnapshotWeight(
-                snapshot,
-                snapshotIndex,
-                snapshot.stakedWeight - tokenInfo.weight,
-                currentCycle
-            );
-
-            // Decrease stakerState weight
-            StakerState memory stakerState = stakerStates[msg.sender];
-            stakerState.stakedWeight = SafeMath.sub(stakerState.stakedWeight, tokenInfo.weight).toUint64();
-            // if no more nfts left to stake - reset nextClaimableCycle
-            if (stakerState.stakedWeight == 0) {
-                stakerState.nextClaimableCycle = 0;
-            }
-
-            stakerStates[msg.sender] = stakerState;
-        }
-
-        try IERC1155(whitelistedNftContract).safeTransferFrom(address(this), msg.sender, tokenId, 1, "") {
-        } catch Error(string memory /*reason*/) {
-            // This is executed in case evert was called inside
-            // getData and a reason string was provided.
-
-            // attempting a non-safe transferFrom() of the token in the case
-            // that the failure was caused by a ethereum client wallet
-            // implementation that does not support safeTransferFrom()
-            IERC721(whitelistedNftContract).transferFrom(address(this), msg.sender, tokenId);
-        } catch (bytes memory /*lowLevelData*/) {
-            // This is executed in case revert() was used or there was
-            // a failing assertion, division by zero, etc. inside getData.
-
-            // attempting a non-safe transferFrom() of the token in the case
-            // that the failure was caused by a ethereum client wallet
-            // implementation that does not support safeTransferFrom()
-            IERC721(whitelistedNftContract).transferFrom(address(this), msg.sender, tokenId);
-        }
-
-        emit NftUnstaked(msg.sender, tokenId, currentCycle);
-    }
-
-    /**
      * Stakes the NFT received by the contract, referenced by its specified token identifier and owner.
      * @param tokenId Identifier of the staked NFT.
      * @param tokenOwner Owner of the staked NFT.
      */
-    function _depositNft(
+    function _stakeNft(
         uint256 tokenId,
         address tokenOwner
     ) internal isEnabled hasStarted {
@@ -578,7 +609,7 @@ abstract contract NftStaking is INftStaking, ERC1155TokenReceiver, Ownable {
 
         uint32 nftWeight = _validateAndGetWeight(tokenId);
 
-        _updateSnapshots(0);
+        updateSnapshots(0);
 
         uint32 currentCycle = getCurrentCycle();
         uint256 snapshotIndex = dividendsSnapshots.length - 1;
@@ -660,7 +691,7 @@ abstract contract NftStaking is INftStaking, ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * Validates whether or not the supplied NFT identifier is accepted for staking
+     * Abstract function which validates whether or not the supplied NFT identifier is accepted for staking
      * and retrieves its associated weight. MUST throw if the token is invalid.
      * @param nftId uint256 NFT identifier used to determine if the token is valid for staking.
      * @return uint32 the weight of the NFT.

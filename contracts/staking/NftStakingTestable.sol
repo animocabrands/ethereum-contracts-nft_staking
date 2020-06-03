@@ -72,7 +72,7 @@ abstract contract NftStakingTestable is NftStaking {
         uint32 endCycle,
         uint64 stakedWeight
     ) {
-        _updateSnapshots(0);
+        updateSnapshots(0);
         uint256 snapshotIndex = dividendsSnapshots.length - 1;
         DividendsSnapshot memory snapshot = dividendsSnapshots[snapshotIndex];
 

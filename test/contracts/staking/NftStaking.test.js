@@ -223,12 +223,12 @@ describe("NftStaking", function () {
         before(doFreshDeploy);
         before(start());
 
-        it.only("must initially have no snapshots", async function () {
+        it("must initially have no snapshots", async function () {
             const numSnapshots = await this.stakingContract.totalSnapshots();
             numSnapshots.toNumber().should.be.equal(0);
         });
 
-        it.only("Cycle 1 (Period 1), getSnapshot(0)", async function () {
+        it("Cycle 1 (Period 1), getSnapshot(0)", async function () {
             this.receipt = await this.stakingContract.getSnapshot(0);
             const numSnapshots = await this.stakingContract.totalSnapshots();
             numSnapshots.toNumber().should.be.equal(1);
@@ -237,7 +237,7 @@ describe("NftStaking", function () {
             snapshot.endCycle.toNumber().should.be.equal(1);
         });
 
-        it.only("must emit the SnapshotUpdated event", async function () {
+        it("must emit the SnapshotUpdated event", async function () {
             await expectEvent.inTransaction(
                 this.receipt.tx,
                 this.stakingContract,
@@ -257,7 +257,7 @@ describe("NftStaking", function () {
         //         'SnapshotUpdated');
         // });
 
-        it.only("Cycle 1 (Period 1), getSnapshot(0)", async function () {
+        it("Cycle 1 (Period 1), getSnapshot(0)", async function () {
             await time.increase(1);
             this.receipt = await this.stakingContract.getSnapshot(0);
             const numSnapshots = await this.stakingContract.totalSnapshots();
@@ -275,7 +275,7 @@ describe("NftStaking", function () {
         // });
 
         // TODO why emit here? It is actually not updating the snapshot
-        // it.only("must emit the SnapshotUpdated event", async function () {
+        // it("must emit the SnapshotUpdated event", async function () {
         //     await expectEvent.inTransaction(
         //         this.receipt.tx,
         //         this.stakingContract,
@@ -288,7 +288,7 @@ describe("NftStaking", function () {
         //         });
         // });
 
-        it.only("Cycle 8 (Period 2), getSnapshot(0)", async function () {
+        it("Cycle 8 (Period 2), getSnapshot(0)", async function () {
             await time.increase(PeriodLengthInSeconds);
             this.receipt = await this.stakingContract.getSnapshot(0);
 
@@ -308,7 +308,7 @@ describe("NftStaking", function () {
         //         'SnapshotCreated');
         // });
 
-        it.only("must emit 2 SnapshotUpdated events", async function () {
+        it("must emit 2 SnapshotUpdated events", async function () {
             await expectEvent.inTransaction(
                 this.receipt.tx,
                 this.stakingContract,
@@ -334,12 +334,12 @@ describe("NftStaking", function () {
             );
         });
 
-        // describe.only("Cycle 8 (Period 2), getSnapshot(nextCycleTs): future snapshot creation", async function () {
+        // describe("Cycle 8 (Period 2), getSnapshot(nextCycleTs): future snapshot creation", async function () {
         //     beforeEach(async function () {
         //         this.receipt = await this.stakingContract.getSnapshot(CycleLengthInSeconds);
         //     });
 
-            it.only("Updates the snapshots in storage", async function () {
+            it("Updates the snapshots in storage", async function () {
                 this.receipt = await this.stakingContract.getSnapshot(CycleLengthInSeconds);
                 let numSnapshots = await this.stakingContract.totalSnapshots();
                 numSnapshots.toNumber().should.be.equal(3);

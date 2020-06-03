@@ -13,6 +13,7 @@ const DayInSeconds = 86400;
 const DividendTokenInitialBalance = new BN('100000000000000000000000');
 const CycleLength = new BN(DayInSeconds);
 const PayoutPeriodLength = new BN(7);
+const PayoutPeriodLengthInSeconds = PayoutPeriodLength.mul(CycleLength);
 const FreezePeriodSeconds = new BN(DayInSeconds);
 
 const RarityWeights = [
@@ -36,10 +37,14 @@ const TokenIds = [
     TokenHelper.makeTokenId(TokenHelper.Rarity.Apex, TokenHelper.Type.Car)
 ];
 
-describe('NftStaking', function () {
+const DefaultPayoutSchedule = [
+    { startPeriod: 1, endPeriod: 4, payoutPerCycle: 1000 },
+    { startPeriod: 5, endPeriod: 8, payoutPerCycle: 500 }
+];
+
+describe.only('NftStaking', function () {
     const [
         creator,
-        rewardPoolProvider,
         staker,
         ...otherAccounts
     ] = accounts;
@@ -60,7 +65,7 @@ describe('NftStaking', function () {
             { from: creator }
         );
 
-        await this.dividendToken.transfer(this.stakingContract.address, DividendTokenInitialBalance, { from: creator });
+        await this.dividendToken.approve(this.stakingContract.address, DividendTokenInitialBalance, { from: creator });
 
         for (const tokenId of TokenIds) {
             await this.nftContract.mintNonFungible(staker, tokenId, { from: creator });
@@ -148,207 +153,180 @@ describe('NftStaking', function () {
                 dividendToken.should.be.equal(this.dividendToken.address);
             });
 
-            it(`should have a token balance of ${DividendTokenInitialBalance.toString()} for the staking contract`, async function () {
-                const balance = await this.dividendToken.balanceOf(this.stakingContract.address);
-                balance.should.be.bignumber.equal(DividendTokenInitialBalance);
-            });
+            // // The dividend token transfer to the contract should now occur when
+            // // starting the staking event by calling the start() function
+            // it(`should have a token balance of ${DividendTokenInitialBalance.toString()} for the staking contract`, async function () {
+            //     const balance = await this.dividendToken.balanceOf(this.stakingContract.address);
+            //     balance.should.be.bignumber.equal(DividendTokenInitialBalance);
+            // });
         });
     });
 
-    /*
-    describe('Scenario #1', function () {
-        const CurrentState = {
-            currentCycle: new BN(0),
-            numSnapshots: new BN(0),
-            latestSnapshotStakedWeight: new BN(0),
-            latestSnapshotTokensToClaim: new BN(0),
-            stakerStateDepositCycle: new BN(0),
-            stakerStateStakedWeight: new BN(0),
-            stakerDividendTokenBalance: new BN(0),
-            stakingContractDividendTokenBalance: new BN(0)
-        };
-
-        function testCurrentState(updates = {}) {
-            describe('current state', function () {
-                const expected = Object.assign({}, Object.assign(CurrentState, updates));
-
-                it(`should have a current cycle of ${expected.currentCycle.toString()}`, async function () {
-                    const currentCycle = await this.stakingContract.getCurrentCycle();
-                    currentCycle.should.be.bignumber.equal(expected.currentCycle);
-                });
-
-                it(`should have ${expected.numSnapshots.toString()} snapshot(s)`, async function () {
-                    const numSnapshots = await this.stakingContract.totalSnapshots();
-                    numSnapshots.should.be.bignumber.equal(expected.numSnapshots);
-                });
-
-                describe(`latest snapshot`, function () {
-                    before(async function () {
-                        this.latestSnapshot = await this.stakingContract.getLatestSnapshot();
-                    });
-
-                    it(`should have a staked weight of ${expected.latestSnapshotStakedWeight.toString()}`, async function () {
-                        this.latestSnapshot.stakedWeight.should.be.bignumber.equal(expected.latestSnapshotStakedWeight);
-                    });
-
-                    it(`should have a tokens-to-claim balance of ${expected.latestSnapshotTokensToClaim.toString()}`, async function () {
-                        this.latestSnapshot.tokensToClaim.should.be.bignumber.equal(expected.latestSnapshotTokensToClaim);
-                    });
-                });
-
-                describe(`staker state`, function () {
-                    before(async function () {
-                        this.stakerState = await this.stakingContract.stakeStates(staker);
-                    });
-
-                    it(`should have a deposit cycle of ${expected.stakerStateDepositCycle.toString()}`, async function () {
-                        this.stakerState.depositCycle.should.be.bignumber.equal(expected.stakerStateDepositCycle);
-                    });
-
-                    it(`should have a staked weight of ${expected.stakerStateStakedWeight.toString()}`, async function () {
-                        this.stakerState.stakedWeight.should.be.bignumber.equal(expected.stakerStateStakedWeight);
-                    });
-                });
-
-                it(`should have a staker dividend token balance of ${expected.stakerDividendTokenBalance.toString()}`, async function () {
-                    const dividendTokenBalance = await this.dividendToken.balanceOf(staker);
-                    dividendTokenBalance.should.be.bignumber.equal(expected.stakerDividendTokenBalance);
-                });
-
-                it(`should have a staking contract dividend token balance of ${expected.stakingContractDividendTokenBalance.toString()}`, async function () {
-                    const dividendTokenBalance = await this.dividendToken.balanceOf(this.stakingContract.address);
-                    dividendTokenBalance.should.be.bignumber.equal(expected.stakingContractDividendTokenBalance);
-                });
-            });
+    async function start(payoutSchedule = DefaultPayoutSchedule) {
+        for (schedule of payoutSchedule) {
+            await this.stakingContract.setPayoutForPeriods(
+                schedule.startPeriod,
+                schedule.endPeriod,
+                schedule.payoutPerCycle,
+                { from: creator }
+            );
         }
 
-        const rewardPoolBalanceIncrease = new BN('1000000000');
+        await this.stakingContract.start({ from: creator });
+    }
 
-        before(doFreshDeploy);
+    function shouldHaveSnapshot(fields, index = -1) {
+        it('should have ' + (index < 0 ? 'latest snapshot' : `snapshot ${index}`) + ':' + JSON.stringify(fields), async function() {
+            let snapshotIndex;
 
-        before(async function () {
-            // TODO: set the payout schedule
+            if (index < 0) {
+                const totalSnapshots = await this.stakingContract.totalSnapshots();
+                snapshotIndex = totalSnapshots.subn(1);
+            } else {
+                snapshotIndex = new BN(snapshotIndex);
+            }
+
+            const snapshot = await this.stakingContracts.dividendsSnapshots(snapshotIndex);
+
+            if ('period' in snapshot) {
+                snapshot.period.toNumber().should.equal(fields.period);
+            }
+
+            if ('starCycle' in snapshot) {
+                snapshot.startCycle.toNumber().should.equal(fields.startCycle);
+            }
+
+            if ('endCycle' in snapshot) {
+                snapshot.endCycle.toNumber().should.equal(fields.endCycle);
+            }
+
+            if ('stakedWeight' in snapshot) {
+                snapshot.stakedWeight.toNumber().should.equal(fields.stakedWeight);
+            }
         });
+    }
 
-        // snapshot | 0 |
-        //          --*--
-        // cycle      1
+    function shouldHaveStakerState(fields) {
+        it(`should have staker state: ${JSON.stringify(fields)}`, async function () {
+            const stakerState = await this.stakingContract.stakerStates(staker);
 
-        testCurrentState.bind(this, {
-            currentCycle: constants.BN.One, // 1
-            numSnapshots: constants.BN.One, // 1
-            latestSnapshotTokensToClaim: rewardPoolBalanceIncrease, // 1000000000
-            stakingContractDividendTokenBalance: DividendTokenInitialBalance, // 100000000000000000000000
-        })();
+            if ('nextClaimableCycle' in stakerState) {
+                stakerState.nextClaimableCycle.toNumber().should.equal(fields.nextClaimableCycle);
+            }
 
-        describe('advancing 3 cycles and increasing reward pool balance', function () {
+            if ('stakedWeight' in stakerState) {
+                stakerState.stakedWeight.toNumber().should.equal(fields.stakedWeight);
+            }
+        });
+    }
+
+    function shouldHaveCurrentCycle(cycle) {
+        it(`should have current cycle: ${cycle}`, async function () {
+            const currentCycle = await this.stakingContract.getCurrentCycle();
+            currentCycle.toNumber().should.equal(cycle);
+        })
+    }
+
+    function shouldHaveNumberOfSnapshots(count) {
+        it(`should have snapshot count: ${count}`, async function () {
+            const totalSnapshots = await this.stakingContract.totalSnapshots();
+            totalSnapshots.toNumber().should.equal(count);
+        });
+    }
+
+    function shouldHaveStaked(from, tokenId, cycle) {
+        it(`should have staked ${tokenId} in cycle ${cycle} by ${from}`, async function () {
+            await expectEvent.inTransaction(
+                this.receipt.tx,
+                this.stakingContract,
+                'NftStaked',
+                {
+                    staker: from,
+                    tokenId: tokenId,
+                    cycle: new BN(cycle)
+                });
+        });
+    }
+
+    function shouldHaveClaimedDividends(from, start, end, amount) {
+        it(`should have claimed ${amount} tokens from snapshots [${start}, ${end}] by ${from}`, async function () {
+            await expectEvent.inTransaction(
+                this.receipt.tx,
+                this.stakingContract,
+                'DividendsClaimed',
+                {
+                    staker: from,
+                    snapshotStartIndex: new BN(start),
+                    snapshotEndIndex: new BN(end),
+                    amount: new BN(amount)
+                });
+        });
+    }
+
+    function shouldHaveUnstaked(from, tokenId, cycle) {
+        it(`should have unstaked ${tokenId} in cycle ${cycle} by ${from}`, async function () {
+            await expectEvent.inTransaction(
+                this.receipt.tx,
+                this.stakingContract,
+                'NftUnstaked',
+                {
+                    staker: from,
+                    tokenId: tokenId,
+                    cycle: new BN(cycle)
+                });
+        });
+    }
+
+    describe('Scenario #1', function () {
+        before(doFreshDeploy);
+        before(start);
+
+        describe('when 3 cycles have passed before staking', function () {
             before(async function () {
                 await time.increase(CycleLength.toNumber() * 3);
-                await this.stakingContract.rewardPoolBalanceIncreased(rewardPoolBalanceIncrease, { from: rewardPoolProvider });
             });
 
-            // snapshot | 0 |     1     |
-            //          --*---*---*---*--
-            // cycle      1   2   3   4
+            shouldHaveCurrentCycle(4);
+            shouldHaveStakerState({ nextClaimableCycle: 0, stakedWeight: 0 });
 
-            testCurrentState.bind(this, {
-                currentCycle: CurrentState.currentCycle.addn(3), // 4
-                numSnapshots: CurrentState.numSnapshots.addn(1), // 2
-                latestSnapshotTokensToClaim: CurrentState.latestSnapshotTokensToClaim.add(rewardPoolBalanceIncrease) // 2000000000
-            })();
-
-            describe('advancing 2 cycles', function () {
+            describe('when staking a Common NFT', function () {
                 before(async function () {
-                    await time.increase(CycleLength.toNumber() * 2);
+                    this.receipt = await this.nftContract.transferFrom(staker, this.stakingContract.address, TokenIds[0], { from: staker });
                 });
 
-                // snapshot | 0 |     1     |
-                //          --*---*---*---*---*---*--
-                // cycle      1   2   3   4   5   6
+                shouldHaveStakerState({ nextClaimableCycle: 4, stakedWeight: 1 });
+                shouldHaveStaked(staker, TokenIds[0], 4);
 
-                testCurrentState.bind(this, {
-                    currentCycle: CurrentState.currentCycle.addn(2) // 6
-                })();
-
-                describe('staking the Epic car', function () {
-                    const tokenId = TokenIds[1]; // epic car
-
+                describe('when 2 periods have passed after staking', function () {
                     before(async function () {
-                        await this.nftContract.transferFrom(staker, this.stakingContract.address, tokenId, { from: staker });
+                        await time.increase(PayoutPeriodLengthInSeconds.toNumber() * 2);
                     });
 
-                    // snapshot | 0 |     1     |   2   |
-                    //          --*---*---*---*---*---*--
-                    // cycle      1   2   3   4   5   6
-                    // stake                          |..
+                    shouldHaveNumberOfSnapshots(1);
 
-                    testCurrentState.bind(this, {
-                        numSnapshots: CurrentState.numSnapshots.addn(1), // 3
-                        latestSnapshotStakedWeight: CurrentState.latestSnapshotStakedWeight.addn(10), // 10
-                        stakerStateDepositCycle: CurrentState.currentCycle, // 6
-                        stakerStateStakedWeight: CurrentState.stakerStateStakedWeight.addn(10) // 10
-                    })();
-
-                    describe('advance 3 cycles and try to claim all dividends (none claimed)', function () {
+                    describe('when claiming 2 periods', function () {
                         before(async function () {
-                            await time.increase(CycleLength.toNumber() * 3);
-                            await this.stakingContract.jpdebugClaimDividends(1000, { from: staker });
+                            this.receipt = await this.stakingContract.claimDividends(2, { from: staker });
                         });
 
-                        // snapshot | 0 |     1     |   2   |
-                        //          --*---*---*---*---*---*---*---*---*--
-                        // cycle      1   2   3   4   5   6   7   8   9
-                        // stake                          |..............
+                        shouldHaveNumberOfSnapshots(3);
+                        shouldHaveCurrentCycle(18);
+                        shouldHaveStakerState({ nextClaimableCycle: 15, stakedWeight: 1 });
+                        shouldHaveClaimedDividends(staker, 0, 1, 11000); // 4 cycles in period 1 + 7 cycles in period 2
 
-                        testCurrentState.bind(this, {
-                            currentCycle: CurrentState.currentCycle.addn(3) // 9
-                        })();
-
-                        describe('advance 5 cycles and try to claim all dividends (1 payout period claimed)', function () {
+                        describe('when unstaking a Common NFT', function () {
                             before(async function () {
-                                await time.increase(CycleLength.toNumber() * 5);
-                                await this.stakingContract.jpdebugClaimDividends(1000, { from: staker });
+                                this.receipt = await this.stakingContract.withdrawNft(TokenIds[0], { from: staker });
                             });
 
-                            // snapshot | 0 |     1     |   2   |               3               |
-                            //          --*---*---*---*---*---*---*---*---*---*---*---*---*---*--
-                            // cycle      1   2   3   4   5   6   7   8   9   10  11  12  13  14
-                            // stake                          |..................................
-                            // claim                              |=======================|
-
-                            testCurrentState.bind(this, {
-                                numSnapshots: CurrentState.numSnapshots.addn(1), // 4
-                                currentCycle: CurrentState.currentCycle.addn(5), // 14
-                                stakerStateDepositCycle: CurrentState.stakerStateDepositCycle.add(PayoutPeriodLength), // 13
-                                stakerDividendTokenBalance: CurrentState.stakerDividendTokenBalance.add(new BN('14000000000')), // 14000000000
-                                stakingContractDividendTokenBalance: CurrentState.stakingContractDividendTokenBalance.sub(new BN('14000000000')) // 99999999999986000000000
-                            })();
+                            shouldHaveNumberOfSnapshots(4);
+                            shouldHaveStakerState({ nextClaimableCycle: 0, stakedWeight: 0 });
+                            shouldHaveUnstaked(staker, TokenIds[0], 18);
                         });
-                    });
-
-                    describe('advance 8 cycles and try to claim all dividends (1 payout period claimed)', function () {
-                        before(async function () {
-                            await time.increase(CycleLength.toNumber() * 8);
-                            await this.stakingContract.jpdebugClaimDividends(1000, { from: staker });
-                        });
-
-                        // snapshot | 0 |     1     |   2   |               3               |
-                        //          --*---*---*---*---*---*---*---*---*---*---*---*---*---*--
-                        // cycle      1   2   3   4   5   6   7   8   9   10  11  12  13  14
-                        // stake                          |..................................
-                        // claim                              |=======================|
-
-                        testCurrentState.bind(this, {
-                            numSnapshots: CurrentState.numSnapshots.addn(1), // 4
-                            currentCycle: CurrentState.currentCycle.addn(8), // 14
-                            stakerStateDepositCycle: CurrentState.stakerStateDepositCycle.add(PayoutPeriodLength), // 13
-                            stakerDividendTokenBalance: CurrentState.stakerDividendTokenBalance.add(new BN('14000000000')), // 14000000000
-                            stakingContractDividendTokenBalance: CurrentState.stakingContractDividendTokenBalance.sub(new BN('14000000000')) // 99999999999986000000000
-                        })();
                     });
                 });
             });
-        });
+        })
+
     });
-    */
 });

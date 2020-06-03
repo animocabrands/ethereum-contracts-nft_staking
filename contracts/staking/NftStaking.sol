@@ -411,14 +411,14 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         // get the latest snapshot
         Snapshot storage writeSnapshot = snapshots[snapshotIndex];
 
+        // in-memory copy of the latest snapshot for reads, to save gas
+        Snapshot memory readSnapshot = writeSnapshot;
+
         // latest snapshot ends on the current cycle
-        if (writeSnapshot.endCycle == currentCycle) {
+        if (readSnapshot.endCycle == currentCycle) {
             // nothing to do
             return;
         }
-
-        // in-memory copy of the latest snapshot for reads, to save gas
-        Snapshot memory readSnapshot = writeSnapshot;
 
         // determine the assignment based on whether or not the latest snapshot
         // is in the current period

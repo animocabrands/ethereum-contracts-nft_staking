@@ -29,10 +29,10 @@ abstract contract NftStakingTestable is NftStaking {
         uint64 stakedWeight
     )
     {
-        DividendsSnapshot memory snapshot;
+        Snapshot memory snapshot;
 
-        if (dividendsSnapshots.length != 0) {
-            snapshot = dividendsSnapshots[dividendsSnapshots.length - 1];
+        if (snapshots.length != 0) {
+            snapshot = snapshots[snapshots.length - 1];
         }
 
         return (
@@ -42,7 +42,7 @@ abstract contract NftStakingTestable is NftStaking {
         );
     }
 
-    function dividendsSnapshot(uint32 targetCycle)
+    function getSnapshot(uint32 targetCycle)
     public
     view
     returns(
@@ -52,8 +52,8 @@ abstract contract NftStakingTestable is NftStaking {
         uint256 snapshotIndex
     )
     {
-        DividendsSnapshot memory snapshot;
-        (snapshot, snapshotIndex) = _findDividendsSnapshot(targetCycle);
+        Snapshot memory snapshot;
+        (snapshot, snapshotIndex) = _findSnapshot(targetCycle);
         return (
             snapshot.startCycle,
             snapshot.endCycle,
@@ -63,7 +63,7 @@ abstract contract NftStakingTestable is NftStaking {
     }
 
     function totalSnapshots() public view returns(uint256) {
-        return dividendsSnapshots.length;
+        return snapshots.length;
     }
 
     function getOrCreateSnapshot() public returns(
@@ -73,8 +73,8 @@ abstract contract NftStakingTestable is NftStaking {
         uint64 stakedWeight
     ) {
         updateSnapshots(0);
-        uint256 snapshotIndex = dividendsSnapshots.length - 1;
-        DividendsSnapshot memory snapshot = dividendsSnapshots[snapshotIndex];
+        uint256 snapshotIndex = snapshots.length - 1;
+        Snapshot memory snapshot = snapshots[snapshotIndex];
 
         period = snapshot.period;
         startCycle = snapshot.startCycle;

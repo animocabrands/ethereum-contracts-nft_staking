@@ -35,9 +35,4 @@ contract NftStakingMock is NftStaking {
         uint256 value = (nftId & (0xFF << 176)) >> 176;
         return valueStakeWeights[value];
     }
-
-    // function _getWeight(uint256 nftId) internal virtual override view returns (uint64) {
-    //     uint256 value = (nftId & (0xFF << 176)) >> 176;
-    //     return valueStakeWeights[value];
-    // }
 }

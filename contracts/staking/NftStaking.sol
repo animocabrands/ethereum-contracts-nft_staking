@@ -66,7 +66,6 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     struct TokenInfo {
         address owner;
-        uint32 depositCycle;
         uint64 depositTimestamp; // seconds since epoch
         uint32 stake;
     }
@@ -304,7 +303,6 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint256 lastSnapshotIndex;
         uint256 payoutPerCycle;
         uint256 snapshotPayout;
-        // uint32 depositCycle;
         uint32 startCycle;
         uint32 endCycle;
         uint32 nextPeriodCycle;
@@ -681,7 +679,6 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         tokenInfo.depositTimestamp = now.toUint64();
         tokenInfo.owner = tokenOwner;
         tokenInfo.stake = nftWeight;
-        tokenInfo.depositCycle = currentCycle;
         tokensInfo[tokenId] = tokenInfo;
 
         StakerState memory stakerState = stakerStates[tokenOwner];

@@ -296,6 +296,24 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
+     * Estimates the claimable dividends for the specified number of periods.
+     * The accuracy of the result depends on how up-to-date the snapshots are.
+     * Calling ensureSnapshots() prior to estimating the claimable dividends
+     * will result in a precise calculation.
+     * @param periodsToClaim The maximum number of claimable dividend payout periods to calculate for.
+     * @return totalDividendsToClaim The total claimable dividends calculated.
+     */
+    function estimateDividends(uint256 periodsToClaim) external view isEnabled hasStarted returns (uint128 totalDividendsToClaim) {
+        // estimating for 0 periods
+        if (periodsToClaim == 0) {
+            return 0;
+        }
+
+        // calculate the claimable dividends
+        ( , , totalDividendsToClaim) = _calculateDividends(msg.sender, periodsToClaim);
+    }
+
+    /**
      * Claims the dividends for the specified number of periods.
      * @param periodsToClaim The maximum number of dividend payout periods to claim for.
      */

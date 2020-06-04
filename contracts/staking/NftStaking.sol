@@ -131,8 +131,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     /**
      * Set the payout for a range of periods.
-     * @param startPeriod The starting period.
-     * @param endPeriod The ending period.
+     * @param startPeriod The starting period (inclusive).
+     * @param endPeriod The ending period (exclusive).
      * @param payoutPerCycle The total payout for each cycle within range.
      */
     function setPayoutForPeriods(

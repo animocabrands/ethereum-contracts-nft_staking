@@ -305,20 +305,22 @@ describe.only('NftStaking', function () {
                     this.result.transferFrom = await this.nftContract.transferFrom(staker, this.stakingContract.address, TokenIds[0], { from: staker });
                 });
 
+                shouldHaveCurrentCycle(4);
                 shouldHaveNumberOfSnapshots(1);
                 shouldHaveStakerState({ nextClaimableCycle: 4, stake: 1 });
                 shouldHaveStaked(staker, TokenIds[0], 4);
 
-                describe('when 2 periods have passed after staking', function () {
+                describe('when 5 periods have passed after staking', function () {
                     before(async function () {
-                        await time.increase(PayoutPeriodLengthInSeconds.toNumber() * 2);
+                        await time.increase(PayoutPeriodLengthInSeconds.toNumber() * 5);
                     });
 
-                    shouldHaveCurrentCycle(18);
+                    shouldHaveCurrentCycle(39);
                     shouldHaveNumberOfSnapshots(1);
 
                     describe('when estimating dividends for 2 periods', function () {
                         context('when not ensuring snapshots', function () {
+                            shouldHaveCurrentCycle(39);
                             shouldHaveNumberOfSnapshots(1);
                             shouldHaveEstimatedDividends(staker, 2, 0);
                         });
@@ -328,7 +330,8 @@ describe.only('NftStaking', function () {
                                 this.result.ensureSnapshots = await this.stakingContract.ensureSnapshots(0);
                             });
 
-                            shouldHaveNumberOfSnapshots(3);
+                            shouldHaveCurrentCycle(39);
+                            shouldHaveNumberOfSnapshots(6);
                             shouldHaveEstimatedDividends(staker, 2, 11000);
                         })
                     });
@@ -338,18 +341,40 @@ describe.only('NftStaking', function () {
                             this.result.claimDividends = await this.stakingContract.claimDividends(2, { from: staker });
                         });
 
-                        shouldHaveNumberOfSnapshots(3);
-                        shouldHaveStakerState({ nextClaimableCycle: 15, stake: 1 });
+                        shouldHaveCurrentCycle(39);
+                        shouldHaveNumberOfSnapshots(6);
+                        shouldHaveStakerState({ nextClaimableCycle: 15 });
                         shouldHaveClaimedDividends(staker, 0, 1, 11000); // 4 cycles in period 1 + 7 cycles in period 2
 
-                        describe('when unstaking a Common NFT', function () {
+                        describe('when 3 periods have passed since the last claim', function () {
                             before(async function () {
-                                this.result.unstakeNfts = await this.stakingContract.unstakeNft(TokenIds[0], { from: staker });
+                                await time.increase(PayoutPeriodLengthInSeconds.toNumber() * 3);
                             });
 
-                            shouldHaveNumberOfSnapshots(4);
-                            shouldHaveStakerState({ nextClaimableCycle: 0, stake: 0 });
-                            shouldHaveUnstaked(staker, TokenIds[0], 18);
+                            shouldHaveCurrentCycle(60);
+                            shouldHaveNumberOfSnapshots(6);
+
+                            describe('when claming the remaining 6 periods', function () {
+                                before(async function () {
+                                    this.result.claimDividends = await this.stakingContract.claimDividends(6, { from: staker });
+                                });
+
+                                shouldHaveCurrentCycle(60);
+                                shouldHaveNumberOfSnapshots(9);
+                                shouldHaveStakerState({ nextClaimableCycle: 57 });
+                                shouldHaveClaimedDividends(staker, 2, 7, 17500); // 7 cycles in period 3 + 7 cyles in period 4 + 21 cycles in period 5-7
+                            });
+
+                            describe('when unstaking a Common NFT', function () {
+                                before(async function () {
+                                    this.result.unstakeNfts = await this.stakingContract.unstakeNft(TokenIds[0], { from: staker });
+                                });
+
+                                shouldHaveCurrentCycle(60);
+                                shouldHaveNumberOfSnapshots(10);
+                                shouldHaveStakerState({ nextClaimableCycle: 0, stake: 0 });
+                                shouldHaveUnstaked(staker, TokenIds[0], 60);
+                            });
                         });
                     });
                 });

@@ -310,7 +310,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         }
 
         // calculate the claimable dividends
-        ( , , totalDividendsToClaim) = _calculateDividends(msg.sender, periodsToClaim);
+        (totalDividendsToClaim,,) = _calculateDividends(msg.sender, periodsToClaim);
     }
 
     /**
@@ -327,9 +327,9 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         ensureSnapshots(0);
 
         // calculate the claimable dividends
-        (uint256 startSnapshotIndex,
-            uint256 endSnapshotIndex,
-            uint128 totalDividendsToClaim
+        (uint128 totalDividendsToClaim,
+            uint256 startSnapshotIndex,
+            uint256 endSnapshotIndex
         ) = _calculateDividends(msg.sender, periodsToClaim);
 
 
@@ -570,17 +570,17 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * or the last snapshot period is reached, whichever is smaller.
      * @param staker The staker for whome the dividends will be calculated.
      * @param periodsToClaim Maximum number of periods, over which, to calculate the claimable dividends.
+     * @return totalDividendsToClaim The total claimable dividends calculated.
      * @return startSnapshotIndex The index of the starting snapshot claimed, in the calculation.
      * @return endSnapshotIndex The index of the ending snapshot claimed, in the calculation.
-     * @return totalDividendsToClaim The total claimable dividends calculated.
      */
     function _calculateDividends(
         address staker,
         uint256 periodsToClaim
     ) internal view returns (
+        uint128 totalDividendsToClaim,
         uint256 startSnapshotIndex,
-        uint256 endSnapshotIndex,
-        uint128 totalDividendsToClaim)
+        uint256 endSnapshotIndex)
     {
         // calculating for 0 periods
         if (periodsToClaim == 0) {

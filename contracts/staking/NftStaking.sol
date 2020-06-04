@@ -618,9 +618,9 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
         startSnapshotIndex = snapshotIndex;
 
-        // iterate over period snapshots one by one until reaching the last
-        // period. this loop assumes that (1) there is at least one snapshot
-        // within each, (2) snapshots are aligned back-to-back, (3) each period
+        // iterate over snapshots one by one until reaching the last period.
+        // this loop assumes that (1) there is at least one snapshot within
+        // each period, (2) snapshots are aligned back-to-back, (3) each period
         // is spanned by snapshots (i.e. no cycle gaps), (4) snapshots do not
         // span across multiple periods (i.e. bound within a single period),
         // and (5) that it will be executed for at least 1 iteration

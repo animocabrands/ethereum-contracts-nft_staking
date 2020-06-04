@@ -234,10 +234,12 @@ describe.only('NftStaking', function () {
         });
     }
 
-    function shouldHaveStaked(from, tokenId, cycle) {
+    function shouldStakeNft(from, tokenId, cycle) {
         it(`should have staked ${tokenId} in cycle ${cycle} by ${from}`, async function () {
+            const receipt = await this.nftContract.transferFrom(staker, this.stakingContract.address, tokenId, { from: from });
+
             await expectEvent.inTransaction(
-                this.result.transferFrom.tx,
+                receipt.tx,
                 this.stakingContract,
                 'NftStaked',
                 {
@@ -248,17 +250,22 @@ describe.only('NftStaking', function () {
         });
     }
 
-    function shouldHaveEstimatedDividends(from, periodsToClaim, amount) {
+    function shouldEstimateDividends(from, periodsToClaim, amount, ensureSnapshots = -1) {
         it(`should have estimated ${amount} tokens over ${periodsToClaim} periods for ${from}`, async function () {
+            if (ensureSnapshots >= 0) {
+                await this.stakingContract.ensureSnapshots(ensureSnapshots);
+            }
             const tokensToClaim = await this.stakingContract.estimateDividends(periodsToClaim, { from: from });
             tokensToClaim.toNumber().should.be.equal(amount);
         });
     }
 
-    function shouldHaveClaimedDividends(from, start, end, amount) {
-        it(`should have claimed ${amount} tokens from snapshots [${start}, ${end}] by ${from}`, async function () {
+    function shouldClaimDividends(from, periodsToClaim, start, end, amount) {
+        it(`should have claimed ${amount} tokens in ${periodsToClaim} periods from snapshots [${start}, ${end}] by ${from}`, async function () {
+            const receipt = await this.stakingContract.claimDividends(periodsToClaim, { from: from });
+
             await expectEvent.inTransaction(
-                this.result.claimDividends.tx,
+                receipt.tx,
                 this.stakingContract,
                 'DividendsClaimed',
                 {
@@ -270,10 +277,12 @@ describe.only('NftStaking', function () {
         });
     }
 
-    function shouldHaveUnstaked(from, tokenId, cycle) {
+    function shouldUnstakeNft(from, tokenId, cycle) {
         it(`should have unstaked ${tokenId} in cycle ${cycle} by ${from}`, async function () {
+            const receipt = await this.stakingContract.unstakeNft(tokenId, { from: from });
+
             await expectEvent.inTransaction(
-                this.result.unstakeNfts.tx,
+                receipt.tx,
                 this.stakingContract,
                 'NftUnstaked',
                 {
@@ -287,9 +296,6 @@ describe.only('NftStaking', function () {
     describe('Scenario #1', function () {
         before(doFreshDeploy);
         before(start);
-        before(async function () {
-            this.result = {};
-        });
 
         describe('when 3 cycles have passed before staking', function () {
             before(async function () {
@@ -301,14 +307,10 @@ describe.only('NftStaking', function () {
             shouldHaveStakerState({ nextClaimableCycle: 0, stake: 0 });
 
             describe('when staking a Common NFT', function () {
-                before(async function () {
-                    this.result.transferFrom = await this.nftContract.transferFrom(staker, this.stakingContract.address, TokenIds[0], { from: staker });
-                });
-
+                shouldStakeNft(staker, TokenIds[0], 4);
                 shouldHaveCurrentCycle(4);
                 shouldHaveNumberOfSnapshots(1);
                 shouldHaveStakerState({ nextClaimableCycle: 4, stake: 1 });
-                shouldHaveStaked(staker, TokenIds[0], 4);
 
                 describe('when 5 periods have passed after staking', function () {
                     before(async function () {
@@ -320,31 +322,23 @@ describe.only('NftStaking', function () {
 
                     describe('when estimating dividends for 2 periods', function () {
                         context('when not ensuring snapshots', function () {
+                            shouldEstimateDividends(staker, 2, 0);
                             shouldHaveCurrentCycle(39);
                             shouldHaveNumberOfSnapshots(1);
-                            shouldHaveEstimatedDividends(staker, 2, 0);
                         });
 
                         context('when ensuring snapshots', function () {
-                            before(async function () {
-                                this.result.ensureSnapshots = await this.stakingContract.ensureSnapshots(0);
-                            });
-
+                            shouldEstimateDividends(staker, 2, 11000, 0);
                             shouldHaveCurrentCycle(39);
                             shouldHaveNumberOfSnapshots(6);
-                            shouldHaveEstimatedDividends(staker, 2, 11000);
                         })
                     });
 
                     describe('when claiming 2 periods', function () {
-                        before(async function () {
-                            this.result.claimDividends = await this.stakingContract.claimDividends(2, { from: staker });
-                        });
-
+                        shouldClaimDividends(staker, 2, 0, 1, 11000); // 4 cycles in period 1 + 7 cycles in period 2
                         shouldHaveCurrentCycle(39);
                         shouldHaveNumberOfSnapshots(6);
                         shouldHaveStakerState({ nextClaimableCycle: 15 });
-                        shouldHaveClaimedDividends(staker, 0, 1, 11000); // 4 cycles in period 1 + 7 cycles in period 2
 
                         describe('when 3 periods have passed since the last claim', function () {
                             before(async function () {
@@ -355,25 +349,17 @@ describe.only('NftStaking', function () {
                             shouldHaveNumberOfSnapshots(6);
 
                             describe('when claming the remaining 6 periods', function () {
-                                before(async function () {
-                                    this.result.claimDividends = await this.stakingContract.claimDividends(6, { from: staker });
-                                });
-
+                                shouldClaimDividends(staker, 6, 2, 7, 17500); // 7 cycles in period 3 + 7 cyles in period 4 + 21 cycles in period 5-7
                                 shouldHaveCurrentCycle(60);
                                 shouldHaveNumberOfSnapshots(9);
                                 shouldHaveStakerState({ nextClaimableCycle: 57 });
-                                shouldHaveClaimedDividends(staker, 2, 7, 17500); // 7 cycles in period 3 + 7 cyles in period 4 + 21 cycles in period 5-7
                             });
 
                             describe('when unstaking a Common NFT', function () {
-                                before(async function () {
-                                    this.result.unstakeNfts = await this.stakingContract.unstakeNft(TokenIds[0], { from: staker });
-                                });
-
+                                shouldUnstakeNft(staker, TokenIds[0], 60);
                                 shouldHaveCurrentCycle(60);
                                 shouldHaveNumberOfSnapshots(10);
                                 shouldHaveStakerState({ nextClaimableCycle: 0, stake: 0 });
-                                shouldHaveUnstaked(staker, TokenIds[0], 60);
                             });
                         });
                     });

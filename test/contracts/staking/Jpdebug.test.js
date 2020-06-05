@@ -184,6 +184,17 @@ describe.only('NftStaking', function () {
         const titlePartition = '|';
         const titlePadding = 2;
 
+        let payoutMark = ('payout per-cycle' + titlePartition).padStart(titleWidth) + ' '.repeat(titlePadding);
+        const payoutSchedule = [];
+        for (let count = 1; count <= period; count++) {
+            payoutSchedule.push(await this.stakingContract.payoutSchedule(count));
+        }
+        for (let index = 0; index < (period - 1); index++) {
+            payoutMark += payoutSchedule[index].toString().padEnd(21, ' ');
+        }
+        payoutMark += payoutSchedule[period - 1];
+        console.log(payoutMark);
+
         let periodMark = ('period' + titlePartition).padStart(titleWidth) + ' '.repeat(titlePadding);
         for (let count = 1; count < period; count++) {
             periodMark += count.toString().padEnd(21, ' ');
@@ -449,8 +460,10 @@ describe.only('NftStaking', function () {
                             shouldHaveCurrentCycle(60);
                             shouldHaveNumberOfSnapshots(6);
 
+                            shouldDebugCurrentState(staker);
                             describe('when claming the remaining 6 periods', function () {
                                 shouldClaimDividends(staker, 6, 2, 7, 28000); // 7 cycles in period 3 + 7 cyles in period 4 + 28 cycles in period 5-8
+                                shouldDebugCurrentState(staker);
                                 shouldHaveCurrentCycle(60);
                                 shouldHaveNumberOfSnapshots(9);
                                 shouldHaveStakerState({ nextClaimableCycle: 57 });

@@ -347,7 +347,20 @@ describe.only('NftStaking', function () {
 
     function shouldStakeNft(from, tokenId, cycle) {
         it(`should have staked ${tokenId} in cycle ${cycle} by ${from}`, async function () {
+            const snapshotBefore = await this.stakingContract.getLatestSnapshot();
+            const stakerStateBefore = await this.stakingContract.stakerStates(from);
+            const tokenInfoBefore = await this.stakingContract.tokensInfo(tokenId);
+
             const receipt = await this.nftContract.transferFrom(staker, this.stakingContract.address, tokenId, { from: from });
+
+            const snapshotAfter = await this.stakingContract.getLatestSnapshot();
+            const stakerStateAfter = await this.stakingContract.stakerStates(from);
+            const tokenInfoAfter = await this.stakingContract.tokensInfo(tokenId);
+
+            snapshotAfter.stake.sub(snapshotBefore.stake).should.be.bignumber.equal(tokenInfoAfter.stake);
+            stakerStateAfter.stake.sub(stakerStateBefore.stake).should.be.bignumber.equal(tokenInfoAfter.stake);
+            tokenInfoBefore.owner.should.equal(constants.ZeroAddress);
+            tokenInfoAfter.owner.should.equal(from);
 
             await expectEvent.inTransaction(
                 receipt.tx,
@@ -374,7 +387,23 @@ describe.only('NftStaking', function () {
 
     function shouldClaimDividends(from, periodsToClaim, start, end, amount) {
         it(`should have claimed ${amount} tokens in ${periodsToClaim} periods from snapshots [${start}, ${end}] by ${from}`, async function () {
+            const stakerBalanceBefore = await this.dividendToken.balanceOf(from);
+            const contractBalanceBefore = await this.dividendToken.balanceOf(this.stakingContract.address);
+            const stakerStateBefore = await this.stakingContract.stakerStates(from);
+
             const receipt = await this.stakingContract.claimDividends(periodsToClaim, { from: from });
+
+            const stakerBalanceAfter = await this.dividendToken.balanceOf(from);
+            const contractBalanceAfter = await this.dividendToken.balanceOf(this.stakingContract.address);
+            const stakerStateAfter = await this.stakingContract.stakerStates(from);
+
+            const startSnapshot = await this.stakingContract.snapshots(start);
+            const endSnapshot = await this.stakingContract.snapshots(end);
+
+            stakerBalanceAfter.sub(stakerBalanceBefore).toNumber().should.equal(amount);
+            contractBalanceBefore.sub(contractBalanceAfter).toNumber().should.equal(amount);
+            stakerStateBefore.nextClaimableCycle.should.be.bignumber.equal(startSnapshot.startCycle);
+            stakerStateAfter.nextClaimableCycle.should.be.bignumber.equal(endSnapshot.endCycle.addn(1));
 
             await expectEvent.inTransaction(
                 receipt.tx,
@@ -391,7 +420,20 @@ describe.only('NftStaking', function () {
 
     function shouldUnstakeNft(from, tokenId, cycle) {
         it(`should have unstaked ${tokenId} in cycle ${cycle} by ${from}`, async function () {
+            const snapshotBefore = await this.stakingContract.getLatestSnapshot();
+            const stakerStateBefore = await this.stakingContract.stakerStates(from);
+            const tokenInfoBefore = await this.stakingContract.tokensInfo(tokenId);
+
             const receipt = await this.stakingContract.unstakeNft(tokenId, { from: from });
+
+            const snapshotAfter = await this.stakingContract.getLatestSnapshot();
+            const stakerStateAfter = await this.stakingContract.stakerStates(from);
+            const tokenInfoAfter = await this.stakingContract.tokensInfo(tokenId);
+
+            snapshotBefore.stake.sub(snapshotAfter.stake).should.be.bignumber.equal(tokenInfoBefore.stake);
+            stakerStateBefore.stake.sub(stakerStateAfter.stake).should.be.bignumber.equal(tokenInfoBefore.stake);
+            tokenInfoBefore.owner.should.equal(from);
+            tokenInfoAfter.owner.should.equal(constants.ZeroAddress);
 
             await expectEvent.inTransaction(
                 receipt.tx,

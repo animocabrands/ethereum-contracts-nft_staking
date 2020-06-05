@@ -184,6 +184,17 @@ describe.only('NftStaking', function () {
         const titlePartition = '|';
         const titlePadding = 2;
 
+        let payoutMark = ('payout per-cycle' + titlePartition).padStart(titleWidth) + ' '.repeat(titlePadding);
+        const payoutSchedule = [];
+        for (let count = 1; count <= period; count++) {
+            payoutSchedule.push(await this.stakingContract.payoutSchedule(count));
+        }
+        for (let index = 0; index < (period - 1); index++) {
+            payoutMark += payoutSchedule[index].toString().padEnd(21, ' ');
+        }
+        payoutMark += payoutSchedule[period - 1];
+        console.log(payoutMark);
+
         let periodMark = ('period' + titlePartition).padStart(titleWidth) + ' '.repeat(titlePadding);
         for (let count = 1; count < period; count++) {
             periodMark += count.toString().padEnd(21, ' ');
@@ -336,7 +347,20 @@ describe.only('NftStaking', function () {
 
     function shouldStakeNft(from, tokenId, cycle) {
         it(`should have staked ${tokenId} in cycle ${cycle} by ${from}`, async function () {
+            const snapshotBefore = await this.stakingContract.getLatestSnapshot();
+            const stakerStateBefore = await this.stakingContract.stakerStates(from);
+            const tokenInfoBefore = await this.stakingContract.tokensInfo(tokenId);
+
             const receipt = await this.nftContract.transferFrom(staker, this.stakingContract.address, tokenId, { from: from });
+
+            const snapshotAfter = await this.stakingContract.getLatestSnapshot();
+            const stakerStateAfter = await this.stakingContract.stakerStates(from);
+            const tokenInfoAfter = await this.stakingContract.tokensInfo(tokenId);
+
+            snapshotAfter.stake.sub(snapshotBefore.stake).should.be.bignumber.equal(tokenInfoAfter.stake);
+            stakerStateAfter.stake.sub(stakerStateBefore.stake).should.be.bignumber.equal(tokenInfoAfter.stake);
+            tokenInfoBefore.owner.should.equal(constants.ZeroAddress);
+            tokenInfoAfter.owner.should.equal(from);
 
             await expectEvent.inTransaction(
                 receipt.tx,
@@ -351,19 +375,39 @@ describe.only('NftStaking', function () {
     }
 
     function shouldEstimateRewards(from, periodsToClaim, periodsClaimed, amount, ensureSnapshots = -1) {
-        it(`should have estimated ${amount} tokens over ${periodsToClaim} periods for ${from}`, async function () {
+        it(`should have estimated ${amount.toString()} tokens over ${periodsToClaim} periods for ${from}`, async function () {
             if (ensureSnapshots >= 0) {
                 await this.stakingContract.ensureSnapshots(ensureSnapshots);
             }
             const result = await this.stakingContract.estimateRewards(periodsToClaim, { from: from });
-            result.claimableRewards.toNumber().should.be.equal(amount);
-            result.claimablePeriods.toNumber().should.be.equal(periodsClaimed);
+            result.claimableRewards.should.be.bignumber.equal(new BN(amount));
+            result.claimablePeriods.should.be.bignumber.equal(new BN(periodsClaimed));
         });
     }
 
     function shouldClaimRewards(from, periodsToClaim, start, end, amount) {
-        it(`should have claimed ${amount} tokens in ${periodsToClaim} periods from snapshots [${start}, ${end}] by ${from}`, async function () {
+        it(`should have claimed ${amount.toString()} tokens in ${periodsToClaim} periods from snapshots [${start}, ${end}] by ${from}`, async function () {
+            const snapshotStartIndexBN = new BN(start);
+            const snapshotEndIndexBN = new BN(end);
+            const amountBN = new BN(amount);
+
+            const stakerBalanceBefore = await this.rewardsToken.balanceOf(from);
+            const contractBalanceBefore = await this.rewardsToken.balanceOf(this.stakingContract.address);
+            const stakerStateBefore = await this.stakingContract.stakerStates(from);
+
             const receipt = await this.stakingContract.claimRewards(periodsToClaim, { from: from });
+
+            const stakerBalanceAfter = await this.rewardsToken.balanceOf(from);
+            const contractBalanceAfter = await this.rewardsToken.balanceOf(this.stakingContract.address);
+            const stakerStateAfter = await this.stakingContract.stakerStates(from);
+
+            const startSnapshot = await this.stakingContract.snapshots(snapshotStartIndexBN);
+            const endSnapshot = await this.stakingContract.snapshots(snapshotEndIndexBN);
+
+            stakerBalanceAfter.sub(stakerBalanceBefore).should.be.bignumber.equal(amountBN);
+            contractBalanceBefore.sub(contractBalanceAfter).should.be.bignumber.equal(amountBN);
+            stakerStateBefore.nextClaimableCycle.should.be.bignumber.equal(startSnapshot.startCycle);
+            stakerStateAfter.nextClaimableCycle.should.be.bignumber.equal(endSnapshot.endCycle.addn(1));
 
             await expectEvent.inTransaction(
                 receipt.tx,
@@ -371,16 +415,29 @@ describe.only('NftStaking', function () {
                 'RewardsClaimed',
                 {
                     staker: from,
-                    snapshotStartIndex: new BN(start),
-                    snapshotEndIndex: new BN(end),
-                    amount: new BN(amount)
+                    snapshotStartIndex: snapshotStartIndexBN,
+                    snapshotEndIndex: snapshotEndIndexBN,
+                    amount: amountBN
                 });
         });
     }
 
     function shouldUnstakeNft(from, tokenId, cycle) {
         it(`should have unstaked ${tokenId} in cycle ${cycle} by ${from}`, async function () {
+            const snapshotBefore = await this.stakingContract.getLatestSnapshot();
+            const stakerStateBefore = await this.stakingContract.stakerStates(from);
+            const tokenInfoBefore = await this.stakingContract.tokensInfo(tokenId);
+
             const receipt = await this.stakingContract.unstakeNft(tokenId, { from: from });
+
+            const snapshotAfter = await this.stakingContract.getLatestSnapshot();
+            const stakerStateAfter = await this.stakingContract.stakerStates(from);
+            const tokenInfoAfter = await this.stakingContract.tokensInfo(tokenId);
+
+            snapshotBefore.stake.sub(snapshotAfter.stake).should.be.bignumber.equal(tokenInfoBefore.stake);
+            stakerStateBefore.stake.sub(stakerStateAfter.stake).should.be.bignumber.equal(tokenInfoBefore.stake);
+            tokenInfoBefore.owner.should.equal(from);
+            tokenInfoAfter.owner.should.equal(constants.ZeroAddress);
 
             await expectEvent.inTransaction(
                 receipt.tx,

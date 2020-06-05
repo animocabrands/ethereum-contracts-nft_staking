@@ -175,6 +175,104 @@ describe.only('NftStaking', function () {
         await this.stakingContract.start({ from: creator });
     }
 
+    async function debugCurrentState(...stakers) {
+        console.log();
+
+        const cycle = (await this.stakingContract.getCurrentCycle()).toNumber();
+        const period = Math.floor((cycle - 1) / PayoutPeriodLength) + 1;
+        const titleWidth = 18;
+        const titlePartition = '|';
+        const titlePadding = 2;
+
+        let periodMark = ('period' + titlePartition).padStart(titleWidth) + ' '.repeat(titlePadding);
+        for (let count = 1; count < period; count++) {
+            periodMark += count.toString().padEnd(21, ' ');
+        }
+        periodMark += period;
+        console.log(periodMark);
+
+        const trailingCycles = cycle % PayoutPeriodLength;
+        let periodGraph = titlePartition.padStart(titleWidth) + ' '.repeat(titlePadding);
+        periodGraph += '[```````````````````]'.repeat(period - 1);
+        periodGraph += trailingCycles == 0 ? '' : '[' + '`'.repeat((trailingCycles * 3) - 2);
+        console.log(periodGraph);
+
+        let cycleGraph = ('cycle' + titlePartition).padStart(titleWidth) + ' '.repeat(titlePadding);
+        cycleGraph += '*-';
+        if (cycle > 1) {
+            cycleGraph += '-*-'.repeat(cycle - 1);
+        }
+        cycleGraph += `  ${cycle}`;
+        console.log(cycleGraph);
+
+        const totalSnapshots = await this.stakingContract.totalSnapshots();
+
+        const snapshots = [];
+        for (let index = 0; index < totalSnapshots; index++) {
+            snapshots.push(await this.stakingContract.snapshots(index));
+        }
+
+        let snapshotGraph = titlePartition.padStart(titleWidth) + ' '.repeat(titlePadding);
+        for (let index = 0; index < totalSnapshots; index++) {
+            const snapshot = snapshots[index];
+            const startCycle = snapshot.startCycle.toNumber();
+            if (index == 0) {
+                snapshotGraph += ' '.repeat((startCycle - 1) * 3);
+            }
+            const endCycle = snapshot.endCycle.toNumber();
+            snapshotGraph += `[${'.'.repeat(((endCycle - startCycle + 1) * 3) - 2)}]`;
+        }
+        console.log(snapshotGraph);
+
+        let snapshotMark = ('snapshot' + titlePartition).padStart(titleWidth, ' ') + ' '.repeat(titlePadding);
+        for (let index = 0; index < totalSnapshots; index++) {
+            const snapshot = snapshots[index];
+            const startCycle = snapshot.startCycle.toNumber();
+            if (index == 0) {
+                const offset = (startCycle - 1) * 3;
+                snapshotMark += ' '.repeat(offset);
+            }
+            const endCycle = snapshot.endCycle.toNumber();
+            snapshotMark += (index + '').padEnd((endCycle - startCycle + 1) * 3, ' ');
+        }
+        console.log(snapshotMark);
+
+        let totalStakeMark = ('total stake' + titlePartition).padStart(titleWidth, ' ') + ' '.repeat(titlePadding);
+        for (let index = 0; index < totalSnapshots; index++) {
+            const snapshot = snapshots[index];
+            const startCycle = snapshot.startCycle.toNumber();
+            if (index == 0) {
+                const offset = (snapshot.startCycle.toNumber() - 1) * 3;
+                totalStakeMark += ' '.repeat(offset);
+            }
+            const endCycle = snapshot.endCycle.toNumber();
+            const stake = snapshot.stake.toNumber();
+            totalStakeMark += (stake + '').padEnd((endCycle - startCycle + 1) * 3, ' ');
+        }
+        console.log(totalStakeMark);
+
+        for (let index = 0; index < stakers.length; index++) {
+            const stakerState = await this.stakingContract.stakerStates(stakers[index]);
+            const stake = stakerState.stake.toNumber();
+            const nextClaimableCycle = stakerState.nextClaimableCycle.toNumber();
+            let stakerMark = `staker #${index + 1} stake${titlePartition}`.padStart(titleWidth, ' ') + ' '.repeat(titlePadding);
+            if ((stake > 0) && (nextClaimableCycle > 0)) {
+                stakerMark += '   '.repeat(nextClaimableCycle - 1);
+                stakerMark += stake;
+            }
+            console.log(stakerMark);
+        }
+
+        console.log();
+    }
+
+    function shouldDebugCurrentState(...stakers) {
+        it('should debug the current state', async function() {
+            await debugCurrentState.bind(this, ...stakers)();
+            true.should.be.true;
+        });
+    }
+
     function shouldHaveSnapshot(fields, index = -1) {
         it('should have ' + (index < 0 ? 'latest snapshot' : `snapshot ${index}`) + ':' + JSON.stringify(fields), async function() {
             let snapshotIndex;

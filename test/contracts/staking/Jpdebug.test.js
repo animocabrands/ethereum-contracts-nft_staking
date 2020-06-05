@@ -193,7 +193,9 @@ describe.only('NftStaking', function () {
 
         const trailingCycles = cycle % PayoutPeriodLength;
         let periodGraph = titlePartition.padStart(titleWidth) + ' '.repeat(titlePadding);
-        periodGraph += '[```````````````````]'.repeat(period - 1);
+        if (period > 1) {
+            periodGraph += '[```````````````````]'.repeat(period - 1);
+        }
         periodGraph += trailingCycles == 0 ? '' : '[' + '`'.repeat((trailingCycles * 3) - 2);
         console.log(periodGraph);
 

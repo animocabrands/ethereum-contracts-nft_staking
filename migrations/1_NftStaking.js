@@ -9,12 +9,11 @@ const ERC20 = artifacts.require("ERC20WithOperatorsMock");
 
 const DayInSeconds = 86400;
 const FreezePeriodSeconds = new BN(DayInSeconds);
-// const RewardPoolBase = new BN(0);
 const CycleLength = new BN(DayInSeconds);
 const PayoutPeriodLength = new BN(7);
 
-const DividendTokenInitialBalance = toWei('320000000');
-const PayoutSchedule = [ // payouts are expressed in decimal and need to be converted to wei
+const RewardsTokenInitialBalance = toWei('320000000');
+const PayoutSchedule = [ // payouts are expressed in decimal form and need to be converted to wei
     { startPeriod: 1, endPeriod: 4, payoutPerCycle: 2700000 },
     { startPeriod: 5, endPeriod: 5, payoutPerCycle: 2200000 },
     { startPeriod: 6, endPeriod: 6, payoutPerCycle: 2150000 },
@@ -57,8 +56,8 @@ module.exports = async (deployer, network, accounts) => {
         case "ganache":
             await deployer.deploy(AssetsInventory, NFCollectionMaskLength);
             this.nftContract = await AssetsInventory.deployed();
-            await deployer.deploy(ERC20, DividendTokenInitialBalance);
-            this.dividendTokenContract = await ERC20.deployed();
+            await deployer.deploy(ERC20, RewardsTokenInitialBalance);
+            this.rewardsTokenContract = await ERC20.deployed();
             break;
         case "rinkeby":
             const nftContractAddressRinkeby = program.nftContractAddressRinkeby;
@@ -69,10 +68,10 @@ module.exports = async (deployer, network, accounts) => {
                     await AssetsInventory.at(nftContractAddressRinkeby) :
                     await AssetsInventory.new(NFCollectionMaskLength);
 
-            this.dividendTokenContract =
+            this.rewardsTokenContract =
                 ERC20BaseAddressRinkeby ?
                     await ERC20.at(ERC20BaseAddressRinkeby) :
-                    await ERC20.new(DividendTokenInitialBalance);
+                    await ERC20.new(RewardsTokenInitialBalance);
 
             break;
         case "mainnet":
@@ -89,9 +88,8 @@ module.exports = async (deployer, network, accounts) => {
         CycleLength,
         PayoutPeriodLength,
         FreezePeriodSeconds,
-        // RewardPoolBase,
         this.nftContract.address,
-        this.dividendTokenContract.address,
+        this.rewardsTokenContract.address,
         Object.keys(RarityToWeightsMap),
         Object.values(RarityToWeightsMap),
     );
@@ -99,7 +97,7 @@ module.exports = async (deployer, network, accounts) => {
     this.stakingContract = await NftStaking.deployed();
 
     // Enough to cover the whole payout schedule needs to be approved and will be transferred to the contract at start
-    await this.dividendTokenContract.approve(this.stakingContract.address, DividendTokenInitialBalance);
+    await this.rewardsTokenContract.approve(this.stakingContract.address, RewardsTokenInitialBalance);
 
     for (schedule of PayoutSchedule) {
         await this.stakingContract.setPayoutForPeriods(

@@ -167,13 +167,13 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * Withdraws a specified amount of dividend tokens from the contract.
+     * Withdraws a specified amount of rewards tokens from the contract.
      * @param amount The amount to withdraw.
      */
-    function withdrawDivsPool(uint256 amount) public onlyOwner {
+    function withdrawRewardsPool(uint256 amount) public onlyOwner {
         require(
             IERC20(rewardsToken).transfer(msg.sender, amount),
-            "NftStaking: Failed to withdraw from the dividends reward pool"
+            "NftStaking: Failed to withdraw from the rewards pool"
         );
     }
 

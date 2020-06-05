@@ -13,7 +13,7 @@ contract NftStakingMock is NftStaking {
         uint256 payoutPeriodLength_,
         uint256 freezeDurationAfterStake_,
         address whitelistedNftContract_,
-        address dividendToken_,
+        address rewardsToken_,
         uint256[] memory values,
         uint32[] memory valueWeights
     ) NftStaking(
@@ -21,7 +21,7 @@ contract NftStakingMock is NftStaking {
         payoutPeriodLength_,
         freezeDurationAfterStake_,
         whitelistedNftContract_,
-        dividendToken_
+        rewardsToken_
     ) public {
         require(values.length == valueWeights.length, "NftStakingMock: Mismatch in value/weight array argument lengths");
         for (uint256 i = 0; i < values.length; ++i) {
@@ -31,7 +31,7 @@ contract NftStakingMock is NftStaking {
 
     function _validateAndGetWeight(uint256 nftId) internal virtual override view returns (uint32) {
         uint256 tokenType = (nftId & (0xFF << 240)) >> 240;
-        require(tokenType == 1, "NftStakingMock: wrong NFT type");
+        require(tokenType == 1, "NftStakingMock: Wrong NFT type");
         uint256 value = (nftId & (0xFF << 176)) >> 176;
         return valueStakeWeights[value];
     }

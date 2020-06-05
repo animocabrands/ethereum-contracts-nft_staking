@@ -35,7 +35,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint32 cycle
     );
 
-    event DividendsClaimed(
+    event RewardsClaimed(
         address staker,
         uint256 snapshotStartIndex,
         uint256 snapshotEndIndex,
@@ -76,19 +76,19 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     uint256 public immutable cycleLengthInSeconds;
     uint256 public immutable periodLengthInCycles;
-    uint256 public immutable freezeDurationAfterStake; // initial duration that a newly staked NFT is locked before it can be with drawn from staking, in seconds
+    uint256 public immutable freezeDurationAfterStake; // duration for which a newly staked NFT is locked before it can be unstaked, in seconds
 
     mapping(address => StakerState) public stakerStates; // staker => StakerState
     mapping(uint256 => TokenInfo) public tokensInfo; // tokenId => TokenInfo
     mapping(uint256 => uint128) public payoutSchedule; // period => payout per-cycle
 
-    Snapshot[] public snapshots; // snapshot history of staking and dividend changes
+    Snapshot[] public snapshots; // History of total stake by ranges of cycles within a single period
 
     address public whitelistedNftContract; // contract that has been whitelisted to be able to perform transfer operations of staked NFTs
-    address public dividendToken; // ERC20-based token used in dividend payouts
+    address public rewardsToken; // ERC20-based token used in reward payouts
 
     modifier divsClaimed(address sender) {
-        require(_getUnclaimedPayoutPeriods(sender, periodLengthInCycles) == 0, "NftStaking: Dividends are not claimed");
+        require(_getUnclaimedPayoutPeriods(sender, periodLengthInCycles) == 0, "NftStaking: Rewards are not claimed");
         _;
     }
 
@@ -105,25 +105,25 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     /**
      * @dev Constructor.
      * @param cycleLengthInSeconds_ Length of a cycle, in seconds.
-     * @param periodLengthInCycles_ Length of a dividend payout period, in cycles.
+     * @param periodLengthInCycles_ Length of a period, in cycles.
      * @param freezeDurationAfterStake_ Initial duration that a newly staked NFT is locked for before it can be withdrawn from staking, in seconds.
      * @param whitelistedNftContract_ Contract that has been whitelisted to be able to perform transfer operations of staked NFTs.
-     * @param dividendToken_ The ERC20-based token used in dividend payouts.
+     * @param rewardsToken_ The ERC20-based token used in reward payouts.
      */
     constructor(
         uint256 cycleLengthInSeconds_,
         uint256 periodLengthInCycles_,
         uint256 freezeDurationAfterStake_,
         address whitelistedNftContract_,
-        address dividendToken_
+        address rewardsToken_
     ) internal {
-        require(periodLengthInCycles_ != 0, "NftStaking: Zero payout period length");
+        require(periodLengthInCycles_ != 0, "NftStaking: Period length must not be zero");
 
         cycleLengthInSeconds = cycleLengthInSeconds_;
         periodLengthInCycles = periodLengthInCycles_;
         freezeDurationAfterStake = freezeDurationAfterStake_;
         whitelistedNftContract = whitelistedNftContract_;
-        dividendToken = dividendToken_;
+        rewardsToken = rewardsToken_;
     }
 
 //////////////////////////////////////// Admin Functions //////////////////////////////////////////
@@ -139,7 +139,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint256 endPeriod,
         uint128 payoutPerCycle
     ) public onlyOwner {
-        require(startPeriod > 0 && startPeriod <= endPeriod, "NftStaking: wrong period range");
+        require(startPeriod > 0 && startPeriod <= endPeriod, "NftStaking: Wrong period range");
 
         for (uint256 period = startPeriod; period <= endPeriod; ++period) {
             payoutSchedule[period] = payoutPerCycle;
@@ -159,8 +159,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      */
     function start() public onlyOwner {
         require(
-            IERC20(dividendToken).transferFrom(msg.sender, address(this), totalPayout),
-            "NftStaking: failed to transfer the total payout"
+            IERC20(rewardsToken).transferFrom(msg.sender, address(this), totalPayout),
+            "NftStaking: Failed to transfer the total payout"
         );
 
         startTimestamp = now;
@@ -171,7 +171,10 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @param amount The amount to withdraw.
      */
     function withdrawDivsPool(uint256 amount) public onlyOwner {
-        require(IERC20(dividendToken).transfer(msg.sender, amount), "NftStaking: Unknown failure when attempting to withdraw from the dividends reward pool");
+        require(
+            IERC20(rewardsToken).transfer(msg.sender, amount),
+            "NftStaking: Failed to withdraw from the dividends reward pool"
+        );
     }
 
     /**
@@ -224,7 +227,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     /**
      * Unstakes a deposited NFT from the contract.
      * @dev Reverts if the caller is not the original owner of the NFT.
-     * @dev While the contract is enabled, reverts if there are outstanding dividends to be claimed.
+     * @dev While the contract is enabled, reverts if there are outstanding rewards to be claimed.
      * @dev While the contract is enabled, reverts if NFT is being withdrawn before the staking freeze duration has elapsed.
      * @param tokenId The token identifier, referencing the NFT being withdrawn.
      */
@@ -240,7 +243,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         if (!disabled) {
             uint256 periodLengthInCycles_ = periodLengthInCycles;
 
-            require(_getUnclaimedPayoutPeriods(msg.sender, periodLengthInCycles_) == 0, "NftStaking: Dividends are not claimed");
+            require(_getUnclaimedPayoutPeriods(msg.sender, periodLengthInCycles_) == 0, "NftStaking: Rewards are not claimed");
             require(now > tokenInfo.depositTimestamp + freezeDurationAfterStake, "NftStaking: Token is still frozen");
 
             ensureSnapshots(0);
@@ -295,29 +298,32 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * Estimates the claimable dividends for the specified number of periods.
+     * Estimates the claimable rewards for the specified number of periods.
      * The accuracy of the result depends on how up-to-date the snapshots are.
-     * Calling ensureSnapshots() prior to estimating the claimable dividends
+     * Calling ensureSnapshots() prior to estimating the claimable rewards
      * will result in a precise calculation.
-     * @param periodsToClaim The maximum number of claimable dividend payout periods to calculate for.
-     * @return claimableDividends The total claimable dividends calculated for.
+     * @param periodsToClaim The maximum number of claimable periods to calculate for.
+     * @return claimableRewards The total claimable rewards.
      * @return claimablePeriods The actual number of claimable periods calculated for.
      */
-    function estimateDividends(uint256 periodsToClaim) external view isEnabled hasStarted returns (uint128 claimableDividends, uint256 claimablePeriods) {
+    function estimateRewards(uint256 periodsToClaim) external view isEnabled hasStarted returns (
+        uint128 claimableRewards,
+        uint256 claimablePeriods
+    ) {
         // estimating for 0 periods
         if (periodsToClaim == 0) {
             return (0, 0);
         }
 
-        // calculate the claimable dividends
-        (claimableDividends, , , claimablePeriods) = _calculateDividends(msg.sender, periodsToClaim);
+        // calculate the claimable rewards
+        (claimableRewards, , , claimablePeriods) = _calculateRewards(msg.sender, periodsToClaim);
     }
 
     /**
-     * Claims the dividends for the specified number of periods.
-     * @param periodsToClaim The maximum number of dividend payout periods to claim for.
+     * Claims the rewards for the specified number of periods.
+     * @param periodsToClaim The maximum number of periods to claim for.
      */
-    function claimDividends(uint256 periodsToClaim) external isEnabled hasStarted {
+    function claimRewards(uint256 periodsToClaim) external isEnabled hasStarted {
         // claiming for 0 periods
         if (periodsToClaim == 0) {
             return;
@@ -326,40 +332,40 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         // ensure that snapshots exist up-to the current cycle/period
         ensureSnapshots(0);
 
-        // calculate the claimable dividends
-        (uint128 totalDividendsToClaim,
+        // calculate the claimable rewards
+        (uint128 totalRewardsToClaim,
             uint256 startSnapshotIndex,
             uint256 endSnapshotIndex,
             uint256 periodsClaimed
-        ) = _calculateDividends(msg.sender, periodsToClaim);
+        ) = _calculateRewards(msg.sender, periodsToClaim);
 
-        // no periods were actually processed when calculating the dividends to
+        // no periods were actually processed when calculating the rewards to
         // claim (i.e. no net changes were made to the current state since
-        // before _calculateDividends() was called)
+        // before _calculateRewardss() was called)
         if (periodsClaimed == 0) {
             return;
         }
 
         // update the staker's next claimable cycle for each call of this
-        // function. this should be done even when no dividends to claim were
+        // function. this should be done even when no rewards to claim were
         // found, to save from reprocessing fruitless periods in subsequent
         // calls
         stakerStates[msg.sender].nextClaimableCycle = snapshots[endSnapshotIndex + 1].startCycle;
 
-        // no dividends to claim were found across the processed periods
-        if (totalDividendsToClaim == 0) {
+        // no rewards to claim were found across the processed periods
+        if (totalRewardsToClaim == 0) {
             return;
         }
 
         require(
-            IERC20(dividendToken).transfer(msg.sender, totalDividendsToClaim),
-            "NftStaking: Unknown failure when attempting to transfer claimed dividend rewards");
+            IERC20(rewardsToken).transfer(msg.sender, totalRewardsToClaim),
+            "NftStaking: Failed to transfer claimed rewards");
 
-        emit DividendsClaimed(
+        emit RewardsClaimed(
             msg.sender,
             startSnapshotIndex,
             endSnapshotIndex,
-            totalDividendsToClaim);
+            totalRewardsToClaim);
     }
 
     /**
@@ -490,7 +496,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 //////////////////////////////////// Staking Internal Functions /////////////////////////////////////
 
     /**
-     * Adds a new dividends snapshot to the snapshot history list.
+     * Adds a new snapshot to the snapshot history list.
      * @param cycleStart Starting cycle for the new snapshot.
      * @param cycleEnd Ending cycle for the new snapshot.
      * @param stake Initial stake for the new snapshot.
@@ -534,7 +540,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
      /**
       * Retrieves the current payout period (index-1 based).
-      * @param periodLengthInCycles_ Length of a dividend payout period, in cycles.
+      * @param periodLengthInCycles_ Length of a period, in cycles.
       * @return The current payout period (index-1 based).
       */
     function _getCurrentPeriod(uint256 periodLengthInCycles_) internal view returns(uint256) {
@@ -544,7 +550,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     /**
      * Retrieves the payout period (index-1 based) for the specified cycle and payout period length.
      * @param cycle The cycle within the payout period to retrieve.
-     * @param periodLengthInCycles_ Length of a dividend payout period, in cycles.
+     * @param periodLengthInCycles_ Length of a period, in cycles.
      * @return The payout period (index-1 based) for the specified cycle and payout period length.
      */
     function _getPeriod(uint32 cycle, uint256 periodLengthInCycles_) internal pure returns(uint256) {
@@ -558,7 +564,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     /**
      * Retrieves the number of unclaimed payout periods for the specified staker.
      * @param sender The staker whose number of unclaimed payout periods will be retrieved.
-     * @param periodLengthInCycles_ Length of a dividend payout period, in cycles.
+     * @param periodLengthInCycles_ Length of a period, in cycles.
      * @return The number of unclaimed payout periods for the specified staker.
      */
     function _getUnclaimedPayoutPeriods(address sender, uint256 periodLengthInCycles_) internal view returns(uint256) {
@@ -572,21 +578,21 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * Calculates the amount of dividends over the available claimable periods
+     * Calculates the amount of rewards over the available claimable periods
      * until either the specified maximum number of periods to claim is reached,
      * or the last snapshot period is reached, whichever is smaller.
-     * @param staker The staker for whome the dividends will be calculated.
-     * @param periodsToClaim Maximum number of periods, over which, to calculate the claimable dividends.
-     * @return totalDividendsToClaim The total claimable dividends calculated.
+     * @param staker The staker for whom the rewards will be calculated.
+     * @param periodsToClaim Maximum number of periods, over which to calculate the claimable rewards.
+     * @return totalRewardsToClaim The total claimable rewards calculated.
      * @return startSnapshotIndex The index of the starting snapshot claimed, in the calculation.
      * @return endSnapshotIndex The index of the ending snapshot claimed, in the calculation.
      * @return periodsClaimed The number of actual claimable periods calculated for.
      */
-    function _calculateDividends(
+    function _calculateRewards(
         address staker,
         uint256 periodsToClaim
     ) internal view returns (
-        uint128 totalDividendsToClaim,
+        uint128 totalRewardsToClaim,
         uint256 startSnapshotIndex,
         uint256 endSnapshotIndex,
         uint256 periodsClaimed)
@@ -635,17 +641,17 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         // span across multiple periods (i.e. bound within a single period),
         // and (5) that it will be executed for at least 1 iteration
         while (true) {
-            // there are dividends to calculate in this loop iteration
+            // there are rewards to calculate in this loop iteration
             if ((snapshot.stake != 0) && (payoutPerCycle != 0)) {
-                // calculate the staker's snapshot dividends
-                uint256 dividendsToClaim = SafeMath.sub(snapshot.endCycle, snapshot.startCycle) + 1;
-                dividendsToClaim = dividendsToClaim.mul(payoutPerCycle);
-                dividendsToClaim = dividendsToClaim.mul(_DIVS_PRECISION);
-                dividendsToClaim = dividendsToClaim.mul(stakerState.stake).div(snapshot.stake);
-                dividendsToClaim = dividendsToClaim.div(_DIVS_PRECISION);
+                // calculate the staker's snapshot rewards
+                uint256 rewardsToClaim = SafeMath.sub(snapshot.endCycle, snapshot.startCycle) + 1;
+                rewardsToClaim = rewardsToClaim.mul(payoutPerCycle);
+                rewardsToClaim = rewardsToClaim.mul(_DIVS_PRECISION);
+                rewardsToClaim = rewardsToClaim.mul(stakerState.stake).div(snapshot.stake);
+                rewardsToClaim = rewardsToClaim.div(_DIVS_PRECISION);
 
-                // update the total dividends to claim
-                totalDividendsToClaim = SafeMath.add(totalDividendsToClaim, dividendsToClaim).toUint128();
+                // update the total rewards to claim
+                totalRewardsToClaim = SafeMath.add(totalRewardsToClaim, rewardsToClaim).toUint128();
             }
 
             // snapshot is the last one in the period to claim
@@ -762,8 +768,9 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * Searches for the dividend snapshot containing the specified cycle. If the snapshot cannot be found then the closest snapshot by cycle range is returned.
-     * @param cycle The cycle for which the dividend snapshot is searched for.
+     * Searches for the reward snapshot containing the specified cycle. If the snapshot cannot be found,
+     * then the closest snapshot by cycle range is returned.
+     * @param cycle The cycle for which the reward snapshot is searched for.
      * @return snapshot If found, the snapshot containing the specified cycle, otherwise the closest snapshot to the cycle.
      * @return snapshotIndex The index (index-0 based) of the returned snapshot.
      */

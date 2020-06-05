@@ -13,7 +13,7 @@ contract NftStakingTestableMock is NftStakingTestable {
         uint256 payoutPeriodLength_,
         uint256 freezeDurationAfterStake_,
         address whitelistedNftContract_,
-        address dividendToken_,
+        address rewardsToken_,
         uint256[] memory values,
         uint32[] memory valueWeights
     )
@@ -22,7 +22,7 @@ contract NftStakingTestableMock is NftStakingTestable {
         payoutPeriodLength_,
         freezeDurationAfterStake_,
         whitelistedNftContract_,
-        dividendToken_
+        rewardsToken_
     ) public {
         require(values.length == valueWeights.length, "NftStakingTestableMock: Mismatch in value/weight array argument lengths");
         for (uint256 i = 0; i < values.length; ++i) {

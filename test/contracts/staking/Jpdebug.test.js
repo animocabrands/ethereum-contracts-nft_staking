@@ -10,7 +10,7 @@ const NftStaking = contract.fromArtifact("NftStakingTestableMock");
 
 const DayInSeconds = 86400;
 
-const DividendTokenInitialBalance = new BN('100000000000000000000000');
+const RewardsTokenInitialBalance = new BN('100000000000000000000000');
 const CycleLength = new BN(DayInSeconds);
 const PayoutPeriodLength = new BN(7);
 const PayoutPeriodLengthInSeconds = PayoutPeriodLength.mul(CycleLength);
@@ -52,20 +52,20 @@ describe.only('NftStaking', function () {
     async function doFreshDeploy() {
         this.nftContract = await AssetsInventory.new(NFCollectionMaskLength, { from: creator });
 
-        this.dividendToken = await ERC20WithOperators.new(DividendTokenInitialBalance, { from: creator });
+        this.rewardsToken = await ERC20WithOperators.new(RewardsTokenInitialBalance, { from: creator });
 
         this.stakingContract = await NftStaking.new(
             CycleLength,
             PayoutPeriodLength,
             FreezePeriodSeconds,
             this.nftContract.address,
-            this.dividendToken.address,
+            this.rewardsToken.address,
             RarityWeights.map(x => x.rarity),
             RarityWeights.map(x => x.weight),
             { from: creator }
         );
 
-        await this.dividendToken.approve(this.stakingContract.address, DividendTokenInitialBalance, { from: creator });
+        await this.rewardsToken.approve(this.stakingContract.address, RewardsTokenInitialBalance, { from: creator });
 
         for (const tokenId of TokenIds) {
             await this.nftContract.mintNonFungible(staker, tokenId, { from: creator });
@@ -147,17 +147,17 @@ describe.only('NftStaking', function () {
             });
         });
 
-        context('Dividend Token contract', function () {
-            it('should be used as the dividend token', async function () {
-                const dividendToken = await this.stakingContract.dividendToken();
-                dividendToken.should.be.equal(this.dividendToken.address);
+        context('Rewards Token contract', function () {
+            it('should be used as the rewards token', async function () {
+                const rewardsToken = await this.stakingContract.rewardsToken();
+                rewardsToken.should.be.equal(this.rewardsToken.address);
             });
 
-            // // The dividend token transfer to the contract should now occur when
+            // // The rewards token transfer to the contract should now occur when
             // // starting the staking event by calling the start() function
-            // it(`should have a token balance of ${DividendTokenInitialBalance.toString()} for the staking contract`, async function () {
-            //     const balance = await this.dividendToken.balanceOf(this.stakingContract.address);
-            //     balance.should.be.bignumber.equal(DividendTokenInitialBalance);
+            // it(`should have a token balance of ${RewardsTokenInitialBalance.toString()} for the staking contract`, async function () {
+            //     const balance = await this.rewardsToken.balanceOf(this.stakingContract.address);
+            //     balance.should.be.bignumber.equal(RewardsTokenInitialBalance);
             // });
         });
     });
@@ -286,7 +286,7 @@ describe.only('NftStaking', function () {
                 snapshotIndex = new BN(snapshotIndex);
             }
 
-            const snapshot = await this.stakingContracts.dividendsSnapshots(snapshotIndex);
+            const snapshot = await this.stakingContracts.rewardsSnapshots(snapshotIndex);
 
             if ('period' in snapshot) {
                 snapshot.period.toNumber().should.equal(fields.period);
@@ -350,25 +350,25 @@ describe.only('NftStaking', function () {
         });
     }
 
-    function shouldEstimateDividends(from, periodsToClaim, periodsClaimed, amount, ensureSnapshots = -1) {
+    function shouldEstimateRewards(from, periodsToClaim, periodsClaimed, amount, ensureSnapshots = -1) {
         it(`should have estimated ${amount} tokens over ${periodsToClaim} periods for ${from}`, async function () {
             if (ensureSnapshots >= 0) {
                 await this.stakingContract.ensureSnapshots(ensureSnapshots);
             }
-            const result = await this.stakingContract.estimateDividends(periodsToClaim, { from: from });
-            result.claimableDividends.toNumber().should.be.equal(amount);
+            const result = await this.stakingContract.estimateRewards(periodsToClaim, { from: from });
+            result.claimableRewards.toNumber().should.be.equal(amount);
             result.claimablePeriods.toNumber().should.be.equal(periodsClaimed);
         });
     }
 
-    function shouldClaimDividends(from, periodsToClaim, start, end, amount) {
+    function shouldClaimRewards(from, periodsToClaim, start, end, amount) {
         it(`should have claimed ${amount} tokens in ${periodsToClaim} periods from snapshots [${start}, ${end}] by ${from}`, async function () {
-            const receipt = await this.stakingContract.claimDividends(periodsToClaim, { from: from });
+            const receipt = await this.stakingContract.claimRewards(periodsToClaim, { from: from });
 
             await expectEvent.inTransaction(
                 receipt.tx,
                 this.stakingContract,
-                'DividendsClaimed',
+                'RewardsClaimed',
                 {
                     staker: from,
                     snapshotStartIndex: new BN(start),
@@ -421,22 +421,22 @@ describe.only('NftStaking', function () {
                     shouldHaveCurrentCycle(39);
                     shouldHaveNumberOfSnapshots(1);
 
-                    describe('when estimating dividends for 2 periods', function () {
+                    describe('when estimating rewards for 2 periods', function () {
                         context('when not ensuring snapshots', function () {
-                            shouldEstimateDividends(staker, 2, 0, 0);
+                            shouldEstimateRewards(staker, 2, 0, 0);
                             shouldHaveCurrentCycle(39);
                             shouldHaveNumberOfSnapshots(1);
                         });
 
                         context('when ensuring snapshots', function () {
-                            shouldEstimateDividends(staker, 2, 2, 11000, 0);
+                            shouldEstimateRewards(staker, 2, 2, 11000, 0);
                             shouldHaveCurrentCycle(39);
                             shouldHaveNumberOfSnapshots(6);
                         })
                     });
 
                     describe('when claiming 2 periods', function () {
-                        shouldClaimDividends(staker, 2, 0, 1, 11000); // 4 cycles in period 1 + 7 cycles in period 2
+                        shouldClaimRewards(staker, 2, 0, 1, 11000); // 4 cycles in period 1 + 7 cycles in period 2
                         shouldHaveCurrentCycle(39);
                         shouldHaveNumberOfSnapshots(6);
                         shouldHaveStakerState({ nextClaimableCycle: 15 });
@@ -450,7 +450,7 @@ describe.only('NftStaking', function () {
                             shouldHaveNumberOfSnapshots(6);
 
                             describe('when claming the remaining 6 periods', function () {
-                                shouldClaimDividends(staker, 6, 2, 7, 28000); // 7 cycles in period 3 + 7 cyles in period 4 + 28 cycles in period 5-8
+                                shouldClaimRewards(staker, 6, 2, 7, 28000); // 7 cycles in period 3 + 7 cyles in period 4 + 28 cycles in period 5-8
                                 shouldHaveCurrentCycle(60);
                                 shouldHaveNumberOfSnapshots(9);
                                 shouldHaveStakerState({ nextClaimableCycle: 57 });

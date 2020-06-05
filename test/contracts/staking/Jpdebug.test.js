@@ -460,10 +460,8 @@ describe.only('NftStaking', function () {
                             shouldHaveCurrentCycle(60);
                             shouldHaveNumberOfSnapshots(6);
 
-                            shouldDebugCurrentState(staker);
                             describe('when claming the remaining 6 periods', function () {
                                 shouldClaimDividends(staker, 6, 2, 7, 28000); // 7 cycles in period 3 + 7 cyles in period 4 + 28 cycles in period 5-8
-                                shouldDebugCurrentState(staker);
                                 shouldHaveCurrentCycle(60);
                                 shouldHaveNumberOfSnapshots(9);
                                 shouldHaveStakerState({ nextClaimableCycle: 57 });

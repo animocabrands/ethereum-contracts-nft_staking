@@ -350,13 +350,14 @@ describe.only('NftStaking', function () {
         });
     }
 
-    function shouldEstimateDividends(from, periodsToClaim, amount, ensureSnapshots = -1) {
+    function shouldEstimateDividends(from, periodsToClaim, periodsClaimed, amount, ensureSnapshots = -1) {
         it(`should have estimated ${amount} tokens over ${periodsToClaim} periods for ${from}`, async function () {
             if (ensureSnapshots >= 0) {
                 await this.stakingContract.ensureSnapshots(ensureSnapshots);
             }
-            const tokensToClaim = await this.stakingContract.estimateDividends(periodsToClaim, { from: from });
-            tokensToClaim.toNumber().should.be.equal(amount);
+            const result = await this.stakingContract.estimateDividends(periodsToClaim, { from: from });
+            result.totalDividendsToClaim.toNumber().should.be.equal(amount);
+            result.periodsClaimed.toNumber().should.be.equal(periodsClaimed);
         });
     }
 
@@ -422,13 +423,13 @@ describe.only('NftStaking', function () {
 
                     describe('when estimating dividends for 2 periods', function () {
                         context('when not ensuring snapshots', function () {
-                            shouldEstimateDividends(staker, 2, 0);
+                            shouldEstimateDividends(staker, 2, 0, 0);
                             shouldHaveCurrentCycle(39);
                             shouldHaveNumberOfSnapshots(1);
                         });
 
                         context('when ensuring snapshots', function () {
-                            shouldEstimateDividends(staker, 2, 11000, 0);
+                            shouldEstimateDividends(staker, 2, 2, 11000, 0);
                             shouldHaveCurrentCycle(39);
                             shouldHaveNumberOfSnapshots(6);
                         })

@@ -375,18 +375,22 @@ describe.only('NftStaking', function () {
     }
 
     function shouldEstimateDividends(from, periodsToClaim, periodsClaimed, amount, ensureSnapshots = -1) {
-        it(`should have estimated ${amount} tokens over ${periodsToClaim} periods for ${from}`, async function () {
+        it(`should have estimated ${amount.toString()} tokens over ${periodsToClaim} periods for ${from}`, async function () {
             if (ensureSnapshots >= 0) {
                 await this.stakingContract.ensureSnapshots(ensureSnapshots);
             }
             const result = await this.stakingContract.estimateDividends(periodsToClaim, { from: from });
-            result.claimableDividends.toNumber().should.be.equal(amount);
+            result.claimableDividends.should.be.bignumber.equal(new BN(amount));
             result.claimablePeriods.toNumber().should.be.equal(periodsClaimed);
         });
     }
 
     function shouldClaimDividends(from, periodsToClaim, start, end, amount) {
-        it(`should have claimed ${amount} tokens in ${periodsToClaim} periods from snapshots [${start}, ${end}] by ${from}`, async function () {
+        it(`should have claimed ${amount.toString()} tokens in ${periodsToClaim} periods from snapshots [${start}, ${end}] by ${from}`, async function () {
+            const snapshotStartIndexBN = new BN(start);
+            const snapshotEndIndexBN = new BN(end);
+            const amountBN = new BN(amount);
+
             const stakerBalanceBefore = await this.dividendToken.balanceOf(from);
             const contractBalanceBefore = await this.dividendToken.balanceOf(this.stakingContract.address);
             const stakerStateBefore = await this.stakingContract.stakerStates(from);
@@ -397,11 +401,11 @@ describe.only('NftStaking', function () {
             const contractBalanceAfter = await this.dividendToken.balanceOf(this.stakingContract.address);
             const stakerStateAfter = await this.stakingContract.stakerStates(from);
 
-            const startSnapshot = await this.stakingContract.snapshots(start);
-            const endSnapshot = await this.stakingContract.snapshots(end);
+            const startSnapshot = await this.stakingContract.snapshots(snapshotStartIndexBN);
+            const endSnapshot = await this.stakingContract.snapshots(snapshotEndIndexBN);
 
-            stakerBalanceAfter.sub(stakerBalanceBefore).toNumber().should.equal(amount);
-            contractBalanceBefore.sub(contractBalanceAfter).toNumber().should.equal(amount);
+            stakerBalanceAfter.sub(stakerBalanceBefore).should.be.bignumber.equal(amountBN);
+            contractBalanceBefore.sub(contractBalanceAfter).should.be.bignumber.equal(amountBN);
             stakerStateBefore.nextClaimableCycle.should.be.bignumber.equal(startSnapshot.startCycle);
             stakerStateAfter.nextClaimableCycle.should.be.bignumber.equal(endSnapshot.endCycle.addn(1));
 
@@ -411,9 +415,9 @@ describe.only('NftStaking', function () {
                 'DividendsClaimed',
                 {
                     staker: from,
-                    snapshotStartIndex: new BN(start),
-                    snapshotEndIndex: new BN(end),
-                    amount: new BN(amount)
+                    snapshotStartIndex: snapshotStartIndexBN,
+                    snapshotEndIndex: snapshotEndIndexBN,
+                    amount: amountBN
                 });
         });
     }

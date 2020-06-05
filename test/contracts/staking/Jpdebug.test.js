@@ -374,6 +374,18 @@ describe.only('NftStaking', function () {
         });
     }
 
+    function shouldRevertAndNotStakeNft(from, tokenId, expectedError) {
+        it(`should revert and not have staked ${tokenId} by ${from}`, async function () {
+            const promise = this.nftContract.transferFrom(staker, this.stakingContract.address, tokenId, { from: from });
+
+            if (expectedError) {
+                await expectRevert(promise, expectedError);
+            } else {
+                await expectRevert.unspecified(promise);
+            }
+        });
+    }
+
     function shouldEstimateDividends(from, periodsToClaim, periodsClaimed, amount, ensureSnapshots = -1) {
         it(`should have estimated ${amount.toString()} tokens over ${periodsToClaim} periods for ${from}`, async function () {
             if (ensureSnapshots >= 0) {
@@ -422,6 +434,47 @@ describe.only('NftStaking', function () {
         });
     }
 
+    function shouldNotClaimDividends(from, periodsToClaim, nextClaimableCycle) {
+        it(`should not have claimed tokens in ${periodsToClaim} periods by ${from}`, async function () {
+            const stakerBalanceBefore = await this.dividendToken.balanceOf(from);
+            const contractBalanceBefore = await this.dividendToken.balanceOf(this.stakingContract.address);
+
+            const receipt = await this.stakingContract.claimDividends(periodsToClaim, { from: from });
+
+            const stakerBalanceAfter = await this.dividendToken.balanceOf(from);
+            const contractBalanceAfter = await this.dividendToken.balanceOf(this.stakingContract.address);
+            const stakerStateAfter = await this.stakingContract.stakerStates(from);
+
+            stakerBalanceBefore.should.be.bignumber.equal(stakerBalanceAfter);
+            contractBalanceBefore.should.be.bignumber.equal(contractBalanceAfter);
+
+            // it's possible to not claim any dividends but still have the next
+            // claimable cycle advance. this happens when there is no payout
+            // schedule defined for a claimed period
+            stakerStateAfter.nextClaimableCycle.toNumber().should.be.equal(nextClaimableCycle);
+
+            await expectEvent.not.inTransaction(
+                receipt.tx,
+                this.stakingContract,
+                'DividendsClaimed',
+                {
+                    staker: from
+                });
+        });
+    }
+
+    function shouldRevertAndNotClaimDividends(from, periodsToClaim, expectedError) {
+        it(`should revert and not have claimed tokens in ${periodsToClaim} periods by ${from}`, async function () {
+            const promise = this.stakingContract.claimDividends(periodsToClaim, { from: from });
+
+            if (expectedError) {
+                await expectRevert(promise, expectedError);
+            } else {
+                await expectRevert.unspecified(promise);
+            }
+        });
+    }
+
     function shouldUnstakeNft(from, tokenId, cycle) {
         it(`should have unstaked ${tokenId} in cycle ${cycle} by ${from}`, async function () {
             const snapshotBefore = await this.stakingContract.getLatestSnapshot();
@@ -448,6 +501,18 @@ describe.only('NftStaking', function () {
                     tokenId: tokenId,
                     cycle: new BN(cycle)
                 });
+        });
+    }
+
+    function shouldRevertAndNotUnstakeNft(from, tokenId, expectedError) {
+        it(`should revert and not have unstaked ${tokenId} by ${from}`, async function () {
+            const promise = this.stakingContract.unstakeNft(tokenId, { from: from });
+
+            if (expectedError) {
+                await expectRevert(promise, expectedError);
+            } else {
+                await expectRevert.unspecified(promise);
+            }
         });
     }
 
@@ -492,11 +557,23 @@ describe.only('NftStaking', function () {
                         })
                     });
 
+                    describe('when staking another NFT before dividends are claimed', function () {
+                        shouldRevertAndNotStakeNft(staker, TokenIds[1], 'NftStaking: Dividends are not claimed');
+                    });
+
                     describe('when claiming 2 periods', function () {
                         shouldClaimDividends(staker, 2, 0, 1, 11000); // 4 cycles in period 1 + 7 cycles in period 2
                         shouldHaveCurrentCycle(39);
                         shouldHaveNumberOfSnapshots(6);
                         shouldHaveStakerState({ nextClaimableCycle: 15 });
+
+                        describe('when staking an already staked NFT', function () {
+                            shouldRevertAndNotStakeNft(staker, TokenIds[0], 'ERC1155: transfer of a non-owned NFT');
+                        });
+
+                        describe('when unstaking an NFT not owned by the caller', function () {
+                            shouldRevertAndNotUnstakeNft(creator, TokenIds[0], 'NftStaking: Token owner doesn\'t match or token was already withdrawn before.');
+                        });
 
                         describe('when 3 periods have passed since the last claim', function () {
                             before(async function () {
@@ -506,18 +583,33 @@ describe.only('NftStaking', function () {
                             shouldHaveCurrentCycle(60);
                             shouldHaveNumberOfSnapshots(6);
 
+                            describe('when unstaking a Common NFT before dividends are claimed', function () {
+                                shouldRevertAndNotUnstakeNft(staker, TokenIds[0], 'NftStaking: Dividends are not claimed');
+                            });
+
                             describe('when claming the remaining 6 periods', function () {
                                 shouldClaimDividends(staker, 6, 2, 7, 28000); // 7 cycles in period 3 + 7 cyles in period 4 + 28 cycles in period 5-8
                                 shouldHaveCurrentCycle(60);
                                 shouldHaveNumberOfSnapshots(9);
                                 shouldHaveStakerState({ nextClaimableCycle: 57 });
-                            });
 
-                            describe('when unstaking a Common NFT', function () {
-                                shouldUnstakeNft(staker, TokenIds[0], 60);
-                                shouldHaveCurrentCycle(60);
-                                shouldHaveNumberOfSnapshots(10);
-                                shouldHaveStakerState({ nextClaimableCycle: 0, stake: 0 });
+                                describe('when 2 periods have passed since the last claim', function () {
+                                    before(async function () {
+                                        await time.increase(PayoutPeriodLengthInSeconds.toNumber() * 2);
+                                    });
+
+                                    describe('when claiming the remaining 2 periods', function () {
+                                        shouldNotClaimDividends(staker, 2, 71);
+                                        shouldHaveStakerState({ nextClaimableCycle: 71, stake: 0 });
+
+                                        describe('when unstaking a Common NFT', function () {
+                                            shouldUnstakeNft(staker, TokenIds[0], 74);
+                                            shouldHaveCurrentCycle(74);
+                                            shouldHaveNumberOfSnapshots(12);
+                                            shouldHaveStakerState({ nextClaimableCycle: 0, stake: 0 });
+                                        });
+                                    });
+                                });
                             });
                         });
                     });

@@ -356,8 +356,8 @@ describe.only('NftStaking', function () {
                 await this.stakingContract.ensureSnapshots(ensureSnapshots);
             }
             const result = await this.stakingContract.estimateDividends(periodsToClaim, { from: from });
-            result.totalDividendsToClaim.toNumber().should.be.equal(amount);
-            result.periodsClaimed.toNumber().should.be.equal(periodsClaimed);
+            result.claimableDividends.toNumber().should.be.equal(amount);
+            result.claimablePeriods.toNumber().should.be.equal(periodsClaimed);
         });
     }
 
@@ -450,7 +450,7 @@ describe.only('NftStaking', function () {
                             shouldHaveNumberOfSnapshots(6);
 
                             describe('when claming the remaining 6 periods', function () {
-                                shouldClaimDividends(staker, 6, 2, 7, 17500); // 7 cycles in period 3 + 7 cyles in period 4 + 21 cycles in period 5-7
+                                shouldClaimDividends(staker, 6, 2, 7, 28000); // 7 cycles in period 3 + 7 cyles in period 4 + 28 cycles in period 5-8
                                 shouldHaveCurrentCycle(60);
                                 shouldHaveNumberOfSnapshots(9);
                                 shouldHaveStakerState({ nextClaimableCycle: 57 });

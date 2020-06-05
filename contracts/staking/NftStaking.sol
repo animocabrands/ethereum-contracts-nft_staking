@@ -131,7 +131,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     /**
      * Set the payout for a range of periods.
      * @param startPeriod The starting period (inclusive).
-     * @param endPeriod The ending period (exclusive).
+     * @param endPeriod The ending period (inclusive).
      * @param payoutPerCycle The total payout for each cycle within range.
      */
     function setPayoutForPeriods(
@@ -141,7 +141,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     ) public onlyOwner {
         require(startPeriod > 0 && startPeriod <= endPeriod, "NftStaking: wrong period range");
 
-        for (uint256 period = startPeriod; period < endPeriod; ++period) {
+        for (uint256 period = startPeriod; period <= endPeriod; ++period) {
             payoutSchedule[period] = payoutPerCycle;
         }
 
@@ -300,17 +300,17 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * Calling ensureSnapshots() prior to estimating the claimable dividends
      * will result in a precise calculation.
      * @param periodsToClaim The maximum number of claimable dividend payout periods to calculate for.
-     * @return totalDividendsToClaim The total claimable dividends calculated.
-     * @return periodsClaimed The actual number of claimable periods calculated for.
+     * @return claimableDividends The total claimable dividends calculated for.
+     * @return claimablePeriods The actual number of claimable periods calculated for.
      */
-    function estimateDividends(uint256 periodsToClaim) external view isEnabled hasStarted returns (uint128 totalDividendsToClaim, uint256 periodsClaimed) {
+    function estimateDividends(uint256 periodsToClaim) external view isEnabled hasStarted returns (uint128 claimableDividends, uint256 claimablePeriods) {
         // estimating for 0 periods
         if (periodsToClaim == 0) {
             return (0, 0);
         }
 
         // calculate the claimable dividends
-        (totalDividendsToClaim, , , periodsClaimed) = _calculateDividends(msg.sender, periodsToClaim);
+        (claimableDividends, , , claimablePeriods) = _calculateDividends(msg.sender, periodsToClaim);
     }
 
     /**

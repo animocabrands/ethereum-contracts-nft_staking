@@ -301,15 +301,16 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * will result in a precise calculation.
      * @param periodsToClaim The maximum number of claimable dividend payout periods to calculate for.
      * @return totalDividendsToClaim The total claimable dividends calculated.
+     * @return periodsClaimed The actual number of claimable periods calculated for.
      */
-    function estimateDividends(uint256 periodsToClaim) external view isEnabled hasStarted returns (uint128 totalDividendsToClaim) {
+    function estimateDividends(uint256 periodsToClaim) external view isEnabled hasStarted returns (uint128 totalDividendsToClaim, uint256 periodsClaimed) {
         // estimating for 0 periods
         if (periodsToClaim == 0) {
-            return 0;
+            return (0, 0);
         }
 
         // calculate the claimable dividends
-        (totalDividendsToClaim,,) = _calculateDividends(msg.sender, periodsToClaim);
+        (totalDividendsToClaim, , , periodsClaimed) = _calculateDividends(msg.sender, periodsToClaim);
     }
 
     /**
@@ -328,9 +329,16 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         // calculate the claimable dividends
         (uint128 totalDividendsToClaim,
             uint256 startSnapshotIndex,
-            uint256 endSnapshotIndex
+            uint256 endSnapshotIndex,
+            uint256 periodsClaimed
         ) = _calculateDividends(msg.sender, periodsToClaim);
 
+        // no periods were actually processed when calculating the dividends to
+        // claim (i.e. no net changes were made to the current state since
+        // before _calculateDividends() was called)
+        if (periodsClaimed == 0) {
+            return;
+        }
 
         // update the staker's next claimable cycle for each call of this
         // function. this should be done even when no dividends to claim were
@@ -572,6 +580,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @return totalDividendsToClaim The total claimable dividends calculated.
      * @return startSnapshotIndex The index of the starting snapshot claimed, in the calculation.
      * @return endSnapshotIndex The index of the ending snapshot claimed, in the calculation.
+     * @return periodsClaimed The number of actual claimable periods calculated for.
      */
     function _calculateDividends(
         address staker,
@@ -579,25 +588,26 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     ) internal view returns (
         uint128 totalDividendsToClaim,
         uint256 startSnapshotIndex,
-        uint256 endSnapshotIndex)
+        uint256 endSnapshotIndex,
+        uint256 periodsClaimed)
     {
         // calculating for 0 periods
         if (periodsToClaim == 0) {
-            return (0, 0, 0);
+            return (0, 0, 0, 0);
         }
 
         uint256 totalSnapshots = snapshots.length;
 
         // no snapshots to calculate with
         if (totalSnapshots == 0) {
-            return (0, 0, 0);
+            return (0, 0, 0, 0);
         }
 
         StakerState memory stakerState = stakerStates[staker];
 
         // nothing staked to calculate with
         if (stakerState.stake == 0) {
-            return (0, 0, 0);
+            return (0, 0, 0, 0);
         }
 
         uint256 periodLengthInCycles_ = periodLengthInCycles;
@@ -608,7 +618,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         // snapshot period is excluded from the claim calculation since it
         // is treated as a period that has not completed yet
         if (periodToClaim == lastPeriod) {
-            return (0, 0, 0);
+            return (0, 0, 0, 0);
         }
 
         uint256 payoutPerCycle = payoutSchedule[periodToClaim];
@@ -642,7 +652,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             if (snapshot.endCycle == periodToClaimEndCycle) {
                 // the last claimable period has been reached, or all requested
                 // periods to claim have been made
-                if ((++periodToClaim == lastPeriod) || (--periodsToClaim == 0)) {
+                if ((++periodToClaim == lastPeriod) || (++periodsClaimed == periodsToClaim)) {
                     break;
                 }
 

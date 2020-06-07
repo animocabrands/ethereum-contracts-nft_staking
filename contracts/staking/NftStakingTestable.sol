@@ -26,7 +26,7 @@ abstract contract NftStakingTestable is NftStaking {
     returns(
         uint64 startCycle,
         uint64 endCycle,
-        uint64 stake
+        uint32 stake
     )
     {
         Snapshot memory snapshot;
@@ -48,7 +48,7 @@ abstract contract NftStakingTestable is NftStaking {
     returns(
         uint64 startCycle,
         uint64 endCycle,
-        uint64 stake,
+        uint32 stake,
         uint256 snapshotIndex
     )
     {
@@ -70,7 +70,7 @@ abstract contract NftStakingTestable is NftStaking {
         uint256 period,
         uint64 startCycle,
         uint64 endCycle,
-        uint64 stake
+        uint32 stake
     ) {
         ensureSnapshots(0);
         uint256 snapshotIndex = snapshots.length - 1;

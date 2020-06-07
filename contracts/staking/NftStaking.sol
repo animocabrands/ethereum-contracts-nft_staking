@@ -46,7 +46,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint256 index, // index (index-0 based) of the snapshot in the history list
         uint64 startCycle,
         uint64 endCycle,
-        uint64 stake // Total stake of all NFTs
+        uint32 stake // Total stake of all NFTs
     );
 
     // a struct container used to track aggregate changes in stake over time
@@ -54,13 +54,13 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint32 period;
         uint64 startCycle;
         uint64 endCycle;
-        uint64 stake; // cumulative stake of all NFTs staked
+        uint32 stake; // cumulative stake of all NFTs staked
     }
 
     // a struct container used to track a staker's aggregate staking state
     struct StakerState {
         uint64 nextClaimableCycle;
-        uint64 stake;
+        uint32 stake;
     }
 
     struct TokenInfo {
@@ -255,7 +255,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             _updateSnapshotStake(
                 snapshot,
                 snapshotIndex,
-                SafeMath.sub(snapshot.stake, tokenInfo.stake).toUint64(),
+                SafeMath.sub(snapshot.stake, tokenInfo.stake).toUint32(),
                 currentCycle);
 
             // clear the token owner to ensure that it cannot be unstaked again
@@ -264,7 +264,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
             // decrease the staker's stake
             StakerState memory stakerState = stakerStates[msg.sender];
-            stakerState.stake = SafeMath.sub(stakerState.stake, tokenInfo.stake).toUint64();
+            stakerState.stake = SafeMath.sub(stakerState.stake, tokenInfo.stake).toUint32();
 
             // nothing is currently staked by the staker
             if (stakerState.stake == 0) {
@@ -507,7 +507,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint32 period,
         uint64 cycleStart,
         uint64 cycleEnd,
-        uint64 stake
+        uint32 stake
     ) internal returns(Snapshot storage, uint256)
     {
         Snapshot memory snapshot;
@@ -688,7 +688,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     function _updateSnapshotStake(
         Snapshot memory snapshot,
         uint256 snapshotIndex,
-        uint64 stake,
+        uint32 stake,
         uint64 currentCycle
     ) internal
     {
@@ -729,7 +729,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     ) internal isEnabled hasStarted {
         require(whitelistedNftContract == msg.sender, "NftStaking: Caller is not the whitelisted NFT contract");
 
-        uint32 nftWeight = _validateAndGetWeight(tokenId);
+        uint32 nftStakeWeight = _validateAndGetWeight(tokenId);
 
         ensureSnapshots(0);
 
@@ -741,14 +741,14 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         _updateSnapshotStake(
             snapshot,
             snapshotIndex,
-            SafeMath.add(snapshot.stake, nftWeight).toUint64(),
+            SafeMath.add(snapshot.stake, nftStakeWeight).toUint32(),
             currentCycle);
 
         // set the staked token's info
         TokenInfo memory tokenInfo;
         tokenInfo.depositTimestamp = now.toUint64();
         tokenInfo.owner = tokenOwner;
-        tokenInfo.stake = nftWeight;
+        tokenInfo.stake = nftStakeWeight;
         tokensInfo[tokenId] = tokenInfo;
 
         StakerState memory stakerState = stakerStates[tokenOwner];
@@ -761,7 +761,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         }
 
         // increase the staker's stake
-        stakerState.stake = SafeMath.add(stakerState.stake, nftWeight).toUint64();
+        stakerState.stake = SafeMath.add(stakerState.stake, nftStakeWeight).toUint32();
         stakerStates[tokenOwner] = stakerState;
 
         emit NftStaked(tokenOwner, tokenId, currentCycle);

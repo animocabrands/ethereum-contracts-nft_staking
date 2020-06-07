@@ -10,7 +10,7 @@ contract NftStakingMock is NftStaking {
 
     constructor(
         uint256 cycleLength_,
-        uint256 payoutPeriodLength_,
+        uint32 payoutPeriodLength_,
         uint256 freezeDurationAfterStake_,
         address whitelistedNftContract_,
         address rewardsToken_,

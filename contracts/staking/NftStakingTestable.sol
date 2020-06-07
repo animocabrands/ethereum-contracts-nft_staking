@@ -8,7 +8,7 @@ abstract contract NftStakingTestable is NftStaking {
 
     constructor(
         uint256 cycleLength_,
-        uint256 payoutPeriodLength_,
+        uint32 payoutPeriodLength_,
         uint256 freezeDurationAfterStake_,
         address whitelistedNftContract_,
         address rewardsToken_
@@ -24,8 +24,8 @@ abstract contract NftStakingTestable is NftStaking {
     public
     view
     returns(
-        uint32 startCycle,
-        uint32 endCycle,
+        uint64 startCycle,
+        uint64 endCycle,
         uint64 stake
     )
     {
@@ -42,12 +42,12 @@ abstract contract NftStakingTestable is NftStaking {
         );
     }
 
-    function getSnapshot(uint32 targetCycle)
+    function getSnapshot(uint64 targetCycle)
     public
     view
     returns(
-        uint32 startCycle,
-        uint32 endCycle,
+        uint64 startCycle,
+        uint64 endCycle,
         uint64 stake,
         uint256 snapshotIndex
     )
@@ -68,8 +68,8 @@ abstract contract NftStakingTestable is NftStaking {
 
     function getOrCreateSnapshot() public returns(
         uint256 period,
-        uint32 startCycle,
-        uint32 endCycle,
+        uint64 startCycle,
+        uint64 endCycle,
         uint64 stake
     ) {
         ensureSnapshots(0);
@@ -82,7 +82,7 @@ abstract contract NftStakingTestable is NftStaking {
         stake = snapshot.stake;
     }
 
-    function currentPayoutPeriod() public view returns(uint256) {
+    function currentPayoutPeriod() public view returns(uint32) {
         StakerState memory state = stakerStates[msg.sender];
         if (state.stake == 0) {
             return 0;

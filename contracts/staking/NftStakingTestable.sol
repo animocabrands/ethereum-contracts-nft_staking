@@ -9,7 +9,7 @@ abstract contract NftStakingTestable is NftStaking {
     constructor(
         uint256 cycleLength_,
         uint32 payoutPeriodLength_,
-        uint256 freezeDurationAfterStake_,
+        uint64 freezeDurationAfterStake_,
         address whitelistedNftContract_,
         address rewardsToken_
     ) NftStaking(

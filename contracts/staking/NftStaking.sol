@@ -76,7 +76,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     uint256 public immutable cycleLengthInSeconds;
     uint32 public immutable periodLengthInCycles;
-    uint256 public immutable freezeDurationAfterStake; // duration for which a newly staked NFT is locked before it can be unstaked, in seconds
+    uint64 public immutable freezeDurationAfterStake; // duration for which a newly staked NFT is locked before it can be unstaked, in seconds
 
     mapping(address => StakerState) public stakerStates; // staker => StakerState
     mapping(uint256 => TokenInfo) public tokensInfo; // tokenId => TokenInfo
@@ -113,7 +113,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     constructor(
         uint256 cycleLengthInSeconds_,
         uint32 periodLengthInCycles_,
-        uint256 freezeDurationAfterStake_,
+        uint64 freezeDurationAfterStake_,
         address whitelistedNftContract_,
         address rewardsToken_
     ) internal {

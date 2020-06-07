@@ -627,7 +627,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             return (0, 0, 0, 0);
         }
 
-        uint256 payoutPerCycle = payoutSchedule[periodToClaim];
+        uint128 payoutPerCycle = payoutSchedule[periodToClaim];
         uint64 periodToClaimEndCycle = SafeMath.mul(periodToClaim, periodLengthInCycles_).toUint64();
 
         (Snapshot memory snapshot, uint256 snapshotIndex) = _findSnapshot(stakerState.nextClaimableCycle);

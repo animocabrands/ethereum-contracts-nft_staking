@@ -69,23 +69,23 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint32 stake;
     }
 
-    bool public disabled = false; // flags whether or not the contract is disabled
-
     uint256 public startTimestamp = 0; // in seconds since epoch
     uint256 public totalPayout = 0; // payout to be distributed over the entire schedule
 
-    uint256 public immutable cycleLengthInSeconds;
+    bool public disabled = false; // flags whether or not the contract is disabled
+
+    address public whitelistedNftContract; // contract that has been whitelisted to be able to perform transfer operations of staked NFTs
+    address public rewardsToken; // ERC20-based token used in reward payouts
+
     uint32 public immutable periodLengthInCycles;
     uint64 public immutable freezeDurationAfterStake; // duration for which a newly staked NFT is locked before it can be unstaked, in seconds
+    uint256 public immutable cycleLengthInSeconds;
 
     mapping(address => StakerState) public stakerStates; // staker => StakerState
     mapping(uint256 => TokenInfo) public tokensInfo; // tokenId => TokenInfo
     mapping(uint32 => uint128) public payoutSchedule; // period => payout per-cycle
 
     Snapshot[] public snapshots; // History of total stake by ranges of cycles within a single period
-
-    address public whitelistedNftContract; // contract that has been whitelisted to be able to perform transfer operations of staked NFTs
-    address public rewardsToken; // ERC20-based token used in reward payouts
 
     modifier divsClaimed(address sender) {
         require(_getUnclaimedPayoutPeriods(sender, periodLengthInCycles) == 0, "NftStaking: Rewards are not claimed");

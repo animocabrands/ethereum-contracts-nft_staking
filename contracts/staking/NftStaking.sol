@@ -87,11 +87,6 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     Snapshot[] public snapshots; // History of total stake by ranges of cycles within a single period
 
-    modifier divsClaimed(address sender) {
-        require(_getClaimablePeriods (sender, periodLengthInCycles) == 0, "NftStaking: Rewards are not claimed");
-        _;
-    }
-
     modifier hasStarted() {
         require(startTimestamp != 0, "NftStaking: Staking has not started yet");
         _;
@@ -197,7 +192,6 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     external
     virtual
     override
-    divsClaimed(from)
     returns (bytes4)
     {
         _stakeNft(id, from);
@@ -214,7 +208,6 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     external
     virtual
     override
-    divsClaimed(from)
     returns (bytes4)
     {
         for (uint256 i = 0; i < ids.length; ++i) {
@@ -228,7 +221,6 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     /**
      * Unstakes a deposited NFT from the contract.
      * @dev Reverts if the caller is not the original owner of the NFT.
-     * @dev While the contract is enabled, reverts if there are outstanding rewards to be claimed.
      * @dev While the contract is enabled, reverts if NFT is being withdrawn before the staking freeze duration has elapsed.
      * @param tokenId The token identifier, referencing the NFT being withdrawn.
      */
@@ -588,7 +580,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * or the last snapshot period is reached, whichever is smaller.
      * @param staker The staker for whom the rewards will be calculated.
      * @param periodsToClaim Maximum number of periods, over which to calculate the claimable rewards.
-     * @return rewardPoolsToClaim The total claimable rewards calculated.
+     * @return totalRewardToClaim The total claimable rewards calculated.
      * @return startSnapshotIndex The index of the starting snapshot claimed, in the calculation.
      * @return endSnapshotIndex The index of the ending snapshot claimed, in the calculation.
      * @return periodsClaimed The number of actual claimable periods calculated for.
@@ -597,12 +589,12 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         address staker,
         uint32 periodsToClaim
     ) internal view returns (
-        uint256 rewardPoolsToClaim,
+        uint256 totalRewardToClaim,
         uint256 startSnapshotIndex,
         uint256 endSnapshotIndex,
         uint32 periodsClaimed)
     {
-        // calculating for 0 periods
+        // Calculating for 0 periods
         if (periodsToClaim == 0) {
             return (0, 0, 0, 0);
         }
@@ -618,21 +610,21 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
         uint256 totalSnapshots = snapshots.length;
 
-        // no snapshots to calculate with
+        // No snapshots to calculate with
         if (totalSnapshots == 0) {
             return (0, 0, 0, 0);
         }
 
         StakerState memory stakerState = stakerStates[staker];
 
-        // nothing staked to calculate with
+        // Nothing staked to calculate with
         if (stakerState.stake == 0) {
             return (0, 0, 0, 0);
         }
 
         uint32 periodToClaim = _getPeriod(stakerState.nextClaimableCycle, periodLengthInCycles_);
 
-        // attempting to calculate for a period which is not claimable yet
+        // Attempting to calculate for a period which is not claimable yet
         if (periodToClaim > lastClaimablePeriod) {
             return (0, 0, 0, 0);
         }
@@ -644,16 +636,16 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
         startSnapshotIndex = snapshotIndex;
 
-        // iterate over snapshots one by one until reaching the last period.
+        // Iterate over snapshots one by one until reaching the last period.
         // this loop assumes that (1) there is at least one snapshot within
         // each period, (2) snapshots are aligned back-to-back, (3) each period
         // is spanned by snapshots (i.e. no cycle gaps), (4) snapshots do not
         // span across multiple periods (i.e. bound within a single period),
         // and (5) that it will be executed for at least 1 iteration
         while (true) {
-            // there are rewards to calculate in this loop iteration
+            // There are rewards to calculate in this loop iteration
             if ((snapshot.stake != 0) && (rewardPerCycle != 0)) {
-                // calculate the staker's snapshot rewards
+                // Calculate the staker's snapshot rewards
                 uint256 rewardsToClaim = snapshot.endCycle - snapshot.startCycle + 1;
                 rewardsToClaim *= stakerState.stake;
                 rewardsToClaim *= _DIVS_PRECISION;
@@ -661,17 +653,15 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                 rewardsToClaim /= snapshot.stake;
                 rewardsToClaim /= _DIVS_PRECISION;
 
-                require(rewardsToClaim > 0, 'rewwards to claim is zero');
-
-                // update the total rewards to claim
-                rewardPoolsToClaim = rewardPoolsToClaim.add(rewardsToClaim);
+                // Update the total rewards to claim
+                totalRewardToClaim = totalRewardToClaim.add(rewardsToClaim);
             }
 
-            // snapshot is the last one in the period to claim
+            // Snapshot is the last one in the period to claim
             if (snapshot.endCycle == periodToClaimEndCycle) {
                 ++periodToClaim;
                 ++periodsClaimed;
-                // the last claimable period has been processed or the total
+                // The last claimable period has been processed or the total
                 // count of periods to claim has been reached
                 if (
                     periodToClaim > lastClaimablePeriod ||
@@ -680,12 +670,12 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                     break;
                 }
 
-                // advance the period state for the next loop iteration
+                // Advance the period state for the next loop iteration
                 rewardPerCycle = rewardSchedule[periodToClaim];
                 periodToClaimEndCycle = SafeMath.mul(periodToClaim, periodLengthInCycles_).toUint64();
             }
 
-            // advance the snapshot for the next loop iteration
+            // Advance the snapshot for the next loop iteration
             ++snapshotIndex;
             snapshot = snapshots[snapshotIndex];
         }

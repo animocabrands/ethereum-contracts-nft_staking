@@ -15,7 +15,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     using SafeMath for uint256;
     using SafeCast for uint256;
 
-    uint256 internal constant _DIVS_PRECISION = 10 ** 10;
+    uint40 internal constant _DIVS_PRECISION = 10 ** 10;
 
     event PayoutSet(
         uint32 startPeriod,
@@ -118,6 +118,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         address rewardsToken_
     ) internal {
         require(periodLengthInCycles_ != 0, "NftStaking: Period length must not be zero");
+        require(cycleLengthInSeconds_ != 0, "NftStaking: Cycle length must not be zero");
 
         cycleLengthInSeconds = cycleLengthInSeconds_;
         periodLengthInCycles = periodLengthInCycles_;
@@ -139,17 +140,17 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint32 endPeriod,
         uint128 payoutPerCycle
     ) public onlyOwner {
-        require(startPeriod > 0 && startPeriod <= endPeriod, "NftStaking: Wrong period range");
+        require(startPeriod != 0 && startPeriod <= endPeriod, "NftStaking: Wrong period range");
 
         for (uint32 period = startPeriod; period <= endPeriod; ++period) {
             payoutSchedule[period] = payoutPerCycle;
         }
 
-        totalPayout = totalPayout.add(
-            (SafeMath.sub(endPeriod, startPeriod) + 1)
-            .mul(payoutPerCycle)
-            .mul(periodLengthInCycles)
-        );
+        uint256 payout = payoutPerCycle;
+        payout *= periodLengthInCycles;
+        payout *= endPeriod - startPeriod + 1;
+
+        totalPayout = totalPayout.add(payout);
 
         emit PayoutSet(startPeriod, endPeriod, payoutPerCycle);
     }
@@ -255,7 +256,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             _updateSnapshotStake(
                 snapshot,
                 snapshotIndex,
-                SafeMath.sub(snapshot.stake, tokenInfo.stake).toUint32(),
+                snapshot.stake - tokenInfo.stake,
                 currentCycle);
 
             // clear the token owner to ensure that it cannot be unstaked again
@@ -264,7 +265,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
             // decrease the staker's stake
             StakerState memory stakerState = stakerStates[msg.sender];
-            stakerState.stake = SafeMath.sub(stakerState.stake, tokenInfo.stake).toUint32();
+            stakerState.stake -= tokenInfo.stake;
 
             // nothing is currently staked by the staker
             if (stakerState.stake == 0) {
@@ -350,7 +351,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         // function. this should be done even when no rewards to claim were
         // found, to save from reprocessing fruitless periods in subsequent
         // calls
-        stakerStates[msg.sender].nextClaimableCycle = snapshots[endSnapshotIndex + 1].startCycle;
+        stakerStates[msg.sender].nextClaimableCycle = snapshots[SafeMath.add(endSnapshotIndex, 1)].startCycle;
 
         // no rewards to claim were found across the processed periods
         if (totalRewardsToClaim == 0) {
@@ -445,8 +446,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             // period, initialized with the staked weight of the previous
             // snapshot
             (writeSnapshot, snapshotIndex) = _addNewSnapshot(
-                readSnapshot.period + 1,
-                readSnapshot.endCycle + 1,
+                SafeMath.add(readSnapshot.period, 1).toUint32(),
+                SafeMath.add(readSnapshot.endCycle, 1).toUint64(),
                 SafeMath.add(readSnapshot.endCycle, periodLengthInCycles_).toUint64(),
                 readSnapshot.stake);
 
@@ -456,8 +457,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         // create the new latest snapshot for the current period and cycle,
         // initialized with the staked weight from the previous snapshot
         _addNewSnapshot(
-            readSnapshot.period + 1,
-            readSnapshot.endCycle + 1,
+            SafeMath.add(readSnapshot.period, 1).toUint32(),
+            SafeMath.add(readSnapshot.endCycle, 1).toUint64(),
             currentCycle,
             readSnapshot.stake);
     }
@@ -535,7 +536,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @return The cycle (index-1 based) at the specified timestamp.
      */
     function _getCycle(uint256 ts) internal view returns(uint64) {
-        return (ts.sub(startTimestamp).div(cycleLengthInSeconds) + 1).toUint64();
+        require(ts >= startTimestamp, "NftStaking: Cycle timestamp preceeds the contract start timestamp");
+        return ((ts - startTimestamp) / cycleLengthInSeconds).add(1).toUint64();
     }
 
      /**
@@ -554,11 +556,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @return The payout period (index-1 based) for the specified cycle and payout period length.
      */
     function _getPeriod(uint64 cycle, uint32 periodLengthInCycles_) internal pure returns(uint32) {
-        if (cycle == 0) {
-            return 0;
-        }
-        // index is 1 based
-        return (SafeMath.div(cycle - 1, periodLengthInCycles_) + 1).toUint32();
+        require(cycle != 0, "NftStaking: Period cycle cannot be zero");
+        return (uint256((cycle - 1) / uint64(periodLengthInCycles_)) + 1).toUint32();
     }
 
     /**
@@ -574,7 +573,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         }
 
         uint32 periodToClaim = _getPeriod(stakerState.nextClaimableCycle, periodLengthInCycles_);
-        return SafeMath.sub(_getCurrentPeriod(periodLengthInCycles_), periodToClaim).toUint32();
+        return _getCurrentPeriod(periodLengthInCycles_) - periodToClaim;
     }
 
     /**
@@ -644,11 +643,12 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             // there are rewards to calculate in this loop iteration
             if ((snapshot.stake != 0) && (payoutPerCycle != 0)) {
                 // calculate the staker's snapshot rewards
-                uint256 rewardsToClaim = SafeMath.sub(snapshot.endCycle, snapshot.startCycle) + 1;
+                uint256 rewardsToClaim = snapshot.endCycle - snapshot.startCycle + 1;
+                rewardsToClaim *= stakerState.stake;
+                rewardsToClaim *= _DIVS_PRECISION;
                 rewardsToClaim = rewardsToClaim.mul(payoutPerCycle);
-                rewardsToClaim = rewardsToClaim.mul(_DIVS_PRECISION);
-                rewardsToClaim = rewardsToClaim.mul(stakerState.stake).div(snapshot.stake);
-                rewardsToClaim = rewardsToClaim.div(_DIVS_PRECISION);
+                rewardsToClaim /= snapshot.stake;
+                rewardsToClaim /= _DIVS_PRECISION;
 
                 // update the total rewards to claim
                 totalRewardsToClaim = SafeMath.add(totalRewardsToClaim, rewardsToClaim);
@@ -785,7 +785,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
         while (low <= high) {
             // overflow protected midpoint calculation
-            mid = low.add(high.sub(low).div(2));
+            mid = low.add((high - low) / 2);
 
             snapshot = snapshots[mid];
 

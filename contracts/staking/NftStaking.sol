@@ -69,6 +69,27 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint32 stake;
     }
 
+    // TODO Apply these
+
+    // struct Snapshot {
+    //     uint32 period;
+    //     uint32 startCycle;
+    //     uint32 endCycle;
+    //     uint128 stake;
+    // }
+
+    // struct StakerState {
+    //     uint32 nextClaimablePeriod;
+    //     uint96 nextClaimableSnapshotIndex;
+    //     uint128 stake;
+    // }
+
+    // struct TokenInfo {
+    //     address owner;
+    //     uint32 depositCycle;
+    //     uint104 stake;
+    // }
+
     uint256 public startTimestamp = 0; // in seconds since epoch
     uint256 public rewardPool = 0; // reward to be distributed over the entire schedule
 
@@ -86,6 +107,12 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     mapping(uint32 => uint128) public rewardSchedule; // period => reward per-cycle
 
     Snapshot[] public snapshots; // History of total stake by ranges of cycles within a single period
+
+    modifier rewardsClaimed(address sender) {
+        require(_getClaimablePeriods(sender, periodLengthInCycles) == 0, "NftStaking: Rewards are not claimed");
+        _;
+    }
+
 
     modifier hasStarted() {
         require(startTimestamp != 0, "NftStaking: Staking has not started yet");
@@ -192,6 +219,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     external
     virtual
     override
+    rewardsClaimed(from)
     returns (bytes4)
     {
         _stakeNft(id, from);
@@ -208,6 +236,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     external
     virtual
     override
+    rewardsClaimed(from)
     returns (bytes4)
     {
         for (uint256 i = 0; i < ids.length; ++i) {
@@ -221,6 +250,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     /**
      * Unstakes a deposited NFT from the contract.
      * @dev Reverts if the caller is not the original owner of the NFT.
+     * @dev While the contract is enabled, reverts if there are outstanding rewards to be claimed.
      * @dev While the contract is enabled, reverts if NFT is being withdrawn before the staking freeze duration has elapsed.
      * @param tokenId The token identifier, referencing the NFT being withdrawn.
      */

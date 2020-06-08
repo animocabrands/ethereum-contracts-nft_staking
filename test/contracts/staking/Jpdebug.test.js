@@ -577,6 +577,10 @@ describe.only('NftStaking', function () {
                     shouldHaveCurrentCycle(39);
                     shouldHaveNumberOfSnapshots(1);
 
+                    describe('when staking another NFT before rewards are claimed', function () {
+                        shouldRevertAndNotStakeNft(staker, TokenIds[1], 'NftStaking: Rewards are not claimed');
+                    });
+
                     describe('when claiming 2 periods', function () {
                         shouldClaimRewards(staker, 2, 0, 1, 11000); // 4 cycles in period 1 + 7 cycles in period 2
                         shouldHaveCurrentCycle(39);
@@ -598,6 +602,10 @@ describe.only('NftStaking', function () {
 
                             shouldHaveCurrentCycle(60);
                             shouldHaveNumberOfSnapshots(6);
+
+                            describe('when unstaking a Common NFT before rewards are claimed', function () {
+                                shouldRevertAndNotUnstakeNft(staker, TokenIds[0], 'NftStaking: Rewards are not claimed');
+                            });
 
                             describe('when claming the remaining 6 periods', function () {
                                 shouldClaimRewards(staker, 6, 2, 7, 28000); // 7 cycles in period 3 + 7 cyles in period 4 + 28 cycles in period 5-8

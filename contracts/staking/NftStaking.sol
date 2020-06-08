@@ -17,10 +17,10 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     uint40 internal constant _DIVS_PRECISION = 10 ** 10;
 
-    event PayoutSet(
+    event RewardSet(
         uint32 startPeriod,
         uint32 endPeriod,
-        uint128 payoutPerCycle
+        uint128 rewardPerCycle
     );
 
     event NftStaked(
@@ -70,12 +70,12 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     uint256 public startTimestamp = 0; // in seconds since epoch
-    uint256 public totalPayout = 0; // to be distributed over the entire schedule
+    uint256 public rewardPool = 0; // reward to be distributed over the entire schedule
 
     bool public disabled = false; // flags whether or not the contract is disabled
 
     address public whitelistedNftContract; // contract that has been whitelisted to be able to perform transfer operations of staked NFTs
-    address public rewardsToken; // ERC20-based token used in reward payouts
+    address public rewardsToken; // ERC20-based token used in reward rewards
 
     uint32 public immutable periodLengthInCycles;
     uint64 public immutable freezeDurationAfterStake; // duration for which a newly staked NFT is locked before it can be unstaked, in seconds
@@ -83,7 +83,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     mapping(address => StakerState) public stakerStates; // staker => StakerState
     mapping(uint256 => TokenInfo) public tokensInfo; // tokenId => TokenInfo
-    mapping(uint32 => uint128) public payoutSchedule; // period => per-cycle
+    mapping(uint32 => uint128) public rewardSchedule; // period => reward per-cycle
 
     Snapshot[] public snapshots; // History of total stake by ranges of cycles within a single period
 
@@ -108,7 +108,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @param periodLengthInCycles_ Length of a period, in cycles.
      * @param freezeDurationAfterStake_ Initial duration that a newly staked NFT is locked for before it can be withdrawn from staking, in seconds.
      * @param whitelistedNftContract_ Contract that has been whitelisted to be able to perform transfer operations of staked NFTs.
-     * @param rewardsToken_ The ERC20-based token used in reward payouts.
+     * @param rewardsToken_ The ERC20-based token used in reward rewards.
      */
     constructor(
         uint256 cycleLengthInSeconds_,
@@ -130,38 +130,38 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 //////////////////////////////////////// Admin Functions //////////////////////////////////////////
 
     /**
-     * Set the for a range of periods.
+     * Set the reward for a range of periods.
      * @param startPeriod The starting period (inclusive).
      * @param endPeriod The ending period (inclusive).
-     * @param payoutPerCycle The total for each cycle within range.
+     * @param rewardPerCycle The reward for each cycle within range.
      */
-    function setPayoutForPeriods(
+    function setRewardForPeriods(
         uint32 startPeriod,
         uint32 endPeriod,
-        uint128 payoutPerCycle
+        uint128 rewardPerCycle
     ) public onlyOwner {
         require(startPeriod != 0 && startPeriod <= endPeriod, "NftStaking: Wrong period range");
 
         for (uint32 period = startPeriod; period <= endPeriod; ++period) {
-            payoutSchedule[period] = payoutPerCycle;
+            rewardSchedule[period] = rewardPerCycle;
         }
 
-        uint256 payout = payoutPerCycle;
-        payout *= periodLengthInCycles;
-        payout *= endPeriod - startPeriod + 1;
+        uint256 reward = rewardPerCycle;
+        reward *= periodLengthInCycles;
+        reward *= endPeriod - startPeriod + 1;
 
-        totalPayout = totalPayout.add(payout);
+        rewardPool = rewardPool.add(reward);
 
-        emit PayoutSet(startPeriod, endPeriod, payoutPerCycle);
+        emit RewardSet(startPeriod, endPeriod, rewardPerCycle);
     }
 
     /**
-     * Transfers total balance to the contract and starts the staking.
+     * Transfers necessary reward balance to the contract and starts the staking.
      */
     function start() public onlyOwner {
         require(
-            IERC20(rewardsToken).transferFrom(msg.sender, address(this), totalPayout),
-            "NftStaking: Failed to transfer the total payout"
+            IERC20(rewardsToken).transferFrom(msg.sender, address(this), rewardPool),
+            "NftStaking: Failed to transfer the total reward"
         );
 
         startTimestamp = now;
@@ -334,7 +334,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         ensureSnapshots(0);
 
         // calculate the claimable rewards
-        (uint256 totalRewardsToClaim,
+        (uint256 rewardPoolsToClaim,
             uint256 startSnapshotIndex,
             uint256 endSnapshotIndex,
             uint32 periodsClaimed
@@ -354,19 +354,19 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         stakerStates[msg.sender].nextClaimableCycle = snapshots[SafeMath.add(endSnapshotIndex, 1)].startCycle;
 
         // no rewards to claim were found across the processed periods
-        if (totalRewardsToClaim == 0) {
+        if (rewardPoolsToClaim == 0) {
             return;
         }
 
         require(
-            IERC20(rewardsToken).transfer(msg.sender, totalRewardsToClaim),
+            IERC20(rewardsToken).transfer(msg.sender, rewardPoolsToClaim),
             "NftStaking: Failed to transfer claimed rewards");
 
         emit RewardsClaimed(
             msg.sender,
             startSnapshotIndex,
             endSnapshotIndex,
-            totalRewardsToClaim);
+            rewardPoolsToClaim);
     }
 
     /**
@@ -563,7 +563,6 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      */
     function _getPeriod(uint64 cycle, uint32 periodLengthInCycles_) internal pure returns(uint32) {
         require(cycle != 0, "NftStaking: Period cycle cannot be zero");
-        // return (uint256((cycle - 1) / uint64(periodLengthInCycles_)) + 1).toUint32();
         return (uint256(cycle / uint64(periodLengthInCycles_)) + 1).toUint32();
     }
 
@@ -589,7 +588,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * or the last snapshot period is reached, whichever is smaller.
      * @param staker The staker for whom the rewards will be calculated.
      * @param periodsToClaim Maximum number of periods, over which to calculate the claimable rewards.
-     * @return totalRewardsToClaim The total claimable rewards calculated.
+     * @return rewardPoolsToClaim The total claimable rewards calculated.
      * @return startSnapshotIndex The index of the starting snapshot claimed, in the calculation.
      * @return endSnapshotIndex The index of the ending snapshot claimed, in the calculation.
      * @return periodsClaimed The number of actual claimable periods calculated for.
@@ -598,7 +597,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         address staker,
         uint32 periodsToClaim
     ) internal view returns (
-        uint256 totalRewardsToClaim,
+        uint256 rewardPoolsToClaim,
         uint256 startSnapshotIndex,
         uint256 endSnapshotIndex,
         uint32 periodsClaimed)
@@ -638,7 +637,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             return (0, 0, 0, 0);
         }
 
-        uint128 payoutPerCycle = payoutSchedule[periodToClaim];
+        uint128 rewardPerCycle = rewardSchedule[periodToClaim];
         uint64 periodToClaimEndCycle = SafeMath.mul(periodToClaim, periodLengthInCycles_).toUint64();
 
         (Snapshot memory snapshot, uint256 snapshotIndex) = _findSnapshot(stakerState.nextClaimableCycle);
@@ -653,19 +652,19 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         // and (5) that it will be executed for at least 1 iteration
         while (true) {
             // there are rewards to calculate in this loop iteration
-            if ((snapshot.stake != 0) && (payoutPerCycle != 0)) {
+            if ((snapshot.stake != 0) && (rewardPerCycle != 0)) {
                 // calculate the staker's snapshot rewards
                 uint256 rewardsToClaim = snapshot.endCycle - snapshot.startCycle + 1;
                 rewardsToClaim *= stakerState.stake;
                 rewardsToClaim *= _DIVS_PRECISION;
-                rewardsToClaim = rewardsToClaim.mul(payoutPerCycle);
+                rewardsToClaim = rewardsToClaim.mul(rewardPerCycle);
                 rewardsToClaim /= snapshot.stake;
                 rewardsToClaim /= _DIVS_PRECISION;
 
                 require(rewardsToClaim > 0, 'rewwards to claim is zero');
 
                 // update the total rewards to claim
-                totalRewardsToClaim = totalRewardsToClaim.add(rewardsToClaim);
+                rewardPoolsToClaim = rewardPoolsToClaim.add(rewardsToClaim);
             }
 
             // snapshot is the last one in the period to claim
@@ -682,7 +681,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                 }
 
                 // advance the period state for the next loop iteration
-                payoutPerCycle = payoutSchedule[periodToClaim];
+                rewardPerCycle = rewardSchedule[periodToClaim];
                 periodToClaimEndCycle = SafeMath.mul(periodToClaim, periodLengthInCycles_).toUint64();
             }
 

@@ -37,9 +37,9 @@ const TokenIds = [
     TokenHelper.makeTokenId(TokenHelper.Rarity.Apex, TokenHelper.Type.Car)
 ];
 
-const DefaultPayoutSchedule = [
-    { startPeriod: 1, endPeriod: 4, payoutPerCycle: 1000 },
-    { startPeriod: 5, endPeriod: 8, payoutPerCycle: 500 }
+const DefaultRewardSchedule = [
+    { startPeriod: 1, endPeriod: 4, rewardPerCycle: 1000 },
+    { startPeriod: 5, endPeriod: 8, rewardPerCycle: 500 }
 ];
 
 describe.only('NftStaking', function () {
@@ -81,7 +81,7 @@ describe.only('NftStaking', function () {
                 cycleLength.should.be.bignumber.equal(new BN(DayInSeconds));
             });
 
-            it('should have a payout period length of 7 days (7 cycles)', async function () {
+            it('should have a period length of 7 days (7 cycles)', async function () {
                 const periodLength = await this.stakingContract.periodLengthInCycles();
                 periodLength.should.be.bignumber.equal(new BN(7));
             });
@@ -162,12 +162,12 @@ describe.only('NftStaking', function () {
         });
     });
 
-    async function start(payoutSchedule = DefaultPayoutSchedule) {
-        for (schedule of payoutSchedule) {
-            await this.stakingContract.setPayoutForPeriods(
+    async function start(rewardSchedule = DefaultRewardSchedule) {
+        for (schedule of rewardSchedule) {
+            await this.stakingContract.setRewardForPeriods(
                 schedule.startPeriod,
                 schedule.endPeriod,
-                schedule.payoutPerCycle,
+                schedule.rewardPerCycle,
                 { from: creator }
             );
         }
@@ -184,16 +184,16 @@ describe.only('NftStaking', function () {
         const titlePartition = '|';
         const titlePadding = 2;
 
-        let payoutMark = ('payout per-cycle' + titlePartition).padStart(titleWidth) + ' '.repeat(titlePadding);
-        const payoutSchedule = [];
+        let rewardMark = ('reward per-cycle' + titlePartition).padStart(titleWidth) + ' '.repeat(titlePadding);
+        const rewardSchedule = [];
         for (let count = 1; count <= period; count++) {
-            payoutSchedule.push(await this.stakingContract.payoutSchedule(count));
+            rewardSchedule.push(await this.stakingContract.rewardSchedule(count));
         }
         for (let index = 0; index < (period - 1); index++) {
-            payoutMark += payoutSchedule[index].toString().padEnd(21, ' ');
+            rewardMark += rewardSchedule[index].toString().padEnd(21, ' ');
         }
-        payoutMark += payoutSchedule[period - 1];
-        console.log(payoutMark);
+        rewardMark += rewardSchedule[period - 1];
+        console.log(rewardMark);
 
         let periodMark = ('period' + titlePartition).padStart(titleWidth) + ' '.repeat(titlePadding);
         for (let count = 1; count < period; count++) {
@@ -450,7 +450,7 @@ describe.only('NftStaking', function () {
             contractBalanceBefore.should.be.bignumber.equal(contractBalanceAfter);
 
             // it's possible to not claim any rewards but still have the next
-            // claimable cycle advance. this happens when there is no payout
+            // claimable cycle advance. this happens when there is no reward
             // schedule defined for a claimed period
             stakerStateAfter.nextClaimableCycle.toNumber().should.be.equal(nextClaimableCycle);
 

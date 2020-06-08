@@ -307,7 +307,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @return claimablePeriods The actual number of claimable periods calculated for.
      */
     function estimateRewards(uint32 periodsToClaim) external view isEnabled hasStarted returns (
-        uint128 claimableRewards,
+        uint256 claimableRewards,
         uint32 claimablePeriods
     ) {
         // estimating for 0 periods
@@ -333,7 +333,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         ensureSnapshots(0);
 
         // calculate the claimable rewards
-        (uint128 totalRewardsToClaim,
+        (uint256 totalRewardsToClaim,
             uint256 startSnapshotIndex,
             uint256 endSnapshotIndex,
             uint32 periodsClaimed
@@ -592,7 +592,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         address staker,
         uint32 periodsToClaim
     ) internal view returns (
-        uint128 totalRewardsToClaim,
+        uint256 totalRewardsToClaim,
         uint256 startSnapshotIndex,
         uint256 endSnapshotIndex,
         uint32 periodsClaimed)
@@ -651,7 +651,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                 rewardsToClaim = rewardsToClaim.div(_DIVS_PRECISION);
 
                 // update the total rewards to claim
-                totalRewardsToClaim = SafeMath.add(totalRewardsToClaim, rewardsToClaim).toUint128();
+                totalRewardsToClaim = SafeMath.add(totalRewardsToClaim, rewardsToClaim);
             }
 
             // snapshot is the last one in the period to claim

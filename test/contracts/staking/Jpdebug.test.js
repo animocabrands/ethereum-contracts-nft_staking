@@ -215,7 +215,7 @@ describe.only('NftStaking', function () {
         if (cycle > 1) {
             cycleGraph += '-*-'.repeat(cycle - 1);
         }
-        cycleGraph += `  ${cycle}`;
+        cycleGraph += `  (cycle: ${cycle})`;
         console.log(cycleGraph);
 
         const totalSnapshots = await this.stakingContract.totalSnapshots();
@@ -264,8 +264,6 @@ describe.only('NftStaking', function () {
         }
         console.log(totalStakeMark);
 
-        const stakersStakesMarks = [];
-        const stakersNextClaimableCycleMarks = [];
         for (let index = 0; index < stakers.length; index++) {
             const stakerState = await this.stakingContract.stakerStates(stakers[index]);
             const stake = stakerState.stake.toNumber();
@@ -274,18 +272,9 @@ describe.only('NftStaking', function () {
             if ((stake > 0) && (nextClaimableCycle > 0)) {
                 stakerStakeMark += '   '.repeat(nextClaimableCycle - 1);
                 stakerStakeMark += stake;
+                stakerStakeMark += `  (cycle: ${nextClaimableCycle})`;
             }
-            stakersStakesMarks.push(stakerStakeMark);
-            stakersNextClaimableCycleMarks.push(`staker #${index + 1} nextClaimableCycle: ${nextClaimableCycle}`);
-            // console.log(stakerMark);
-        }
-
-        for (stakerStakeMark of stakersStakesMarks) {
             console.log(stakerStakeMark);
-        }
-
-        for (stakerNextClaimableCycleMark of stakersNextClaimableCycleMarks) {
-            console.log(stakerNextClaimableCycleMark);
         }
 
         console.log();

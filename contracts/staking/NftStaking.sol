@@ -636,13 +636,13 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
         startSnapshotIndex = snapshotIndex;
 
-        // Iterate over snapshots one by one until reaching the last period.
-        // this loop assumes that (1) there is at least one snapshot within
-        // each period, (2) snapshots are aligned back-to-back, (3) each period
-        // is spanned by snapshots (i.e. no cycle gaps), (4) snapshots do not
-        // span across multiple periods (i.e. bound within a single period),
-        // and (5) that it will be executed for at least 1 iteration
-        while (true) {
+        // Iterate over snapshots starting from the first snapshot of the next 
+        // claimable period. This loop assumes that (1) there is at least one
+        // snapshot within each period, (2) snapshots are aligned back-to-back,
+        // (3) each period is spanned by snapshots (i.e. no cycle gaps),
+        // (4) snapshots do not span across multiple periods (i.e. bound within
+        // a single period), and (5) that it will be executed for at least 1 iteration
+        while (snapshotIndex < totalSnapshots) {
             // There are rewards to calculate in this loop iteration
             if ((snapshot.stake != 0) && (rewardPerCycle != 0)) {
                 // Calculate the staker's snapshot rewards

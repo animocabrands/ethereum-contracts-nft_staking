@@ -11,10 +11,10 @@ const NftStaking = contract.fromArtifact("NftStakingTestableMock");
 const DayInSeconds = 86400;
 
 const RewardsTokenInitialBalance = new BN('100000000000000000000000');
-const CycleLength = new BN(DayInSeconds);
-const PayoutPeriodLength = new BN(7);
-const PayoutPeriodLengthInSeconds = PayoutPeriodLength.mul(CycleLength);
-const FreezePeriodSeconds = new BN(DayInSeconds);
+const CycleLengthInSeconds = new BN(DayInSeconds);
+const PeriodLengthInCycles = new BN(7);
+const PeriodLengthInSeconds = PeriodLengthInCycles.mul(CycleLengthInSeconds);
+const FreezePeriodInSeconds = new BN(DayInSeconds);
 
 const RarityWeights = [
     {
@@ -55,9 +55,9 @@ describe.only('NftStaking', function () {
         this.rewardsToken = await ERC20WithOperators.new(RewardsTokenInitialBalance, { from: creator });
 
         this.stakingContract = await NftStaking.new(
-            CycleLength,
-            PayoutPeriodLength,
-            FreezePeriodSeconds,
+            CycleLengthInSeconds,
+            PeriodLengthInCycles,
+            FreezePeriodInSeconds,
             this.nftContract.address,
             this.rewardsToken.address,
             RarityWeights.map(x => x.rarity),
@@ -179,7 +179,7 @@ describe.only('NftStaking', function () {
         console.log();
 
         const cycle = (await this.stakingContract.getCurrentCycle()).toNumber();
-        const period = Math.floor((cycle - 1) / PayoutPeriodLength) + 1;
+        const period = Math.floor((cycle - 1) / PeriodLengthInCycles) + 1;
         const titleWidth = 18;
         const titlePartition = '|';
         const titlePadding = 2;
@@ -202,7 +202,7 @@ describe.only('NftStaking', function () {
         periodMark += period;
         console.log(periodMark);
 
-        const trailingCycles = cycle % PayoutPeriodLength;
+        const trailingCycles = cycle % PeriodLengthInCycles;
         let periodGraph = titlePartition.padStart(titleWidth) + ' '.repeat(titlePadding);
         if (period > 1) {
             periodGraph += '[```````````````````]'.repeat(period - 1);
@@ -264,30 +264,42 @@ describe.only('NftStaking', function () {
         }
         console.log(totalStakeMark);
 
+        const stakersStakesMarks = [];
+        const stakersNextClaimableCycleMarks = [];
         for (let index = 0; index < stakers.length; index++) {
             const stakerState = await this.stakingContract.stakerStates(stakers[index]);
             const stake = stakerState.stake.toNumber();
             const nextClaimableCycle = stakerState.nextClaimableCycle.toNumber();
-            let stakerMark = `staker #${index + 1} stake${titlePartition}`.padStart(titleWidth, ' ') + ' '.repeat(titlePadding);
+            let stakerStakeMark = `staker #${index + 1} stake${titlePartition}`.padStart(titleWidth, ' ') + ' '.repeat(titlePadding);
             if ((stake > 0) && (nextClaimableCycle > 0)) {
-                stakerMark += '   '.repeat(nextClaimableCycle - 1);
-                stakerMark += stake;
+                stakerStakeMark += '   '.repeat(nextClaimableCycle - 1);
+                stakerStakeMark += stake;
             }
-            console.log(stakerMark);
+            stakersStakesMarks.push(stakerStakeMark);
+            stakersNextClaimableCycleMarks.push(`staker #${index + 1} nextClaimableCycle: ${nextClaimableCycle}`);
+            // console.log(stakerMark);
+        }
+
+        for (stakerStakeMark of stakersStakesMarks) {
+            console.log(stakerStakeMark);
+        }
+
+        for (stakerNextClaimableCycleMark of stakersNextClaimableCycleMarks) {
+            console.log(stakerNextClaimableCycleMark);
         }
 
         console.log();
     }
 
     function shouldDebugCurrentState(...stakers) {
-        it('should debug the current state', async function() {
+        it('should debug the current state', async function () {
             await debugCurrentState.bind(this, ...stakers)();
             true.should.be.true;
         });
     }
 
     function shouldHaveSnapshot(fields, index = -1) {
-        it('should have ' + (index < 0 ? 'latest snapshot' : `snapshot ${index}`) + ':' + JSON.stringify(fields), async function() {
+        it('should have ' + (index < 0 ? 'latest snapshot' : `snapshot ${index}`) + ':' + JSON.stringify(fields), async function () {
             let snapshotIndex;
 
             if (index < 0) {
@@ -383,17 +395,6 @@ describe.only('NftStaking', function () {
             } else {
                 await expectRevert.unspecified(promise);
             }
-        });
-    }
-
-    function shouldEstimateRewards(from, periodsToClaim, periodsClaimed, amount, ensureSnapshots = -1) {
-        it(`should have estimated ${amount.toString()} tokens over ${periodsToClaim} periods for ${from}`, async function () {
-            if (ensureSnapshots >= 0) {
-                await this.stakingContract.ensureSnapshots(ensureSnapshots);
-            }
-            const result = await this.stakingContract.estimateRewards(periodsToClaim, { from: from });
-            result.claimableRewards.should.be.bignumber.equal(new BN(amount));
-            result.claimablePeriods.should.be.bignumber.equal(new BN(periodsClaimed));
         });
     }
 
@@ -516,13 +517,46 @@ describe.only('NftStaking', function () {
         });
     }
 
+
+    describe('Scenario #0', function () {
+        before(doFreshDeploy);
+        before(start);
+
+        describe('when staking a Common NFT', function () {
+            shouldStakeNft(staker, TokenIds[0], 1);
+            shouldHaveCurrentCycle(1);
+            shouldHaveNumberOfSnapshots(1);
+            shouldHaveStakerState({ nextClaimableCycle: 1, stake: 1 });
+
+            describe('when 1 period have passed after staking', function () {
+                before(async function () {
+                    await time.increase(PeriodLengthInSeconds.toNumber() + CycleLengthInSeconds.toNumber());
+                });
+
+                shouldHaveCurrentCycle(9);
+                shouldHaveNumberOfSnapshots(1);
+
+                describe('when claiming all periods', function () {
+                    shouldClaimRewards(staker, 4, 0, 0, 7000); // 7 cycles in period 1
+                    shouldHaveCurrentCycle(9);
+                    shouldHaveNumberOfSnapshots(2);
+                    shouldHaveStakerState({ nextClaimableCycle: 8 });
+
+                    describe('when unstaking the NFT', function () {
+                        shouldUnstakeNft(staker, TokenIds[0], 9);
+                    });
+                });
+            });
+        });
+    });
+
     describe('Scenario #1', function () {
         before(doFreshDeploy);
         before(start);
 
         describe('when 3 cycles have passed before staking', function () {
             before(async function () {
-                await time.increase(CycleLength.toNumber() * 3);
+                await time.increase(CycleLengthInSeconds.toNumber() * 3);
             });
 
             shouldHaveCurrentCycle(4);
@@ -537,25 +571,11 @@ describe.only('NftStaking', function () {
 
                 describe('when 5 periods have passed after staking', function () {
                     before(async function () {
-                        await time.increase(PayoutPeriodLengthInSeconds.toNumber() * 5);
+                        await time.increase(PeriodLengthInSeconds.toNumber() * 5);
                     });
 
                     shouldHaveCurrentCycle(39);
                     shouldHaveNumberOfSnapshots(1);
-
-                    describe('when estimating rewards for 2 periods', function () {
-                        context('when not ensuring snapshots', function () {
-                            shouldEstimateRewards(staker, 2, 0, 0);
-                            shouldHaveCurrentCycle(39);
-                            shouldHaveNumberOfSnapshots(1);
-                        });
-
-                        context('when ensuring snapshots', function () {
-                            shouldEstimateRewards(staker, 2, 2, 11000, 0);
-                            shouldHaveCurrentCycle(39);
-                            shouldHaveNumberOfSnapshots(6);
-                        })
-                    });
 
                     describe('when staking another NFT before rewards are claimed', function () {
                         shouldRevertAndNotStakeNft(staker, TokenIds[1], 'NftStaking: Rewards are not claimed');
@@ -577,7 +597,7 @@ describe.only('NftStaking', function () {
 
                         describe('when 3 periods have passed since the last claim', function () {
                             before(async function () {
-                                await time.increase(PayoutPeriodLengthInSeconds.toNumber() * 3);
+                                await time.increase(PeriodLengthInSeconds.toNumber() * 3);
                             });
 
                             shouldHaveCurrentCycle(60);
@@ -595,7 +615,7 @@ describe.only('NftStaking', function () {
 
                                 describe('when 2 periods have passed since the last claim', function () {
                                     before(async function () {
-                                        await time.increase(PayoutPeriodLengthInSeconds.toNumber() * 2);
+                                        await time.increase(PeriodLengthInSeconds.toNumber() * 2);
                                     });
 
                                     describe('when claiming the remaining 2 periods', function () {
@@ -616,6 +636,5 @@ describe.only('NftStaking', function () {
                 });
             });
         })
-
     });
 });

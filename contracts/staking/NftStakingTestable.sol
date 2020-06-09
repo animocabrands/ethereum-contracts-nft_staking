@@ -7,15 +7,15 @@ import "./NftStaking.sol";
 abstract contract NftStakingTestable is NftStaking {
 
     constructor(
-        uint256 cycleLength_,
-        uint32 payoutPeriodLength_,
-        uint64 freezeDurationAfterStake_,
+        uint256 cycleLengthInSeconds_,
+        uint32 periodLengthInCycles_,
+        uint64 freezeDurationInCycles_,
         address whitelistedNftContract_,
         address rewardsToken_
     ) NftStaking(
-        cycleLength_,
-        payoutPeriodLength_,
-        freezeDurationAfterStake_,
+        cycleLengthInSeconds_,
+        periodLengthInCycles_,
+        freezeDurationInCycles_,
         whitelistedNftContract_,
         rewardsToken_
     ) public {}
@@ -82,12 +82,12 @@ abstract contract NftStakingTestable is NftStaking {
         stake = snapshot.stake;
     }
 
-    function currentPayoutPeriod() public view returns(uint32) {
-        StakerState memory state = stakerStates[msg.sender];
-        if (state.stake == 0) {
-            return 0;
-        }
+    // function getCurrentPeriod() public view returns(uint32) {
+    //     StakerState memory state = stakerStates[msg.sender];
+    //     if (state.stake == 0) {
+    //         return 0;
+    //     }
 
-        return _getPeriod(state.nextClaimableCycle, periodLengthInCycles);
-    }
+    //     return _getPeriod(state.nextClaimableCycle, periodLengthInCycles);
+    // }
 }

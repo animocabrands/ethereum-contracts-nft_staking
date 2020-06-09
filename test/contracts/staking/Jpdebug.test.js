@@ -14,7 +14,7 @@ const RewardsTokenInitialBalance = new BN('100000000000000000000000');
 const CycleLengthInSeconds = new BN(DayInSeconds);
 const PeriodLengthInCycles = new BN(7);
 const PeriodLengthInSeconds = PeriodLengthInCycles.mul(CycleLengthInSeconds);
-const FreezePeriodInSeconds = new BN(DayInSeconds);
+const FreezeDurationInCycles = new BN(1);
 
 const RarityWeights = [
     {
@@ -57,7 +57,7 @@ describe.only('NftStaking', function () {
         this.stakingContract = await NftStaking.new(
             CycleLengthInSeconds,
             PeriodLengthInCycles,
-            FreezePeriodInSeconds,
+            FreezeDurationInCycles,
             this.nftContract.address,
             this.rewardsToken.address,
             RarityWeights.map(x => x.rarity),
@@ -76,19 +76,19 @@ describe.only('NftStaking', function () {
         before(doFreshDeploy);
 
         context('Staking contract', function () {
-            it('should have a cycle length of 1 day (86400 seconds)', async function () {
+            it('should have the correct cycle length', async function () {
                 const cycleLength = await this.stakingContract.cycleLengthInSeconds();
-                cycleLength.should.be.bignumber.equal(new BN(DayInSeconds));
+                cycleLength.should.be.bignumber.equal(CycleLengthInSeconds);
             });
 
-            it('should have a period length of 7 days (7 cycles)', async function () {
+            it('should have the correct period length', async function () {
                 const periodLength = await this.stakingContract.periodLengthInCycles();
-                periodLength.should.be.bignumber.equal(new BN(7));
+                periodLength.should.be.bignumber.equal(PeriodLengthInCycles);
             });
 
-            it('should have a staking freeze duration of 1 day (86400 seconds)', async function () {
-                const freezeDuration = await this.stakingContract.freezeDurationAfterStake();
-                freezeDuration.should.be.bignumber.equal(new BN(DayInSeconds));
+            it('should have the correct staking freeze duration', async function () {
+                const freezeDuration = await this.stakingContract.freezeDurationInCycles();
+                freezeDuration.should.be.bignumber.equal(FreezeDurationInCycles);
             });
 
             it('should have assigned a weight of 1 for Common cars', async function () {
@@ -164,7 +164,7 @@ describe.only('NftStaking', function () {
 
     async function start(rewardSchedule = DefaultRewardSchedule) {
         for (schedule of rewardSchedule) {
-            await this.stakingContract.setRewardForPeriods(
+            await this.stakingContract.setRewardsForPeriods(
                 schedule.startPeriod,
                 schedule.endPeriod,
                 schedule.rewardPerCycle,
@@ -573,6 +573,10 @@ describe.only('NftStaking', function () {
                 shouldHaveNumberOfSnapshots(1);
                 shouldHaveStakerState({ nextClaimableCycle: 4, stake: 1 });
 
+                describe('when unstaking before the end of the freeze', function () {
+                    shouldRevertAndNotUnstakeNft(staker, TokenIds[0], 'NftStaking: Token is still frozen');
+                });
+
                 describe('when 5 periods have passed after staking', function () {
                     before(async function () {
                         await time.increase(PeriodLengthInSeconds.muln(5).toNumber());
@@ -606,7 +610,7 @@ describe.only('NftStaking', function () {
                         });
 
                         describe('when unstaking an NFT not owned by the caller', function () {
-                            shouldRevertAndNotUnstakeNft(creator, TokenIds[0], 'NftStaking: Token owner doesn\'t match or token was already withdrawn before.');
+                            shouldRevertAndNotUnstakeNft(creator, TokenIds[0], 'NftStaking: incorrect token owner or token already unstaked');
                         });
 
                         describe('when 3 periods have passed since the last claim', function () {

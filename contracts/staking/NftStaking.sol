@@ -71,7 +71,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     // used to track an NFTs staking state
     struct TokenInfo {
         address owner; // wallet address of the original owner of the NFT
-        uint64 depositTimestamp; // timestamp in which the NFT was staked, in seconds since epoch
+        uint64 depositCycle; // cycle in which the NFT was staked
         uint32 stake; // NFT stake weight
     }
 
@@ -113,8 +113,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     address public rewardsToken; // ERC20-based token used as staking rewards
 
     uint32 public immutable periodLengthInCycles; // the length of a claimable reward period, in cycles
-    uint64 public immutable freezeDurationAfterStake; // duration for which a newly staked NFT is locked before it can be unstaked, in seconds
-    uint256 public immutable cycleLengthInSeconds; // the length of a cycle, in seconds
+    uint64 public immutable freezeDurationInCycles; // duration for which a newly staked NFT is locked before it can be unstaked, in seconds
+    uint256 public immutable cycleLengthInSeconds;
 
     mapping(address => StakerState) public stakerStates; // staker => StakerState
     mapping(uint256 => TokenInfo) public tokensInfo; // tokenId => TokenInfo
@@ -143,14 +143,14 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @dev Reverts if the cycle length value is zero.
      * @param cycleLengthInSeconds_ Length of a cycle, in seconds.
      * @param periodLengthInCycles_ Length of a period, in cycles.
-     * @param freezeDurationAfterStake_ Initial duration that a newly staked NFT is locked for before it can be withdrawn from staking, in seconds.
+     * @param freezeDurationInCycles_ Initial number of cycles during which a newly staked NFT is locked for before it can be unstaked.
      * @param whitelistedNftContract_ Contract that has been whitelisted to be able to perform transfer operations of staked NFTs.
      * @param rewardsToken_ The ERC20-based token used in reward rewards.
      */
     constructor(
         uint256 cycleLengthInSeconds_,
         uint32 periodLengthInCycles_,
-        uint64 freezeDurationAfterStake_,
+        uint64 freezeDurationInCycles_,
         address whitelistedNftContract_,
         address rewardsToken_
     ) internal {
@@ -159,7 +159,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
         cycleLengthInSeconds = cycleLengthInSeconds_;
         periodLengthInCycles = periodLengthInCycles_;
-        freezeDurationAfterStake = freezeDurationAfterStake_;
+        freezeDurationInCycles = freezeDurationInCycles_;
         whitelistedNftContract = whitelistedNftContract_;
         rewardsToken = rewardsToken_;
     }
@@ -167,7 +167,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 //////////////////////////////////////// Admin Functions //////////////////////////////////////////
 
     /**
-     * Set the reward for a range of periods.
+     * Set the rewards for a range of periods.
      * @dev Reverts if the start or end periods are zero.
      * @dev Reverts if the end period is before the start period.
      * @dev Emits the RewardSet event when the function is called successfully.
@@ -175,7 +175,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @param endPeriod The ending period (inclusive).
      * @param rewardPerCycle The reward for each cycle within range.
      */
-    function setRewardForPeriods(
+    function setRewardsForPeriods(
         uint32 startPeriod,
         uint32 endPeriod,
         uint128 rewardPerCycle
@@ -295,16 +295,16 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * Unstakes a deposited NFT from the contract.
      * @dev Reverts if the caller is not the original owner of the NFT.
      * @dev While the contract is enabled, reverts if there are outstanding rewards to be claimed.
-     * @dev While the contract is enabled, reverts if NFT is being withdrawn before the staking freeze duration has elapsed.
+     * @dev While the contract is enabled, reverts if NFT is being unstaked before the staking freeze duration has elapsed.
      * @dev While the contract is enabled, creates any missing snapshots, up-to the current cycle.
      * @dev Emits the NftUnstaked event when the function is called successfully.
      * @dev May emit the SnapshotUpdated event if any snapshots are created or modified to ensure that snapshots exist, up-to the current cycle.
-     * @param tokenId The token identifier, referencing the NFT being withdrawn.
+     * @param tokenId The token identifier, referencing the NFT being unstaked.
      */
     function unstakeNft(uint256 tokenId) external virtual {
         TokenInfo memory tokenInfo = tokensInfo[tokenId];
 
-        require(tokenInfo.owner == msg.sender, "NftStaking: Token owner doesn't match or token was already withdrawn before");
+        require(tokenInfo.owner == msg.sender, "NftStaking: incorrect token owner or token already unstaked");
 
         uint64 currentCycle = _getCycle(now);
 
@@ -314,7 +314,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             uint32 periodLengthInCycles_ = periodLengthInCycles;
 
             require(_getClaimablePeriods (msg.sender, periodLengthInCycles_) == 0, "NftStaking: Rewards are not claimed");
-            require(now > SafeMath.add(tokenInfo.depositTimestamp, freezeDurationAfterStake), "NftStaking: Token is still frozen");
+            require(currentCycle - tokenInfo.depositCycle >= freezeDurationInCycles, "NftStaking: Token is still frozen");
 
             ensureSnapshots(0);
 
@@ -871,7 +871,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
         // set the staked token's info
         TokenInfo memory tokenInfo;
-        tokenInfo.depositTimestamp = now.toUint64();
+        tokenInfo.depositCycle = currentCycle;
         tokenInfo.owner = tokenOwner;
         tokenInfo.stake = nftStakeWeight;
         tokensInfo[tokenId] = tokenInfo;

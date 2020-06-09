@@ -6,20 +6,20 @@ import "../../staking/NftStaking.sol";
 
 contract NftStakingMock is NftStaking {
 
-    mapping(uint256 => uint32) public valueStakeWeights; // NFT classification (e.g. tier, rarity, category) => payout weight
+    mapping(uint256 => uint32) public valueStakeWeights; // NFT classification (e.g. tier, rarity, category) => weight
 
     constructor(
-        uint256 cycleLength_,
-        uint32 payoutPeriodLength_,
-        uint64 freezeDurationAfterStake_,
+        uint256 cycleLengthInSeconds_,
+        uint32 periodLengthInCycles_,
+        uint64 freezeDurationInCycles_,
         address whitelistedNftContract_,
         address rewardsToken_,
         uint256[] memory values,
         uint32[] memory valueWeights
     ) NftStaking(
-        cycleLength_,
-        payoutPeriodLength_,
-        freezeDurationAfterStake_,
+        cycleLengthInSeconds_,
+        periodLengthInCycles_,
+        freezeDurationInCycles_,
         whitelistedNftContract_,
         rewardsToken_
     ) public {

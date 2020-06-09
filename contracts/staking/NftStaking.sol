@@ -2,6 +2,7 @@
 
 pragma solidity ^0.6.8;
 
+import "@openzeppelin/contracts/math/Math.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/SafeCast.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -106,6 +107,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     uint256 public startTimestamp = 0; // starting timestamp of the staking schedule, in seconds since epoch
     uint256 public rewardPool = 0; // reward pool amount to be distributed over the entire schedule
+    uint256 public lastScheduledPeriod = 0;
 
     bool public disabled = false; // flags whether or not the contract is disabled
 
@@ -118,6 +120,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     mapping(address => StakerState) public stakerStates; // staker => StakerState
     mapping(uint256 => TokenInfo) public tokensInfo; // tokenId => TokenInfo
+    // mapping(uint32 => uint128) public rewardSchedule; // period => reward per-cycle
     mapping(uint32 => uint128) public rewardSchedule; // period => reward per-cycle
 
     Snapshot[] public snapshots; // history of total stake by ranges of cycles within a single period
@@ -184,6 +187,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
         for (uint32 period = startPeriod; period <= endPeriod; ++period) {
             rewardSchedule[period] = rewardPerCycle;
+            lastScheduledPeriod = Math.max(lastScheduledPeriod, period);
         }
 
         uint256 reward = rewardPerCycle;
@@ -506,8 +510,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         while (readSnapshot.period < previousPeriod) {
             // maximum snapshots to add has been reached
             if (hasAddNewSnapshotLimit && (--maxSnapshotsToAdd == 0)) {
-                // break out of loop to add the last snapshot for the current
-                // period
+                // break out of loop to add the last snapshot for the current period
                 break;
             }
 

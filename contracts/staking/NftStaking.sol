@@ -15,65 +15,72 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     using SafeMath for uint256;
     using SafeCast for uint256;
 
-    uint40 internal constant _DIVS_PRECISION = 10 ** 10;
+    uint40 internal constant _DIVS_PRECISION = 10 ** 10; // used to preserve significant figures in floating point calculations
 
+    // emitted when a reward schedule for a range of periods is set
     event RewardSet(
-        uint32 startPeriod,
-        uint32 endPeriod,
-        uint128 rewardPerCycle
+        uint32 startPeriod, // starting period (inclusive) for the reward schedule
+        uint32 endPeriod, // ending period (inclusive ) for the reward schedule
+        uint128 rewardPerCycle // amount of rewards allocated per-cycle over the reward schedule
     );
 
+    // emitted when an NFT is staked
     event NftStaked(
-        address staker,
-        uint256 tokenId,
-        uint64 cycle
+        address staker, // wallet address of the staker staking the NFT
+        uint256 tokenId, // identifier for the NFT that was staked
+        uint64 cycle // the cycle in which the NFT was staked
     );
 
+    // emitted when and NFT is unstaked
     event NftUnstaked(
-        address staker,
-        uint256 tokenId,
-        uint64 cycle
+        address staker, // wallet address of the staker unstaking the NFT
+        uint256 tokenId, // identifier for the NFT that was unstaked
+        uint64 cycle // the cycle in which the NFT was unstaked
     );
 
+    // emitted when rewards are claimed by a staker
     event RewardsClaimed(
-        address staker,
-        uint256 snapshotStartIndex,
-        uint256 snapshotEndIndex,
-        uint256 amount
+        address staker, // wallet address of the staker claiming the rewards
+        uint256 snapshotStartIndex, // starting snapshot index (inclusive) over which the rewards are claimed
+        uint256 snapshotEndIndex, // ending snapshot index (inclusive) over which the rewards are claimed
+        uint256 amount // amount of rewards claimed
     );
 
+    // emitted when a snapshot is created or updated
     event SnapshotUpdated(
         uint256 index, // index (index-0 based) of the snapshot in the history list
-        uint64 startCycle,
-        uint64 endCycle,
-        uint32 stake // Total stake of all NFTs
+        uint64 startCycle, // starting cycle (inclusive) of the snapshot range
+        uint64 endCycle, // ending cycle (inclusive) of the snapshot range
+        uint32 stake // total stake of all NFTs staked in the snapshot
     );
 
-    // a struct container used to track aggregate changes in stake over time
+    // used to track aggregate changes in stake over time
     struct Snapshot {
-        uint32 period;
-        uint64 startCycle;
-        uint64 endCycle;
-        uint32 stake; // cumulative stake of all NFTs staked
+        uint32 period; // the period in which the snapshot is contained within
+        uint64 startCycle; // starting cycle (inclusive) of the snapshot range
+        uint64 endCycle; // ending cycle (inclusive) of the snapshot range
+        uint32 stake; // total stake of all NFTs staked in the snapshot
     }
 
-    // a struct container used to track a staker's aggregate staking state
+    // used to track a staker's aggregate staking state
     struct StakerState {
-        uint64 nextClaimableCycle;
-        uint32 stake;
+        uint64 nextClaimableCycle; // the next cycle which the staker can begin to claim rewards
+        uint32 stake; // total stake of all NFTs staked by the staker
     }
 
+    // used to track an NFTs staking state
     struct TokenInfo {
-        address owner;
-        uint64 depositTimestamp; // seconds since epoch
-        uint32 stake;
+        address owner; // wallet address of the original owner of the NFT
+        uint64 depositTimestamp; // timestamp in which the NFT was staked, in seconds since epoch
+        uint32 stake; // NFT stake weight
     }
 
+    // used as a container to hold result values from calculating claimable rewards
     struct CalculateRewardsResult {
-        uint256 totalRewardsToClaim;
-        uint256 startSnapshotIndex;
-        uint256 endSnapshotIndex;
-        uint32 periodsClaimed;
+        uint256 totalRewardsToClaim; // amount of claimable rewards calculated
+        uint256 startSnapshotIndex; // starting snapshot index (inclusive) over which the claimable rewards were calculated
+        uint256 endSnapshotIndex; // ending snapshot index (inclusive) over which the claimable rewards were calculated
+        uint32 periodsClaimed; // number of claimable periods actually used to calculate the claimable rewards
     }
 
     // TODO Apply these
@@ -97,29 +104,28 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     //     uint104 stake;
     // }
 
-    uint256 public startTimestamp = 0; // in seconds since epoch
-    uint256 public rewardPool = 0; // reward to be distributed over the entire schedule
+    uint256 public startTimestamp = 0; // starting timestamp of the staking schedule, in seconds since epoch
+    uint256 public rewardPool = 0; // reward pool amount to be distributed over the entire schedule
 
     bool public disabled = false; // flags whether or not the contract is disabled
 
     address public whitelistedNftContract; // contract that has been whitelisted to be able to perform transfer operations of staked NFTs
-    address public rewardsToken; // ERC20-based token used in reward rewards
+    address public rewardsToken; // ERC20-based token used as staking rewards
 
-    uint32 public immutable periodLengthInCycles;
+    uint32 public immutable periodLengthInCycles; // the length of a claimable reward period, in cycles
     uint64 public immutable freezeDurationAfterStake; // duration for which a newly staked NFT is locked before it can be unstaked, in seconds
-    uint256 public immutable cycleLengthInSeconds;
+    uint256 public immutable cycleLengthInSeconds; // the length of a cycle, in seconds
 
     mapping(address => StakerState) public stakerStates; // staker => StakerState
     mapping(uint256 => TokenInfo) public tokensInfo; // tokenId => TokenInfo
     mapping(uint32 => uint128) public rewardSchedule; // period => reward per-cycle
 
-    Snapshot[] public snapshots; // History of total stake by ranges of cycles within a single period
+    Snapshot[] public snapshots; // history of total stake by ranges of cycles within a single period
 
     modifier rewardsClaimed(address sender) {
         require(_getClaimablePeriods(sender, periodLengthInCycles) == 0, "NftStaking: Rewards are not claimed");
         _;
     }
-
 
     modifier hasStarted() {
         require(startTimestamp != 0, "NftStaking: Staking has not started yet");
@@ -132,7 +138,9 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * @dev Constructor.
+     * totalRewardsToClaimConstructor.
+     * @dev Reverts if the period length value is zero.
+     * @dev Reverts if the cycle length value is zero.
      * @param cycleLengthInSeconds_ Length of a cycle, in seconds.
      * @param periodLengthInCycles_ Length of a period, in cycles.
      * @param freezeDurationAfterStake_ Initial duration that a newly staked NFT is locked for before it can be withdrawn from staking, in seconds.
@@ -159,7 +167,10 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 //////////////////////////////////////// Admin Functions //////////////////////////////////////////
 
     /**
-     * Set the reward for a range of periods.
+     * totalRewardsToClaimSet the reward for a range of periods.
+     * @dev Reverts if the start or end periods are zero.
+     * @dev Reverts if the end period is before the start period.
+     * @dev Emits the RewardSet event when the function is called successfully.
      * @param startPeriod The starting period (inclusive).
      * @param endPeriod The ending period (inclusive).
      * @param rewardPerCycle The reward for each cycle within range.
@@ -185,7 +196,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * Transfers necessary reward balance to the contract and starts the staking.
+     * totalRewardsToClaimTransfers necessary reward balance to the contract from the reward token contract, and begins running the staking schedule.
      */
     function start() public onlyOwner {
         require(
@@ -197,7 +208,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * Withdraws a specified amount of rewards tokens from the contract.
+     * totalRewardsToClaimWithdraws a specified amount of rewards tokens from the contract.
      * @param amount The amount to withdraw.
      */
     function withdrawRewardsPool(uint256 amount) public onlyOwner {
@@ -208,7 +219,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * Permanently disables all staking and claiming functionality of the contract.
+     * totalRewardsToClaimPermanently disables all staking and claiming functionality of the contract.
      */
     function disable() public onlyOwner {
         disabled = true;
@@ -216,6 +227,19 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
 ////////////////////////////////////// ERC1155TokenReceiver ///////////////////////////////////////
 
+    /**
+     * totalRewardsToClaimHandle the receipt of a single ERC1155 token type.
+     * @dev An ERC1155-compliant smart contract MUST call this function on the token recipient contract, at the end of a `safeTransferFrom` after the balance has been updated.
+     * This function MUST return `bytes4(keccak256("onERC1155Received(address,address,uint256,uint256,bytes)"))` (i.e. 0xf23a6e61) if it accepts the transfer.
+     * This function MUST revert if it rejects the transfer.
+     * Return of any other value than the prescribed keccak256 generated value MUST result in the transaction being reverted by the caller.
+     * @param //operator The address which initiated the transfer (i.e. msg.sender)
+     * @param from The address which previously owned the token
+     * @param id The ID of the token being transferred
+     * @param //value The amount of tokens being transferred
+     * @param //data Additional data with no specified format
+     * @return `bytes4(keccak256("onERC1155Received(address,address,uint256,uint256,bytes)"))`
+     */
     function onERC1155Received(
         address /*operator*/,
         address from,
@@ -233,6 +257,19 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         return _ERC1155_RECEIVED;
     }
 
+    /**
+     * totalRewardsToClaimHandle the receipt of multiple ERC1155 token types.
+     * @dev An ERC1155-compliant smart contract MUST call this function on the token recipient contract, at the end of a `safeBatchTransferFrom` after the balances have been updated.
+     * This function MUST return `bytes4(keccak256("onERC1155BatchReceived(address,address,uint256[],uint256[],bytes)"))` (i.e. 0xbc197c81) if it accepts the transfer(s).
+     * This function MUST revert if it rejects the transfer(s).
+     * Return of any other value than the prescribed keccak256 generated value MUST result in the transaction being reverted by the caller.
+     * @param //operator The address which initiated the batch transfer (i.e. msg.sender)
+     * @param from The address which previously owned the token
+     * @param ids An array containing ids of each token being transferred (order and length must match _values array)
+     * @param //values An array containing amounts of each token being transferred (order and length must match _ids array)
+     * @param //data Additional data with no specified format
+     * @return `bytes4(keccak256("onERC1155BatchReceived(address,address,uint256[],uint256[],bytes)"))`
+     */
     function onERC1155BatchReceived(
         address /*operator*/,
         address from,
@@ -255,10 +292,13 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 //////////////////////////////////// Staking Public Functions /////////////////////////////////////
 
     /**
-     * Unstakes a deposited NFT from the contract.
+     * totalRewardsToClaimUnstakes a deposited NFT from the contract.
      * @dev Reverts if the caller is not the original owner of the NFT.
      * @dev While the contract is enabled, reverts if there are outstanding rewards to be claimed.
      * @dev While the contract is enabled, reverts if NFT is being withdrawn before the staking freeze duration has elapsed.
+     * @dev While the contract is enabled, creates any missing snapshots, up-to the current cycle.
+     * @dev Emits the NftUnstaked event when the function is called successfully.
+     * @dev May emit the SnapshotUpdated event if any snapshots are created or modified to ensure that snapshots exist, up-to the current cycle.
      * @param tokenId The token identifier, referencing the NFT being withdrawn.
      */
     function unstakeNft(uint256 tokenId) external virtual {
@@ -328,7 +368,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * Estimates the claimable rewards for the specified number of periods.
+     * totalRewardsToClaimEstimates the claimable rewards for the specified number of periods.
      * @param periodsToClaim The maximum number of claimable periods to calculate for.
      * @return claimableRewards The total claimable rewards.
      * @return claimablePeriods The actual number of claimable periods calculated for.
@@ -351,7 +391,10 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * Claims the rewards for the specified number of periods.
+     * totalRewardsToClaimClaims the rewards for the specified number of periods.
+     * @dev Creates any missing snapshots, up-to the current cycle.
+     * @dev Emits the RewardsClaimed event when the function is called successfully.
+     * @dev May emit the SnapshotUpdated event if any snapshots are created or modified to ensure that snapshots exist, up-to the current cycle.
      * @param periodsToClaim The maximum number of periods to claim for.
      */
     function claimRewards(uint32 periodsToClaim) external isEnabled hasStarted {
@@ -397,12 +440,11 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * @dev if the latest snapshot is related to a past period, creates a
-     * snapshot for each missing past period (if any) and one for the
-     * current period (if needed). Updates the latest snapshot to end on
-     * current cycle if not already.
-     * @param maxSnapshotsToAdd the limit of snapshots to create. No limit
-     * will be applied if it equals zero.
+     * Ensures that the snapshot history is up-to-date to the current cycle.
+     * @dev If the latest snapshot is related to a past period, it creates a snapshot for each missing period and one for the current period (if needed).
+     * @dev Updates the latest snapshot to end on current cycle if not already.
+     * @dev May emit the SnapshotUpdated event if any snapshots are created or modified to ensure that snapshots exist, up-to the current cycle.
+     * @param maxSnapshotsToAdd the limit of snapshots to create. No limit will be applied if it equals zero.
      */
     function ensureSnapshots(uint256 maxSnapshotsToAdd) public {
         uint32 periodLengthInCycles_ = periodLengthInCycles;
@@ -531,6 +573,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     /**
      * Adds a new snapshot to the snapshot history list.
+     * @dev Emits the SnapshotUpdated event when the function is called.
      * @param cycleStart Starting cycle for the new snapshot.
      * @param cycleEnd Ending cycle for the new snapshot.
      * @param stake Initial stake for the new snapshot.
@@ -565,6 +608,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     /**
      * Retrieves the cycle (index-1 based) at the specified timestamp.
+     * @dev Reverts if the specified timestamp is earlier than the beginning of the staking schedule
      * @param ts The timestamp for which the cycle is derived from.
      * @return The cycle (index-1 based) at the specified timestamp.
      */
@@ -584,6 +628,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     /**
      * Retrieves the period (index-1 based) for the specified cycle and period length.
+     * @dev reverts if the specified cycle is zero.
      * @param cycle The cycle within the period to retrieve.
      * @param periodLengthInCycles_ Length of a period, in cycles.
      * @return The period (index-1 based) for the specified cycle and period length.
@@ -611,14 +656,11 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     /**
      * Calculates the amount of rewards over the available claimable periods
-     * until either the specified maximum number of periods to claim is reached,
-     * or the last processable period is reached (the current period for a claim
-     * estimate, or the last snapshot period for an actual claim), whichever
-     * occurs first.
+     * @dev Processes until the specified maximum number of periods to claim is reached, or the last processable period is reached (the current period for a claim estimate, or the last snapshot period for an actual claim), whichever occurs first.
      * @param staker The staker for whom the rewards will be calculated.
      * @param periodsToClaim Maximum number of periods, over which to calculate the claimable rewards.
      * @param estimate Flags whether or not the calculation is for a reward claim estimate, or for an actual claim.
-     * @return CalculateRewardsResult result.
+     * @return CalculateRewardsResult result containing the amount of claimable rewards, the starting and ending snapshot indices over which the calculation was performed, and the number of actual periods processed in the calculation.
      */
     function _calculateRewards(
         address staker,
@@ -756,10 +798,9 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * Updates the snapshot stake at the current cycle. It will update the
-     * latest snapshot if it starts at the current cycle, otherwise will adjust
-     * the snapshots range end back by one cycle (the previous cycle) and
-     * create a new snapshot for the current cycle with the stake update.
+     * Updates the snapshot stake at the current cycle.
+     * @dev It will update the latest snapshot if it starts at the current cycle, otherwise will adjust the snapshots range end back by one cycle (the previous cycle) and create a new snapshot for the current cycle with the stake update.
+     * @dev Emits the SnapshotUpdated event when the function is called.
      * @param snapshot The snapshot whose stake is being updated.
      * @param snapshotIndex The index of the snapshot being updated.
      * @param stake The stake to update the latest snapshot with.
@@ -800,6 +841,10 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     /**
      * Stakes the NFT received by the contract, referenced by its specified token identifier and owner.
+     * @dev Reverts if the caller is not the whitelisted NFT contract.
+     * @dev Creates any missing snapshots, up-to the current cycle.
+     * @dev May emit the SnapshotUpdated event if any snapshots are created or modified to ensure that snapshots exist, up-to the current cycle.
+     * @dev Emits the NftStaked event when the function is called successfully.
      * @param tokenId Identifier of the staked NFT.
      * @param tokenOwner Owner of the staked NFT.
      */
@@ -848,8 +893,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * Searches for the reward snapshot containing the specified cycle. If the snapshot cannot be found,
-     * then the closest snapshot by cycle range is returned.
+     * Searches for the reward snapshot containing the specified cycle.
+     * @dev If the snapshot cannot be found, then the closest snapshot by cycle range is returned.
      * @param cycle The cycle for which the reward snapshot is searched for.
      * @return snapshot If found, the snapshot containing the specified cycle, otherwise the closest snapshot to the cycle.
      * @return snapshotIndex The index (index-0 based) of the returned snapshot.
@@ -894,7 +939,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     /**
      * Abstract function which validates whether or not the supplied NFT identifier is accepted for staking
-     * and retrieves its associated weight. MUST throw if the token is invalid.
+     * and retrieves its associated weight.
+     * @dev MUST throw if the token is invalid.
      * @param nftId uint256 NFT identifier used to determine if the token is valid for staking.
      * @return uint32 the weight of the NFT.
      */

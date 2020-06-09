@@ -107,7 +107,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     uint256 public startTimestamp = 0; // starting timestamp of the staking schedule, in seconds since epoch
     uint256 public rewardPool = 0; // reward pool amount to be distributed over the entire schedule
-    uint256 public lastScheduledPeriod = 0;
+    uint256 public lastScheduledPeriod = 0; // the last period in the reward schedule
 
     bool public disabled = false; // flags whether or not the contract is disabled
 
@@ -115,12 +115,11 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     address public rewardsToken; // ERC20-based token used as staking rewards
 
     uint32 public immutable periodLengthInCycles; // the length of a claimable reward period, in cycles
-    uint64 public immutable freezeDurationInCycles; // duration for which a newly staked NFT is locked before it can be unstaked, in seconds
-    uint256 public immutable cycleLengthInSeconds;
+    uint64 public immutable freezeDurationInCycles; // duration for which a newly staked NFT is locked before it can be unstaked, in cycles
+    uint256 public immutable cycleLengthInSeconds; // the length of a cycle, in seconds
 
     mapping(address => StakerState) public stakerStates; // staker => StakerState
     mapping(uint256 => TokenInfo) public tokensInfo; // tokenId => TokenInfo
-    // mapping(uint32 => uint128) public rewardSchedule; // period => reward per-cycle
     mapping(uint32 => uint128) public rewardSchedule; // period => reward per-cycle
 
     Snapshot[] public snapshots; // history of total stake by ranges of cycles within a single period
@@ -308,7 +307,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     function unstakeNft(uint256 tokenId) external virtual {
         TokenInfo memory tokenInfo = tokensInfo[tokenId];
 
-        require(tokenInfo.owner == msg.sender, "NftStaking: incorrect token owner or token already unstaked");
+        require(tokenInfo.owner == msg.sender, "NftStaking: Incorrect token owner or token already unstaked");
 
         uint64 currentCycle = _getCycle(now);
 

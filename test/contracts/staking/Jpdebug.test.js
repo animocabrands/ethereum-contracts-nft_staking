@@ -610,7 +610,7 @@ describe.only('NftStaking', function () {
                         });
 
                         describe('when unstaking an NFT not owned by the caller', function () {
-                            shouldRevertAndNotUnstakeNft(creator, TokenIds[0], 'NftStaking: incorrect token owner or token already unstaked');
+                            shouldRevertAndNotUnstakeNft(creator, TokenIds[0], 'NftStaking: Incorrect token owner or token already unstaked');
                         });
 
                         describe('when 3 periods have passed since the last claim', function () {

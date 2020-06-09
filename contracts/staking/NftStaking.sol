@@ -138,7 +138,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * totalRewardsToClaimConstructor.
+     * Constructor.
      * @dev Reverts if the period length value is zero.
      * @dev Reverts if the cycle length value is zero.
      * @param cycleLengthInSeconds_ Length of a cycle, in seconds.
@@ -167,7 +167,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 //////////////////////////////////////// Admin Functions //////////////////////////////////////////
 
     /**
-     * totalRewardsToClaimSet the reward for a range of periods.
+     * Set the reward for a range of periods.
      * @dev Reverts if the start or end periods are zero.
      * @dev Reverts if the end period is before the start period.
      * @dev Emits the RewardSet event when the function is called successfully.
@@ -196,7 +196,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * totalRewardsToClaimTransfers necessary reward balance to the contract from the reward token contract, and begins running the staking schedule.
+     * Transfers necessary reward balance to the contract from the reward token contract, and begins running the staking schedule.
      */
     function start() public onlyOwner {
         require(
@@ -208,7 +208,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * totalRewardsToClaimWithdraws a specified amount of rewards tokens from the contract.
+     * Withdraws a specified amount of rewards tokens from the contract.
      * @param amount The amount to withdraw.
      */
     function withdrawRewardsPool(uint256 amount) public onlyOwner {
@@ -219,7 +219,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * totalRewardsToClaimPermanently disables all staking and claiming functionality of the contract.
+     * Permanently disables all staking and claiming functionality of the contract.
      */
     function disable() public onlyOwner {
         disabled = true;
@@ -228,7 +228,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 ////////////////////////////////////// ERC1155TokenReceiver ///////////////////////////////////////
 
     /**
-     * totalRewardsToClaimHandle the receipt of a single ERC1155 token type.
+     * Handle the receipt of a single ERC1155 token type.
      * @dev An ERC1155-compliant smart contract MUST call this function on the token recipient contract, at the end of a `safeTransferFrom` after the balance has been updated.
      * This function MUST return `bytes4(keccak256("onERC1155Received(address,address,uint256,uint256,bytes)"))` (i.e. 0xf23a6e61) if it accepts the transfer.
      * This function MUST revert if it rejects the transfer.
@@ -258,7 +258,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * totalRewardsToClaimHandle the receipt of multiple ERC1155 token types.
+     * Handle the receipt of multiple ERC1155 token types.
      * @dev An ERC1155-compliant smart contract MUST call this function on the token recipient contract, at the end of a `safeBatchTransferFrom` after the balances have been updated.
      * This function MUST return `bytes4(keccak256("onERC1155BatchReceived(address,address,uint256[],uint256[],bytes)"))` (i.e. 0xbc197c81) if it accepts the transfer(s).
      * This function MUST revert if it rejects the transfer(s).
@@ -292,7 +292,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 //////////////////////////////////// Staking Public Functions /////////////////////////////////////
 
     /**
-     * totalRewardsToClaimUnstakes a deposited NFT from the contract.
+     * Unstakes a deposited NFT from the contract.
      * @dev Reverts if the caller is not the original owner of the NFT.
      * @dev While the contract is enabled, reverts if there are outstanding rewards to be claimed.
      * @dev While the contract is enabled, reverts if NFT is being withdrawn before the staking freeze duration has elapsed.
@@ -368,7 +368,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * totalRewardsToClaimEstimates the claimable rewards for the specified number of periods.
+     * Estimates the claimable rewards for the specified number of periods.
      * @param periodsToClaim The maximum number of claimable periods to calculate for.
      * @return claimableRewards The total claimable rewards.
      * @return claimablePeriods The actual number of claimable periods calculated for.
@@ -391,7 +391,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * totalRewardsToClaimClaims the rewards for the specified number of periods.
+     * Claims the rewards for the specified number of periods.
      * @dev Creates any missing snapshots, up-to the current cycle.
      * @dev Emits the RewardsClaimed event when the function is called successfully.
      * @dev May emit the SnapshotUpdated event if any snapshots are created or modified to ensure that snapshots exist, up-to the current cycle.
@@ -536,7 +536,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * Retrieves the current cycle (index-1 based).
      * @return The current cycle (index-1 based).
      */
-    function getCurrentCycle() external view returns(uint64) {
+    function getCurrentCycle() external view returns (uint64) {
         // index is 1 based
         return _getCycle(now);
     }
@@ -545,7 +545,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * Retrieves the current period (index-1 based).
      * @return The current period (index-1 based).
      */
-    function getCurrentPeriod() external view returns(uint32) {
+    function getCurrentPeriod() external view returns (uint32) {
         return _getCurrentPeriod(periodLengthInCycles);
     }
 
@@ -554,7 +554,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @return nexClaimablePeriod The first claimable period (index-1 based).
      * @return claimablePeriods The number of claimable periods.
      */
-    function getClaimablePeriods() external view returns(
+    function getClaimablePeriods() external view returns (
         uint32 nexClaimablePeriod,
         uint32 claimablePeriods
     ) {
@@ -585,7 +585,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint64 cycleStart,
         uint64 cycleEnd,
         uint32 stake
-    ) internal returns(Snapshot storage, uint256)
+    ) internal returns (Snapshot storage, uint256)
     {
         Snapshot memory snapshot;
         snapshot.period = period;
@@ -612,7 +612,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @param ts The timestamp for which the cycle is derived from.
      * @return The cycle (index-1 based) at the specified timestamp.
      */
-    function _getCycle(uint256 ts) internal view returns(uint64) {
+    function _getCycle(uint256 ts) internal view returns (uint64) {
         require(ts >= startTimestamp, "NftStaking: Cycle timestamp preceeds the contract start timestamp");
         return ((ts - startTimestamp) / cycleLengthInSeconds).add(1).toUint64();
     }
@@ -622,7 +622,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
       * @param periodLengthInCycles_ Length of a period, in cycles.
       * @return The current period (index-1 based).
       */
-    function _getCurrentPeriod(uint32 periodLengthInCycles_) internal view returns(uint32) {
+    function _getCurrentPeriod(uint32 periodLengthInCycles_) internal view returns (uint32) {
         return _getPeriod(_getCycle(now), periodLengthInCycles_);
     }
 
@@ -633,7 +633,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @param periodLengthInCycles_ Length of a period, in cycles.
      * @return The period (index-1 based) for the specified cycle and period length.
      */
-    function _getPeriod(uint64 cycle, uint32 periodLengthInCycles_) internal pure returns(uint32) {
+    function _getPeriod(uint64 cycle, uint32 periodLengthInCycles_) internal pure returns (uint32) {
         require(cycle != 0, "NftStaking: Period cycle cannot be zero");
         return (uint256(cycle / uint64(periodLengthInCycles_)) + 1).toUint32();
     }
@@ -644,7 +644,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @param periodLengthInCycles_ Length of a period, in cycles.
      * @return The number of claimable periods for the specified staker.
      */
-    function _getClaimablePeriods (address sender, uint32 periodLengthInCycles_) internal view returns(uint32) {
+    function _getClaimablePeriods (address sender, uint32 periodLengthInCycles_) internal view returns (uint32) {
         StakerState memory stakerState = stakerStates[sender];
         if (stakerState.stake == 0) {
             return 0;
@@ -902,7 +902,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     function _findSnapshot(uint64 cycle)
     internal
     view
-    returns(Snapshot memory snapshot, uint256 snapshotIndex)
+    returns (Snapshot memory snapshot, uint256 snapshotIndex)
     {
         uint256 low = 0;
         uint256 high = snapshots.length - 1;

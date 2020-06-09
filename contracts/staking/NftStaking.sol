@@ -69,6 +69,13 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint32 stake;
     }
 
+    struct CalculateRewardsResult {
+        uint256 totalRewardsToClaim;
+        uint256 startSnapshotIndex;
+        uint256 endSnapshotIndex;
+        uint32 periodsClaimed;
+    }
+
     // TODO Apply these
 
     // struct Snapshot {
@@ -322,9 +329,6 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     /**
      * Estimates the claimable rewards for the specified number of periods.
-     * The accuracy of the result depends on how up-to-date the snapshots are.
-     * Calling ensureSnapshots() prior to estimating the claimable rewards
-     * will result in a precise calculation.
      * @param periodsToClaim The maximum number of claimable periods to calculate for.
      * @return claimableRewards The total claimable rewards.
      * @return claimablePeriods The actual number of claimable periods calculated for.
@@ -339,7 +343,11 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         }
 
         // calculate the claimable rewards
-        (claimableRewards, , , claimablePeriods) = _calculateRewards(msg.sender, periodsToClaim);
+        CalculateRewardsResult memory result =
+            _calculateRewards(msg.sender, periodsToClaim, true);
+
+        claimableRewards = result.totalRewardsToClaim;
+        claimablePeriods = result.periodsClaimed;
     }
 
     /**
@@ -356,16 +364,13 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         ensureSnapshots(0);
 
         // calculate the claimable rewards
-        (uint256 rewardPoolsToClaim,
-            uint256 startSnapshotIndex,
-            uint256 endSnapshotIndex,
-            uint32 periodsClaimed
-        ) = _calculateRewards(msg.sender, periodsToClaim);
+        CalculateRewardsResult memory result =
+            _calculateRewards(msg.sender, periodsToClaim, false);
 
         // no periods were actually processed when calculating the rewards to
         // claim (i.e. no net changes were made to the current state since
         // before _calculateRewardss() was called)
-        if (periodsClaimed == 0) {
+        if (result.periodsClaimed == 0) {
             return;
         }
 
@@ -373,22 +378,22 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         // function. this should be done even when no rewards to claim were
         // found, to save from reprocessing fruitless periods in subsequent
         // calls
-        stakerStates[msg.sender].nextClaimableCycle = snapshots[SafeMath.add(endSnapshotIndex, 1)].startCycle;
+        stakerStates[msg.sender].nextClaimableCycle = snapshots[SafeMath.add(result.endSnapshotIndex, 1)].startCycle;
 
         // no rewards to claim were found across the processed periods
-        if (rewardPoolsToClaim == 0) {
+        if (result.totalRewardsToClaim == 0) {
             return;
         }
 
         require(
-            IERC20(rewardsToken).transfer(msg.sender, rewardPoolsToClaim),
+            IERC20(rewardsToken).transfer(msg.sender, result.totalRewardsToClaim),
             "NftStaking: Failed to transfer claimed rewards");
 
         emit RewardsClaimed(
             msg.sender,
-            startSnapshotIndex,
-            endSnapshotIndex,
-            rewardPoolsToClaim);
+            result.startSnapshotIndex,
+            result.endSnapshotIndex,
+            result.totalRewardsToClaim);
     }
 
     /**
@@ -607,56 +612,52 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     /**
      * Calculates the amount of rewards over the available claimable periods
      * until either the specified maximum number of periods to claim is reached,
-     * or the last snapshot period is reached, whichever is smaller.
+     * or the last processable period is reached (the current period for a claim
+     * estimate, or the last snapshot period for an actual claim), whichever
+     * occurs first.
      * @param staker The staker for whom the rewards will be calculated.
      * @param periodsToClaim Maximum number of periods, over which to calculate the claimable rewards.
-     * @return totalRewardToClaim The total claimable rewards calculated.
-     * @return startSnapshotIndex The index of the starting snapshot claimed, in the calculation.
-     * @return endSnapshotIndex The index of the ending snapshot claimed, in the calculation.
-     * @return periodsClaimed The number of actual claimable periods calculated for.
+     * @param estimate Flags whether or not the calculation is for a reward claim estimate, or for an actual claim.
+     * @return CalculateRewardsResult result.
      */
     function _calculateRewards(
         address staker,
-        uint32 periodsToClaim
-    ) internal view returns (
-        uint256 totalRewardToClaim,
-        uint256 startSnapshotIndex,
-        uint256 endSnapshotIndex,
-        uint32 periodsClaimed)
+        uint32 periodsToClaim,
+        bool estimate
+    ) internal view returns (CalculateRewardsResult memory)
     {
-        // Calculating for 0 periods
+        CalculateRewardsResult memory result;
+
+        // calculating for 0 periods
         if (periodsToClaim == 0) {
-            return (0, 0, 0, 0);
-        }
-
-        // Retrieving the period preceding now
-        uint32 periodLengthInCycles_ = periodLengthInCycles;
-        uint32 lastClaimablePeriod = _getCurrentPeriod(periodLengthInCycles_) - 1;
-
-        // Attempting to claim during the first period
-        if (lastClaimablePeriod == 0) {
-            return (0, 0, 0, 0);
+            return result;
         }
 
         uint256 totalSnapshots = snapshots.length;
 
-        // No snapshots to calculate with
+        // no snapshots to calculate with
         if (totalSnapshots == 0) {
-            return (0, 0, 0, 0);
+            return result;
         }
 
         StakerState memory stakerState = stakerStates[staker];
 
-        // Nothing staked to calculate with
+        // nothing staked to calculate with
         if (stakerState.stake == 0) {
-            return (0, 0, 0, 0);
+            return result;
         }
 
+        uint32 periodLengthInCycles_ = periodLengthInCycles;
         uint32 periodToClaim = _getPeriod(stakerState.nextClaimableCycle, periodLengthInCycles_);
+        uint32 currentPeriod = _getCurrentPeriod(periodLengthInCycles_);
+        uint256 lastSnapshotIndex = totalSnapshots - 1;
+        uint32 lastSnapshotPeriod = snapshots[lastSnapshotIndex].period;
 
-        // Attempting to calculate for a period which is not claimable yet
-        if (periodToClaim > lastClaimablePeriod) {
-            return (0, 0, 0, 0);
+        // the current period has been reached (claim estimate), or the last
+        // snapshot period has been reached (actual claim)
+        if ((estimate && (periodToClaim  == currentPeriod)) ||
+            (!estimate && (periodToClaim == lastSnapshotPeriod))) {
+            return result;
         }
 
         uint128 rewardPerCycle = rewardSchedule[periodToClaim];
@@ -664,18 +665,33 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
         (Snapshot memory snapshot, uint256 snapshotIndex) = _findSnapshot(stakerState.nextClaimableCycle);
 
-        startSnapshotIndex = snapshotIndex;
+        // for a claim estimate, the last snapshot period is not the current
+        // period and does not align with the end of its period
+        if (
+            estimate &&
+            (snapshotIndex == lastSnapshotIndex) &&
+            (snapshot.period != currentPeriod) &&
+            (snapshot.endCycle != periodToClaimEndCycle)) {
+            // extend the last snapshot cycle range to align with the end of its
+            // period
+            snapshot.endCycle = periodToClaimEndCycle;
+        }
 
-        // Iterate over snapshots starting from the first snapshot of the next 
-        // claimable period. This loop assumes that (1) there is at least one
-        // snapshot within each period, (2) snapshots are aligned back-to-back,
-        // (3) each period is spanned by snapshots (i.e. no cycle gaps),
-        // (4) snapshots do not span across multiple periods (i.e. bound within
-        // a single period), and (5) that it will be executed for at least 1 iteration
-        while (snapshotIndex < totalSnapshots) {
-            // There are rewards to calculate in this loop iteration
+        result.startSnapshotIndex = snapshotIndex;
+
+        // iterate over snapshots one by one until either the specified maximum
+        // number of periods to claim is reached, or the last processable
+        // period is reached (the current period for a claim estimate, or the
+        // last snapshot period for an actual claim), whichever occurs first.
+        // this loop assumes that (1) there is at least one snapshot within each
+        // period, (2) snapshots are aligned back-to-back, (3) each period is
+        // spanned by snapshots (i.e. no cycle gaps), (4) snapshots do not span
+        // across multiple periods (i.e. bound within a single period), and (5)
+        // that it will be executed for at least 1 iteration
+        while (true) {
+            // there are rewards to calculate in this loop iteration
             if ((snapshot.stake != 0) && (rewardPerCycle != 0)) {
-                // Calculate the staker's snapshot rewards
+                // calculate the staker's snapshot rewards
                 uint256 rewardsToClaim = snapshot.endCycle - snapshot.startCycle + 1;
                 rewardsToClaim *= stakerState.stake;
                 rewardsToClaim *= _DIVS_PRECISION;
@@ -683,34 +699,60 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                 rewardsToClaim /= snapshot.stake;
                 rewardsToClaim /= _DIVS_PRECISION;
 
-                // Update the total rewards to claim
-                totalRewardToClaim = totalRewardToClaim.add(rewardsToClaim);
+                // update the total rewards to claim
+                result.totalRewardsToClaim = result.totalRewardsToClaim.add(rewardsToClaim);
             }
 
-            // Snapshot is the last one in the period to claim
+            // snapshot is the last one in the period to claim
             if (snapshot.endCycle == periodToClaimEndCycle) {
                 ++periodToClaim;
-                ++periodsClaimed;
-                // The last claimable period has been processed or the total
-                // count of periods to claim has been reached
-                if (
-                    periodToClaim > lastClaimablePeriod ||
-                    periodsClaimed == periodsToClaim
-                ) {
+                ++result.periodsClaimed;
+
+                // the specified maximum number of periods to claim is reached,
+                // or the current period has been reached (claim estimate), or
+                // the last snapshot period has been reached (actual claim)
+                if ((periodsToClaim == result.periodsClaimed) ||
+                    (estimate && (periodToClaim  == currentPeriod)) ||
+                    (!estimate && (periodToClaim == lastSnapshotPeriod))) {
                     break;
                 }
 
-                // Advance the period state for the next loop iteration
+                // advance the period state for the next loop iteration
                 rewardPerCycle = rewardSchedule[periodToClaim];
-                periodToClaimEndCycle = SafeMath.mul(periodToClaim, periodLengthInCycles_).toUint64();
+                periodToClaimEndCycle = SafeMath.add(periodToClaimEndCycle, periodLengthInCycles_).toUint64();
             }
 
-            // Advance the snapshot for the next loop iteration
-            ++snapshotIndex;
-            snapshot = snapshots[snapshotIndex];
+            // still have individual snapshots to process. once there are no
+            // more, in the case of a claim estimate, assume the same snapshot
+            // properties (excluding cycle range bounds) as the last snapshot,
+            // for any subsequent periods to claim that do not have any
+            // snapshots
+            if (snapshotIndex < lastSnapshotIndex) {
+                // advance the snapshot for the next loop iteration
+                ++snapshotIndex;
+                snapshot = snapshots[snapshotIndex];
+            }
+
+            // for a claim estimate, the last snapshot has been reached
+            if (estimate && (snapshotIndex == lastSnapshotIndex)) {
+                if (periodToClaim == lastSnapshotPeriod) {
+                    if (snapshot.endCycle != periodToClaimEndCycle) {
+                        // extend the last snapshot cycle range to align with
+                        // the end of its period
+                        snapshot.endCycle = periodToClaimEndCycle;
+                    }
+                } else {
+                    // re-position the snapshot cycle range for the period to
+                    // claim
+                    snapshot.startCycle = snapshot.endCycle + 1;
+                    snapshot.endCycle = periodToClaimEndCycle;
+                }
+            }
         }
 
-        endSnapshotIndex = snapshotIndex;
+        result.endSnapshotIndex = snapshotIndex;
+
+        return result;
     }
 
     /**

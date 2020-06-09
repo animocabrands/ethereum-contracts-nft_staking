@@ -387,6 +387,14 @@ describe.only('NftStaking', function () {
         });
     }
 
+    function shouldEstimateRewards(from, periodsToClaim, periodsClaimed, amount) {
+        it(`should have estimated ${amount.toString()} tokens over ${periodsToClaim} periods for ${from}`, async function () {
+            const result = await this.stakingContract.estimateRewards(periodsToClaim, { from: from });
+            result.claimableRewards.should.be.bignumber.equal(new BN(amount));
+            result.claimablePeriods.should.be.bignumber.equal(new BN(periodsClaimed));
+        });
+    }
+
     function shouldClaimRewards(from, periodsToClaim, start, end, amount) {
         it(`should have claimed ${amount.toString()} tokens in ${periodsToClaim} periods from snapshots [${start}, ${end}] by ${from}`, async function () {
             const snapshotStartIndexBN = new BN(start);
@@ -519,11 +527,15 @@ describe.only('NftStaking', function () {
 
             describe('when 1 period have passed after staking', function () {
                 before(async function () {
-                    await time.increase(PeriodLengthInSeconds.toNumber() + CycleLengthInSeconds.toNumber());
+                    await time.increase(PeriodLengthInSeconds.add(CycleLengthInSeconds).toNumber());
                 });
 
                 shouldHaveCurrentCycle(9);
                 shouldHaveNumberOfSnapshots(1);
+
+                describe('when estimating rewards for all periods', function () {
+                    shouldEstimateRewards(staker, 4, 1, 7000); // 7 cycles in period 1
+                });
 
                 describe('when claiming all periods', function () {
                     shouldClaimRewards(staker, 4, 0, 0, 7000); // 7 cycles in period 1
@@ -545,7 +557,7 @@ describe.only('NftStaking', function () {
 
         describe('when 3 cycles have passed before staking', function () {
             before(async function () {
-                await time.increase(CycleLengthInSeconds.toNumber() * 3);
+                await time.increase(CycleLengthInSeconds.muln(3).toNumber());
             });
 
             shouldHaveCurrentCycle(4);
@@ -560,7 +572,7 @@ describe.only('NftStaking', function () {
 
                 describe('when 5 periods have passed after staking', function () {
                     before(async function () {
-                        await time.increase(PeriodLengthInSeconds.toNumber() * 5);
+                        await time.increase(PeriodLengthInSeconds.muln(5).toNumber());
                     });
 
                     shouldHaveCurrentCycle(39);
@@ -568,6 +580,16 @@ describe.only('NftStaking', function () {
 
                     describe('when staking another NFT before rewards are claimed', function () {
                         shouldRevertAndNotStakeNft(staker, TokenIds[1], 'NftStaking: Rewards are not claimed');
+                    });
+
+                    describe('when estimating rewards', function () {
+                        context('for less than 2 periods', function () {
+                            shouldEstimateRewards(staker, 1, 1, 4000); // 4 cycles in period 1
+                        });
+
+                        context('for exactly 2 periods', function () {
+                            shouldEstimateRewards(staker, 2, 2, 11000); // 4 cycles in period 1 + 7 cycles in period 2
+                        });
                     });
 
                     describe('when claiming 2 periods', function () {
@@ -586,7 +608,7 @@ describe.only('NftStaking', function () {
 
                         describe('when 3 periods have passed since the last claim', function () {
                             before(async function () {
-                                await time.increase(PeriodLengthInSeconds.toNumber() * 3);
+                                await time.increase(PeriodLengthInSeconds.muln(3).toNumber());
                             });
 
                             shouldHaveCurrentCycle(60);
@@ -594,6 +616,16 @@ describe.only('NftStaking', function () {
 
                             describe('when unstaking a Common NFT before rewards are claimed', function () {
                                 shouldRevertAndNotUnstakeNft(staker, TokenIds[0], 'NftStaking: Rewards are not claimed');
+                            });
+
+                            describe('when estimating rewards', function () {
+                                context('for exactly the 6 remaining periods', function () {
+                                    shouldEstimateRewards(staker, 6, 6, 28000); // 7 cycles in period 3 + 7 cyles in period 4 + 28 cycles in period 5-8
+                                });
+
+                                context('for more than the remaining periods', function () {
+                                    shouldEstimateRewards(staker, 100, 6, 28000); // 7 cycles in period 3 + 7 cyles in period 4 + 28 cycles in period 5-8
+                                });
                             });
 
                             describe('when claming the remaining 6 periods', function () {
@@ -604,7 +636,7 @@ describe.only('NftStaking', function () {
 
                                 describe('when 2 periods have passed since the last claim', function () {
                                     before(async function () {
-                                        await time.increase(PeriodLengthInSeconds.toNumber() * 2);
+                                        await time.increase(PeriodLengthInSeconds.muln(2).toNumber());
                                     });
 
                                     describe('when claiming the remaining 2 periods', function () {

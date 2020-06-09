@@ -405,6 +405,9 @@ describe.only('NftStaking', function () {
             const contractBalanceBefore = await this.rewardsToken.balanceOf(this.stakingContract.address);
             const stakerStateBefore = await this.stakingContract.stakerStates(from);
 
+            const estimate = await this.stakingContract.estimateRewards(periodsToClaim, { from: from });
+            estimate.claimableRewards.should.be.bignumber.equal(amountBN);
+
             const receipt = await this.stakingContract.claimRewards(periodsToClaim, { from: from });
 
             const stakerBalanceAfter = await this.rewardsToken.balanceOf(from);

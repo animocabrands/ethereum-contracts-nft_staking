@@ -516,8 +516,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             // period, initialized with the staked weight of the previous
             // snapshot
             (snapshot, snapshotIndex) = _addNewSnapshot(
-                SafeMath.add(snapshot.period, 1).toUint32(),
-                SafeMath.add(snapshot.endCycle, 1).toUint64(),
+                snapshot.period + 1,
+                snapshot.endCycle + 1,
                 SafeMath.add(snapshot.endCycle, periodLengthInCycles_).toUint64(),
                 snapshot.stake);
         }
@@ -525,8 +525,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         // create the new latest snapshot for the current period and cycle,
         // initialized with the staked weight from the previous snapshot
         _addNewSnapshot(
-            SafeMath.add(snapshot.period, 1).toUint32(),
-            SafeMath.add(snapshot.endCycle, 1).toUint64(),
+            snapshot.period + 1,
+            snapshot.endCycle + 1,
             currentCycle,
             snapshot.stake);
     }

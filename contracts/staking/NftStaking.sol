@@ -417,7 +417,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
         // no periods were actually processed when calculating the rewards to
         // claim (i.e. no net changes were made to the current state since
-        // before _calculateRewardss() was called)
+        // before _calculateRewards() was called)
         if (result.periodsClaimed == 0) {
             return;
         }

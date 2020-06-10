@@ -861,8 +861,9 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
         if (stakerState.stake == 0) {
             // nothing is currently staked by the staker so reset/initialize
-            // the next claimable cycle to the current cycle for claimable
-            // period tracking
+            // the next claimable cycle and next claimable snapshot index to
+            // the current cycle for claimable period tracking
+            stakerState.nextClaimableSnapshotIndex = snapshotIndex.toUint128();
             stakerState.nextClaimableCycle = currentCycle;
         }
 

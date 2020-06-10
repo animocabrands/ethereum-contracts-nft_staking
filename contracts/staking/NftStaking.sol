@@ -91,8 +91,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     bool public disabled = false; // flags whether or not the contract is disabled
 
-    address public whitelistedNftContract; // contract that has been whitelisted to be able to perform transfer operations of staked NFTs
-    address public rewardsToken; // ERC20-based token used as staking rewards
+    address public immutable whitelistedNftContract; // contract that has been whitelisted to be able to perform transfer operations of staked NFTs
+    address public immutable rewardsToken; // ERC20-based token used as staking rewards
 
     uint16 public immutable periodLengthInCycles; // the length of a claimable reward period, in cycles
     uint16 public immutable freezeDurationInCycles; // duration for which a newly staked NFT is locked before it can be unstaked, in cycles

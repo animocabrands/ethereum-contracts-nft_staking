@@ -64,8 +64,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     // used to track a staker's aggregate staking state
     struct StakerState {
-        uint128 nextClaimableSnapshotIndex;
-        uint16 nextClaimableCycle;
+        uint128 nextClaimableSnapshotIndex; // the index of the next snapshot from which the staker can claim rewards from
+        uint16 nextClaimableCycle; // the next cycle from which the staker can claim rewards from
         uint64 stake; // total stake of all NFTs staked by the staker
     }
 

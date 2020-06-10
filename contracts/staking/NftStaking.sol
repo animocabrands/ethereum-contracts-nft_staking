@@ -320,7 +320,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
             // nothing is currently staked by the staker
             if (stakerState.stake == 0) {
-                // clear the next claimable cycle
+                // clear the next claimable cycle and next claimable snapshot
+                // index
                 stakerState.nextClaimableSnapshotIndex = 0;
                 stakerState.nextClaimableCycle = 0;
             }
@@ -400,10 +401,10 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             return;
         }
 
-        // update the staker's next claimable cycle for each call of this
-        // function. this should be done even when no rewards to claim were
-        // found, to save from reprocessing fruitless periods in subsequent
-        // calls
+        // update the staker's next claimable cycle and next claimable snapshot
+        // index, for each call of this function. this should be done even when
+        // no rewards to claim were found, to save from reprocessing fruitless
+        // periods in subsequent calls
         StakerState memory stakerState = stakerStates[msg.sender];
         stakerState.nextClaimableSnapshotIndex = (result.endSnapshotIndex + 1).toUint128();
         stakerState.nextClaimableCycle = result.endCycle + 1;

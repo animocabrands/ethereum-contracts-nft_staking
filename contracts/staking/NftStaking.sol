@@ -17,9 +17,6 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     uint40 internal constant _DIVS_PRECISION = 10 ** 10; // used to preserve significant figures in floating point calculations
 
-    // period uint16
-    // cycle uint16
-
     // emitted when a reward schedule for a range of periods is set
     event RewardSet(
         uint256 startPeriod, // starting period (inclusive) for the reward schedule
@@ -86,30 +83,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint16 periodsClaimed; // number of claimable periods actually used to calculate the claimable rewards
     }
 
-    // TODO Apply these
-
-    // struct Snapshot {
-    //     uint32 period;
-    //     uint32 startCycle;
-    //     uint32 endCycle;
-    //     uint128 stake;
-    // }
-
-    // struct StakerState {
-    //     uint32 nextClaimablePeriod;
-    //     uint96 nextClaimableSnapshotIndex;
-    //     uint128 stake;
-    // }
-
-    // struct TokenInfo {
-    //     address owner;
-    //     uint32 depositCycle;
-    //     uint104 stake;
-    // }
-
     uint256 public startTimestamp = 0; // starting timestamp of the staking schedule, in seconds since epoch
     uint256 public rewardPool = 0; // reward pool amount to be distributed over the entire schedule
-    // uint16 public lastScheduledPeriod = 0; // the last period in the reward schedule
 
     bool public disabled = false; // flags whether or not the contract is disabled
 

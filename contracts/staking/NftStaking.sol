@@ -732,8 +732,9 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                 ++result.periodsClaimed;
 
                 // the specified maximum number of periods to claim is reached,
-                // or the current period has been reached (claim estimate), or
-                // the last snapshot period has been reached (actual claim)
+                // or the last processable period is reached (the current period
+                // for a claim estimate, or the last snapshot period for an
+                // actual claim)
                 if ((periodsToClaim == result.periodsClaimed) ||
                     (estimate && (periodToClaim  == currentPeriod)) ||
                     (!estimate && (periodToClaim == lastSnapshotPeriod))) {
@@ -759,14 +760,19 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             // for a claim estimate, the last snapshot has been reached
             if (estimate && (snapshotIndex == lastSnapshotIndex)) {
                 if (periodToClaim == lastSnapshotPeriod) {
+                    // process the last snapshot
+
+                    // extend the last snapshot cycle range to align with
+                    // the end of its period, as necessary
                     if (snapshot.endCycle != periodToClaimEndCycle) {
-                        // extend the last snapshot cycle range to align with
-                        // the end of its period
                         snapshot.endCycle = periodToClaimEndCycle;
                     }
                 } else {
-                    // re-position the snapshot cycle range for the period to
-                    // claim
+                    // process a 'pseudo-' snapshot for this period, which
+                    // does not have any snapshots by re-using the last snapshot
+
+                    // re-position the last snapshot cycle range for the period
+                    // to claim
                     snapshot.startCycle = snapshot.endCycle + 1;
                     snapshot.endCycle = periodToClaimEndCycle;
                 }

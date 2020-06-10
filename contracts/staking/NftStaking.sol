@@ -65,7 +65,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     // used to track a staker's aggregate staking state
     struct StakerState {
         uint128 nextClaimableSnapshotIndex; // the index of the next snapshot from which the staker can claim rewards from
-        uint16 nextClaimableCycle; // the next cycle from which the staker can claim rewards from
+        uint16 nextClaimablePeriod; // the next period from which the staker can claim rewards from
         uint64 stake; // total stake of all NFTs staked by the staker
     }
 
@@ -82,7 +82,6 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint256 totalRewardsToClaim; // amount of claimable rewards calculated
         uint256 startSnapshotIndex; // first snapshot index over which the claimable rewards were calculated
         uint256 endSnapshotIndex; // last snapshot index over which the claimable rewards were calculated
-        uint16 endCycle; // last cycle over which the claimable rewards were calculated
         uint16 periodsClaimed; // number of claimable periods actually used to calculate the claimable rewards
     }
 
@@ -320,10 +319,10 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
             // nothing is currently staked by the staker
             if (stakerState.stake == 0) {
-                // clear the next claimable cycle and next claimable snapshot
+                // clear the next claimable period and next claimable snapshot
                 // index
                 stakerState.nextClaimableSnapshotIndex = 0;
-                stakerState.nextClaimableCycle = 0;
+                stakerState.nextClaimablePeriod = 0;
             }
 
             stakerStates[msg.sender] = stakerState;
@@ -401,13 +400,13 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             return;
         }
 
-        // update the staker's next claimable cycle and next claimable snapshot
+        // update the staker's next claimable period and next claimable snapshot
         // index, for each call of this function. this should be done even when
         // no rewards to claim were found, to save from reprocessing fruitless
         // periods in subsequent calls
         StakerState memory stakerState = stakerStates[msg.sender];
         stakerState.nextClaimableSnapshotIndex = (result.endSnapshotIndex + 1).toUint128();
-        stakerState.nextClaimableCycle = result.endCycle + 1;
+        stakerState.nextClaimablePeriod += result.periodsClaimed;
         stakerStates[msg.sender] = stakerState;
 
         // no rewards to claim were found across the processed periods
@@ -540,13 +539,14 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint16 claimablePeriods
     ) {
         StakerState memory stakerState = stakerStates[msg.sender];
-        if (stakerState.nextClaimableCycle == 0) {
+
+        if (stakerState.stake == 0) {
             return (0, 0);
         }
-        uint16 periodLengthInCycles_ = periodLengthInCycles;
+
         return (
-            _getPeriod(stakerState.nextClaimableCycle, periodLengthInCycles_),
-            _getClaimablePeriods (msg.sender, periodLengthInCycles_)
+            stakerState.nextClaimablePeriod,
+            _getClaimablePeriods (msg.sender, periodLengthInCycles)
         );
     }
 
@@ -627,12 +627,12 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      */
     function _getClaimablePeriods (address sender, uint16 periodLengthInCycles_) internal view returns (uint16) {
         StakerState memory stakerState = stakerStates[sender];
+
         if (stakerState.stake == 0) {
             return 0;
         }
 
-        uint16 periodToClaim = _getPeriod(stakerState.nextClaimableCycle, periodLengthInCycles_);
-        return _getCurrentPeriod(periodLengthInCycles_) - periodToClaim;
+        return _getCurrentPeriod(periodLengthInCycles_) - stakerState.nextClaimablePeriod;
     }
 
     /**
@@ -671,7 +671,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         }
 
         uint16 periodLengthInCycles_ = periodLengthInCycles;
-        uint16 periodToClaim = _getPeriod(stakerState.nextClaimableCycle, periodLengthInCycles_);
+        uint16 periodToClaim = stakerState.nextClaimablePeriod;
         uint16 currentPeriod = _getCurrentPeriod(periodLengthInCycles_);
         uint256 lastSnapshotIndex = totalSnapshots - 1;
         uint16 lastSnapshotPeriod = snapshots[lastSnapshotIndex].period;
@@ -774,7 +774,6 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         }
 
         result.endSnapshotIndex = snapshotIndex;
-        result.endCycle = snapshot.endCycle;
 
         return result;
     }
@@ -862,10 +861,10 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
         if (stakerState.stake == 0) {
             // nothing is currently staked by the staker so reset/initialize
-            // the next claimable cycle and next claimable snapshot index to
+            // the next claimable period and next claimable snapshot index to
             // the current cycle for claimable period tracking
             stakerState.nextClaimableSnapshotIndex = snapshotIndex.toUint128();
-            stakerState.nextClaimableCycle = currentCycle;
+            stakerState.nextClaimablePeriod = snapshot.period;
         }
 
         // increase the staker's stake

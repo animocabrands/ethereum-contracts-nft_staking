@@ -397,6 +397,7 @@ describe.only('NftStaking', function () {
 
     function shouldClaimRewards(from, periodsToClaim, start, end, amount) {
         it(`should have claimed ${amount.toString()} tokens in ${periodsToClaim} periods from snapshots [${start}, ${end}] by ${from}`, async function () {
+            const periodsToClaimBN = new BN(periodsToClaim);
             const snapshotStartIndexBN = new BN(start);
             const snapshotEndIndexBN = new BN(end);
             const amountBN = new BN(amount);
@@ -407,6 +408,7 @@ describe.only('NftStaking', function () {
 
             const estimate = await this.stakingContract.estimateRewards(periodsToClaim, { from: from });
             estimate.claimableRewards.should.be.bignumber.equal(amountBN);
+            estimate.claimablePeriods.should.be.bignumber.at.most(periodsToClaimBN);
 
             const receipt = await this.stakingContract.claimRewards(periodsToClaim, { from: from });
 
@@ -419,8 +421,7 @@ describe.only('NftStaking', function () {
 
             stakerBalanceAfter.sub(stakerBalanceBefore).should.be.bignumber.equal(amountBN);
             contractBalanceBefore.sub(contractBalanceAfter).should.be.bignumber.equal(amountBN);
-            stakerStateBefore.nextClaimableCycle.should.be.bignumber.equal(startSnapshot.startCycle);
-            stakerStateAfter.nextClaimableCycle.should.be.bignumber.equal(endSnapshot.endCycle.addn(1));
+            stakerStateBefore.nextClaimablePeriod.add(estimate.claimablePeriods).should.be.bignumber.equal(stakerStateAfter.nextClaimablePeriod);
 
             await expectEvent.inTransaction(
                 receipt.tx,
@@ -435,7 +436,7 @@ describe.only('NftStaking', function () {
         });
     }
 
-    function shouldNotClaimRewards(from, periodsToClaim, nextClaimableCycle) {
+    function shouldNotClaimRewards(from, periodsToClaim, nextClaimablePeriod) {
         it(`should not have claimed tokens in ${periodsToClaim} periods by ${from}`, async function () {
             const stakerBalanceBefore = await this.rewardsToken.balanceOf(from);
             const contractBalanceBefore = await this.rewardsToken.balanceOf(this.stakingContract.address);
@@ -452,7 +453,7 @@ describe.only('NftStaking', function () {
             // it's possible to not claim any rewards but still have the next
             // claimable cycle advance. this happens when there is no reward
             // schedule defined for a claimed period
-            stakerStateAfter.nextClaimableCycle.toNumber().should.be.equal(nextClaimableCycle);
+            stakerStateAfter.nextClaimablePeriod.toNumber().should.be.equal(nextClaimablePeriod);
 
             await expectEvent.not.inTransaction(
                 receipt.tx,
@@ -647,7 +648,7 @@ describe.only('NftStaking', function () {
                                     });
 
                                     describe('when claiming the remaining 2 periods', function () {
-                                        shouldNotClaimRewards(staker, 2, 71);
+                                        shouldNotClaimRewards(staker, 2, 11);
                                         shouldHaveStakerState({ nextClaimableCycle: 71, stake: 0 });
 
                                         describe('when unstaking a Common NFT', function () {

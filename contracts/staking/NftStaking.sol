@@ -467,13 +467,10 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint256 snapshotIndex = totalSnapshots - 1;
 
         // get the latest snapshot
-        Snapshot storage writeSnapshot = snapshots[snapshotIndex];
-
-        // in-memory copy of the latest snapshot for reads, to save gas
-        Snapshot memory readSnapshot = writeSnapshot;
+        Snapshot memory snapshot = snapshots[snapshotIndex];
 
         // latest snapshot ends on the current cycle
-        if (readSnapshot.endCycle == currentCycle) {
+        if (snapshot.endCycle == currentCycle) {
             // nothing to do
             return;
         }
@@ -481,23 +478,23 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         // determine the assignment based on whether or not the latest snapshot
         // is in the current period
         uint64 snapshotPeriodEndCycle =
-            readSnapshot.period == currentPeriod ?
+            snapshot.period == currentPeriod ?
                 currentCycle :
-                SafeMath.mul(readSnapshot.period, periodLengthInCycles_).toUint64();
+                SafeMath.mul(snapshot.period, periodLengthInCycles_).toUint64();
 
         // extend the latest snapshot to cover all of the missing cycles for its
         // period
-        writeSnapshot.endCycle = snapshotPeriodEndCycle;
-        readSnapshot.endCycle = snapshotPeriodEndCycle;
+        snapshots[snapshotIndex].endCycle = snapshotPeriodEndCycle;
+        snapshot.endCycle = snapshotPeriodEndCycle;
 
         emit SnapshotUpdated(
                 snapshotIndex,
-                readSnapshot.startCycle,
-                readSnapshot.endCycle,
-                readSnapshot.stake);
+                snapshot.startCycle,
+                snapshot.endCycle,
+                snapshot.stake);
 
         // latest snapshot was for the current period
-        if (readSnapshot.period == currentPeriod) {
+        if (snapshot.period == currentPeriod) {
             // we are done
             return;
         }
@@ -508,7 +505,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         bool hasAddNewSnapshotLimit = maxSnapshotsToAdd != 0;
 
         // while there are unaccounted-for periods...
-        while (readSnapshot.period < previousPeriod) {
+        while (snapshot.period < previousPeriod) {
             // maximum snapshots to add has been reached
             if (hasAddNewSnapshotLimit && (--maxSnapshotsToAdd == 0)) {
                 // break out of loop to add the last snapshot for the current period
@@ -518,22 +515,20 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             // create an interstitial snapshot that spans the unaccounted-for
             // period, initialized with the staked weight of the previous
             // snapshot
-            (writeSnapshot, snapshotIndex) = _addNewSnapshot(
-                SafeMath.add(readSnapshot.period, 1).toUint32(),
-                SafeMath.add(readSnapshot.endCycle, 1).toUint64(),
-                SafeMath.add(readSnapshot.endCycle, periodLengthInCycles_).toUint64(),
-                readSnapshot.stake);
-
-            readSnapshot = writeSnapshot;
+            (snapshot, snapshotIndex) = _addNewSnapshot(
+                SafeMath.add(snapshot.period, 1).toUint32(),
+                SafeMath.add(snapshot.endCycle, 1).toUint64(),
+                SafeMath.add(snapshot.endCycle, periodLengthInCycles_).toUint64(),
+                snapshot.stake);
         }
 
         // create the new latest snapshot for the current period and cycle,
         // initialized with the staked weight from the previous snapshot
         _addNewSnapshot(
-            SafeMath.add(readSnapshot.period, 1).toUint32(),
-            SafeMath.add(readSnapshot.endCycle, 1).toUint64(),
+            SafeMath.add(snapshot.period, 1).toUint32(),
+            SafeMath.add(snapshot.endCycle, 1).toUint64(),
             currentCycle,
-            readSnapshot.stake);
+            snapshot.stake);
     }
 
     /**

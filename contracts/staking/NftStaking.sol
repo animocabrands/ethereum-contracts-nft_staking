@@ -64,7 +64,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     // used to track a staker's aggregate staking state
     struct StakerState {
-        uint16 nextClaimableCycle; // the next cycle which the staker can begin to claim rewards
+        uint128 nextClaimableSnapshotIndex;
+        uint16 nextClaimableCycle;
         uint64 stake; // total stake of all NFTs staked by the staker
     }
 
@@ -76,10 +77,12 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     // used as a container to hold result values from calculating claimable rewards
+    // to be used in memory only, not optimised for storage
     struct CalculateRewardsResult {
         uint256 totalRewardsToClaim; // amount of claimable rewards calculated
-        uint256 startSnapshotIndex; // starting snapshot index (inclusive) over which the claimable rewards were calculated
-        uint256 endSnapshotIndex; // ending snapshot index (inclusive) over which the claimable rewards were calculated
+        uint256 startSnapshotIndex; // first snapshot index over which the claimable rewards were calculated
+        uint256 endSnapshotIndex; // last snapshot index over which the claimable rewards were calculated
+        uint256 endCycle; // last cycle over which the claimable rewards were calculated
         uint16 periodsClaimed; // number of claimable periods actually used to calculate the claimable rewards
     }
 
@@ -318,6 +321,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             // nothing is currently staked by the staker
             if (stakerState.stake == 0) {
                 // clear the next claimable cycle
+                stakerState.nextClaimableSnapshotIndex = 0;
                 stakerState.nextClaimableCycle = 0;
             }
 
@@ -400,7 +404,10 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         // function. this should be done even when no rewards to claim were
         // found, to save from reprocessing fruitless periods in subsequent
         // calls
-        stakerStates[msg.sender].nextClaimableCycle = snapshots[SafeMath.add(result.endSnapshotIndex, 1)].startCycle;
+        StakerState memory stakerState = stakerStates[msg.sender];
+        stakerState.nextClaimableSnapshotIndex = (result.endSnapshotIndex + 1).toUint128();
+        stakerState.nextClaimableCycle = (result.endCycle + 1).toUint16();
+        stakerStates[msg.sender] = stakerState;
 
         // no rewards to claim were found across the processed periods
         if (result.totalRewardsToClaim == 0) {
@@ -678,7 +685,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint256 rewardPerCycle = rewardSchedule[periodToClaim];
         uint16 periodToClaimEndCycle = SafeMath.mul(periodToClaim, periodLengthInCycles_).toUint16();
 
-        (Snapshot memory snapshot, uint256 snapshotIndex) = _findSnapshot(stakerState.nextClaimableCycle);
+        uint128 snapshotIndex = stakerState.nextClaimableSnapshotIndex;
+        Snapshot memory snapshot = snapshots[snapshotIndex];
 
         // for a claim estimate, the last snapshot period is not the current
         // period and does not align with the end of its period
@@ -766,6 +774,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         }
 
         result.endSnapshotIndex = snapshotIndex;
+        result.endCycle = snapshot.endCycle;
 
         return result;
     }
@@ -863,51 +872,6 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         stakerStates[tokenOwner] = stakerState;
 
         emit NftStaked(tokenOwner, tokenId, currentCycle);
-    }
-
-    /**
-     * Searches for the reward snapshot containing the specified cycle.
-     * @dev If the snapshot cannot be found, then the closest snapshot by cycle range is returned.
-     * @param cycle The cycle for which the reward snapshot is searched for.
-     * @return snapshot If found, the snapshot containing the specified cycle, otherwise the closest snapshot to the cycle.
-     * @return snapshotIndex The index (index-0 based) of the returned snapshot.
-     */
-    function _findSnapshot(uint64 cycle)
-    internal
-    view
-    returns (Snapshot memory snapshot, uint256 snapshotIndex)
-    {
-        uint256 low = 0;
-        uint256 high = snapshots.length - 1;
-        uint256 mid = 0;
-
-        while (low <= high) {
-            // overflow protected midpoint calculation
-            mid = low.add((high - low) / 2);
-
-            snapshot = snapshots[mid];
-
-            if (snapshot.startCycle > cycle) {
-                if (mid == 0) {
-                    break;
-                }
-
-                // outside by left side of the range
-                high = mid - 1;
-            } else if (snapshot.endCycle < cycle) {
-                if (mid == type(uint256).max) {
-                    break;
-                }
-
-                // outside by right side of the range
-                low = mid + 1;
-            } else {
-                break;
-            }
-        }
-
-        // return snapshot with cycle within range or closest possible to it
-        return (snapshot, mid);
     }
 
     /**

@@ -42,26 +42,6 @@ abstract contract NftStakingTestable is NftStaking {
         );
     }
 
-    function getSnapshot(uint64 targetCycle)
-    public
-    view
-    returns(
-        uint16 startCycle,
-        uint16 endCycle,
-        uint64 stake,
-        uint256 snapshotIndex
-    )
-    {
-        Snapshot memory snapshot;
-        (snapshot, snapshotIndex) = _findSnapshot(targetCycle);
-        return (
-            snapshot.startCycle,
-            snapshot.endCycle,
-            snapshot.stake,
-            snapshotIndex
-        );
-    }
-
     function totalSnapshots() public view returns(uint256) {
         return snapshots.length;
     }

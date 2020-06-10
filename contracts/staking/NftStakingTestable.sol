@@ -7,9 +7,9 @@ import "./NftStaking.sol";
 abstract contract NftStakingTestable is NftStaking {
 
     constructor(
-        uint256 cycleLengthInSeconds_,
-        uint32 periodLengthInCycles_,
-        uint64 freezeDurationInCycles_,
+        uint32 cycleLengthInSeconds_,
+        uint16 periodLengthInCycles_,
+        uint16 freezeDurationInCycles_,
         address whitelistedNftContract_,
         address rewardsToken_
     ) NftStaking(
@@ -24,9 +24,9 @@ abstract contract NftStakingTestable is NftStaking {
     public
     view
     returns(
-        uint64 startCycle,
-        uint64 endCycle,
-        uint32 stake
+        uint16 startCycle,
+        uint16 endCycle,
+        uint64 stake
     )
     {
         Snapshot memory snapshot;
@@ -46,9 +46,9 @@ abstract contract NftStakingTestable is NftStaking {
     public
     view
     returns(
-        uint64 startCycle,
-        uint64 endCycle,
-        uint32 stake,
+        uint16 startCycle,
+        uint16 endCycle,
+        uint64 stake,
         uint256 snapshotIndex
     )
     {
@@ -67,10 +67,10 @@ abstract contract NftStakingTestable is NftStaking {
     }
 
     function getOrCreateSnapshot() public returns(
-        uint256 period,
-        uint64 startCycle,
-        uint64 endCycle,
-        uint32 stake
+        uint16 period,
+        uint16 startCycle,
+        uint16 endCycle,
+        uint64 stake
     ) {
         ensureSnapshots(0);
         uint256 snapshotIndex = snapshots.length - 1;
@@ -81,13 +81,4 @@ abstract contract NftStakingTestable is NftStaking {
         endCycle = snapshot.endCycle;
         stake = snapshot.stake;
     }
-
-    // function getCurrentPeriod() public view returns(uint32) {
-    //     StakerState memory state = stakerStates[msg.sender];
-    //     if (state.stake == 0) {
-    //         return 0;
-    //     }
-
-    //     return _getPeriod(state.nextClaimableCycle, periodLengthInCycles);
-    // }
 }

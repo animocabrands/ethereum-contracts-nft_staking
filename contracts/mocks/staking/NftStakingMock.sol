@@ -9,9 +9,9 @@ contract NftStakingMock is NftStaking {
     mapping(uint256 => uint32) public valueStakeWeights; // NFT classification (e.g. tier, rarity, category) => weight
 
     constructor(
-        uint256 cycleLengthInSeconds_,
-        uint32 periodLengthInCycles_,
-        uint64 freezeDurationInCycles_,
+        uint32 cycleLengthInSeconds_,
+        uint16 periodLengthInCycles_,
+        uint16 freezeDurationInCycles_,
         address whitelistedNftContract_,
         address rewardsToken_,
         uint256[] memory values,

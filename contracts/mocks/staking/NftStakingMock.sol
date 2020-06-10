@@ -6,7 +6,7 @@ import "../../staking/NftStaking.sol";
 
 contract NftStakingMock is NftStaking {
 
-    mapping(uint256 => uint32) public valueStakeWeights; // NFT classification (e.g. tier, rarity, category) => weight
+    mapping(uint256 => uint64) public valueStakeWeights; // NFT classification (e.g. tier, rarity, category) => weight
 
     constructor(
         uint32 cycleLengthInSeconds_,
@@ -15,7 +15,7 @@ contract NftStakingMock is NftStaking {
         address whitelistedNftContract_,
         address rewardsToken_,
         uint256[] memory values,
-        uint32[] memory valueWeights
+        uint64[] memory valueWeights
     ) NftStaking(
         cycleLengthInSeconds_,
         periodLengthInCycles_,
@@ -29,7 +29,7 @@ contract NftStakingMock is NftStaking {
         }
     }
 
-    function _validateAndGetWeight(uint256 nftId) internal virtual override view returns (uint32) {
+    function _validateAndGetWeight(uint256 nftId) internal virtual override view returns (uint64) {
         uint256 tokenType = (nftId & (0xFF << 240)) >> 240;
         require(tokenType == 1, "NftStakingMock: Wrong NFT type");
         uint256 value = (nftId & (0xFF << 176)) >> 176;

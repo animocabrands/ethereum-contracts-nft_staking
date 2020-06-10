@@ -136,8 +136,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         address whitelistedNftContract_,
         address rewardsToken_
     ) internal {
-        require(periodLengthInCycles_ != 0, "NftStaking: Period length must not be zero");
-        require(cycleLengthInSeconds_ != 0, "NftStaking: Cycle length must not be zero");
+        require(cycleLengthInSeconds_ >= 1 minutes, "NftStaking: Cycles must be a least one minute");
+        require(periodLengthInCycles_ >= 2, "NftStaking: Periods must at least 2 cycles long");
 
         cycleLengthInSeconds = cycleLengthInSeconds_;
         periodLengthInCycles = periodLengthInCycles_;

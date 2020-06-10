@@ -518,7 +518,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             (snapshot, snapshotIndex) = _addNewSnapshot(
                 snapshot.period + 1,
                 snapshot.endCycle + 1,
-                SafeMath.add(snapshot.endCycle, periodLengthInCycles_).toUint64(),
+                snapshot.endCycle + periodLengthInCycles_,
                 snapshot.stake);
         }
 

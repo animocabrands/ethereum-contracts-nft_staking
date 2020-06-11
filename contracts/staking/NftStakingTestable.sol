@@ -9,13 +9,13 @@ abstract contract NftStakingTestable is NftStaking {
     constructor(
         uint32 cycleLengthInSeconds_,
         uint16 periodLengthInCycles_,
-        uint16 freezeDurationInCycles_,
+        uint16 freezeLengthInCycles_,
         address whitelistedNftContract_,
         address rewardsToken_
     ) NftStaking(
         cycleLengthInSeconds_,
         periodLengthInCycles_,
-        freezeDurationInCycles_,
+        freezeLengthInCycles_,
         whitelistedNftContract_,
         rewardsToken_
     ) public {}
@@ -38,7 +38,7 @@ abstract contract NftStakingTestable is NftStaking {
         return (
             snapshot.startCycle,
             snapshot.endCycle,
-            snapshot.stake
+            snapshot.totalStake
         );
     }
 
@@ -59,6 +59,6 @@ abstract contract NftStakingTestable is NftStaking {
         period = snapshot.period;
         startCycle = snapshot.startCycle;
         endCycle = snapshot.endCycle;
-        stake = snapshot.stake;
+        stake = snapshot.totalStake;
     }
 }

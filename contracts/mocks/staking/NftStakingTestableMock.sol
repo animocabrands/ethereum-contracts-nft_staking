@@ -11,7 +11,7 @@ contract NftStakingTestableMock is NftStakingTestable {
     constructor(
         uint32 cycleLengthInSeconds_,
         uint16 periodLengthInCycles_,
-        uint16 freezeDurationInCycles_,
+        uint16 freezeLengthInCycles_,
         address whitelistedNftContract_,
         address rewardsToken_,
         uint256[] memory values,
@@ -20,7 +20,7 @@ contract NftStakingTestableMock is NftStakingTestable {
     NftStakingTestable(
         cycleLengthInSeconds_,
         periodLengthInCycles_,
-        freezeDurationInCycles_,
+        freezeLengthInCycles_,
         whitelistedNftContract_,
         rewardsToken_
     ) public {

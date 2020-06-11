@@ -17,72 +17,71 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     uint40 internal constant _DIVS_PRECISION = 10 ** 10; // used to preserve significant figures in floating point calculations
 
-    // emitted when a reward schedule for a range of periods is set
     event RewardSet(
-        uint256 startPeriod, // starting period (inclusive) for the reward schedule
-        uint256 endPeriod, // ending period (inclusive ) for the reward schedule
-        uint256 rewardPerCycle // amount of rewards allocated per-cycle over the reward schedule
+        uint256 startPeriod,
+        uint256 endPeriod,
+        uint256 rewardPerCycle
     );
 
-    // emitted when an NFT is staked
     event NftStaked(
-        address staker, // wallet address of the staker staking the NFT
-        uint256 tokenId, // identifier for the NFT that was staked
-        uint256 cycle // the cycle in which the NFT was staked
+        address staker,
+        uint256 tokenId,
+        uint256 cycle
     );
 
-    // emitted when and NFT is unstaked
     event NftUnstaked(
-        address staker, // wallet address of the staker unstaking the NFT
-        uint256 tokenId, // identifier for the NFT that was unstaked
-        uint256 cycle // the cycle in which the NFT was unstaked
+        address staker,
+        uint256 tokenId,
+        uint256 cycle
     );
 
-    // emitted when rewards are claimed by a staker
     event RewardsClaimed(
-        address staker, // wallet address of the staker claiming the rewards
-        uint256 snapshotStartIndex, // starting snapshot index (inclusive) over which the rewards are claimed
-        uint256 snapshotEndIndex, // ending snapshot index (inclusive) over which the rewards are claimed
-        uint256 amount // amount of rewards claimed
+        address staker,
+        uint256 snapshotStartIndex,
+        uint256 snapshotEndIndex,
+        uint256 amount
     );
 
-    // emitted when a snapshot is created or updated
     event SnapshotUpdated(
-        uint256 index, // index (index-0 based) of the snapshot in the history list
-        uint256 startCycle, // starting cycle (inclusive) of the snapshot range
-        uint256 endCycle, // ending cycle (inclusive) of the snapshot range
-        uint256 stake // total stake of all NFTs staked in the snapshot
+        uint256 index,
+        uint256 startCycle,
+        uint256 endCycle,
+        uint256 stake
     );
 
-    // used to track aggregate changes in stake over time
+    // used to track the history of changes in the total staked amount
+    // by ranges of cycles. The range cannot extend over several periods.
+    // optimised for usage in storage
     struct Snapshot {
-        uint16 period; // the period in which the snapshot is contained within
-        uint16 startCycle; // starting cycle (inclusive) of the snapshot range
-        uint16 endCycle; // ending cycle (inclusive) of the snapshot range
-        uint64 stake; // total stake of all NFTs staked in the snapshot
+        uint16 period; // the period in which the snapshot is contained
+        uint16 startCycle; // MUST be inside the period
+        uint16 endCycle; // MUST be inside the period
+        uint64 stake;
     }
 
-    // used to track a staker's aggregate staking state
+    // used to track the latest data about a staker.
+    // optimised for usage in storage
     struct StakerState {
-        uint128 nextClaimableSnapshotIndex; // the index of the next snapshot from which the staker can claim rewards from
-        uint16 nextClaimablePeriod; // the next period from which the staker can claim rewards from
-        uint64 stake; // total stake of all NFTs staked by the staker
+        uint128 nextClaimableSnapshotIndex;
+        uint16 nextClaimablePeriod;
+        uint64 stake;
     }
 
     // used to track an NFTs staking state
+    // optimised for usage in storage
     struct TokenInfo {
-        address owner; // wallet address of the original owner of the NFT
-        uint16 depositCycle; // cycle in which the NFT was staked
-        uint64 stake; // NFT stake weight
+        address owner;
+        uint16 depositCycle;
+        uint64 stake;
     }
 
     // used as a container to hold result values from calculating claimable rewards
     // to be used in memory only, not optimised for storage
     struct CalculateRewardsResult {
-        uint256 totalRewardsToClaim; // amount of claimable rewards calculated
-        uint256 startSnapshotIndex; // first snapshot index over which the claimable rewards were calculated
-        uint256 endSnapshotIndex; // last snapshot index over which the claimable rewards were calculated
-        uint16 periodsClaimed; // number of claimable periods actually used to calculate the claimable rewards
+        uint256 claimableRewards;
+        uint256 startSnapshotIndex;
+        uint256 endSnapshotIndex;
+        uint16 computedPeriods;
     }
 
     uint256 public startTimestamp = 0; // starting timestamp of the staking schedule, in seconds since epoch
@@ -90,12 +89,13 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     bool public disabled = false; // flags whether or not the contract is disabled
 
-    address public immutable whitelistedNftContract; // ERC1155-based contract to be whitelisted for performing transfer operations of NFTs for staking/unstaking.
-    address public immutable rewardsToken; // ERC20-based token used as staking rewards
+    address public immutable whitelistedNftContract; // ERC1155-compliant NFT contract from which staking is accepted.
+    address public immutable rewardsToken; // ERC20-compliant contract used as staking rewards
 
-    uint16 public immutable periodLengthInCycles; // the length of a claimable reward period, in cycles
-    uint16 public immutable freezeDurationInCycles; // duration for which a newly staked NFT is locked before it can be unstaked, in cycles
-    uint32 public immutable cycleLengthInSeconds; // the length of a cycle, in seconds
+    uint32 public immutable cycleLengthInSeconds;
+    uint16 public immutable periodLengthInCycles;
+
+    uint16 public immutable freezeDurationInCycles; // duration for which a newly staked NFT is locked before it can be unstaked
 
     mapping(address => StakerState) public stakerStates; // staker => StakerState
     mapping(uint256 => TokenInfo) public tokensInfo; // tokenId => TokenInfo
@@ -103,6 +103,9 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     Snapshot[] public snapshots; // history of total stake by ranges of cycles within a single period
 
+    // This modifier MUST be applied on any function which modifies a staker's stake
+    // For optimisation purpose, rewards are calculated with the assumption that the
+    // current staker's stake is up to date and didn't change since the last claim
     modifier rewardsClaimed(address sender) {
         require(_getClaimablePeriods(sender, periodLengthInCycles) == 0, "NftStaking: Rewards are not claimed");
         _;
@@ -369,8 +372,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         CalculateRewardsResult memory result =
             _calculateRewards(msg.sender, periodsToClaim, true);
 
-        claimableRewards = result.totalRewardsToClaim;
-        claimablePeriods = result.periodsClaimed;
+        claimableRewards = result.claimableRewards;
+        claimablePeriods = result.computedPeriods;
     }
 
     /**
@@ -396,7 +399,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         // no periods were actually processed when calculating the rewards to
         // claim (i.e. no net changes were made to the current state since
         // before _calculateRewards() was called)
-        if (result.periodsClaimed == 0) {
+        if (result.computedPeriods == 0) {
             return;
         }
 
@@ -406,23 +409,23 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         // periods in subsequent calls
         StakerState memory stakerState = stakerStates[msg.sender];
         stakerState.nextClaimableSnapshotIndex = (result.endSnapshotIndex + 1).toUint128();
-        stakerState.nextClaimablePeriod += result.periodsClaimed;
+        stakerState.nextClaimablePeriod += result.computedPeriods;
         stakerStates[msg.sender] = stakerState;
 
         // no rewards to claim were found across the processed periods
-        if (result.totalRewardsToClaim == 0) {
+        if (result.claimableRewards == 0) {
             return;
         }
 
         require(
-            IERC20(rewardsToken).transfer(msg.sender, result.totalRewardsToClaim),
+            IERC20(rewardsToken).transfer(msg.sender, result.claimableRewards),
             "NftStaking: Failed to transfer claimed rewards");
 
         emit RewardsClaimed(
             msg.sender,
             result.startSnapshotIndex,
             result.endSnapshotIndex,
-            result.totalRewardsToClaim);
+            result.claimableRewards);
     }
 
     /**
@@ -723,19 +726,19 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                 rewardsToClaim /= _DIVS_PRECISION;
 
                 // update the total rewards to claim
-                result.totalRewardsToClaim = result.totalRewardsToClaim.add(rewardsToClaim);
+                result.claimableRewards = result.claimableRewards.add(rewardsToClaim);
             }
 
             // snapshot is the last one in the period to claim
             if (snapshot.endCycle == periodToClaimEndCycle) {
                 ++periodToClaim;
-                ++result.periodsClaimed;
+                ++result.computedPeriods;
 
                 // the specified maximum number of periods to claim is reached,
                 // or the last processable period is reached (the current period
                 // for a claim estimate, or the last snapshot period for an
                 // actual claim)
-                if ((periodsToClaim == result.periodsClaimed) ||
+                if ((periodsToClaim == result.computedPeriods) ||
                     (estimate && (periodToClaim  == currentPeriod)) ||
                     (!estimate && (periodToClaim == lastSnapshotPeriod))) {
                     break;

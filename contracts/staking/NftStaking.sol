@@ -90,7 +90,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     bool public disabled = false; // flags whether or not the contract is disabled
 
-    address public immutable whitelistedNftContract; // contract that has been whitelisted to be able to perform transfer operations of staked NFTs
+    address public immutable whitelistedNftContract; // ERC1155-based contract to be whitelisted for performing transfer operations of NFTs for staking/unstaking.
     address public immutable rewardsToken; // ERC20-based token used as staking rewards
 
     uint16 public immutable periodLengthInCycles; // the length of a claimable reward period, in cycles
@@ -125,8 +125,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @param cycleLengthInSeconds_ Length of a cycle, in seconds.
      * @param periodLengthInCycles_ Length of a period, in cycles.
      * @param freezeDurationInCycles_ Initial number of cycles during which a newly staked NFT is locked for before it can be unstaked.
-     * @param whitelistedNftContract_ Contract that has been whitelisted to be able to perform transfer operations of staked NFTs.
-     * @param rewardsToken_ The ERC20-based token used in reward rewards.
+     * @param whitelistedNftContract_ ERC1155-based contract to be whitelisted for performing transfer operations of NFTs for staking/unstaking.
+     * @param rewardsToken_ ERC20-based token used as staking rewards.
      */
     constructor(
         uint32 cycleLengthInSeconds_,

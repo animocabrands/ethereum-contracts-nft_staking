@@ -41,8 +41,8 @@ import "@animoca/ethereum-contracts-nft_staking/contracts/staking/NftStaking.sol
 
 Your contract's constructor will need to provide the following arguments to the `NftStaking` parent contract constructor:
 
-- `cycleLengthInSeconds_` - Length of a cycle, in seconds.
-- `periodLengthInCycles_` - Length of a period, in cycles.
+- `cycleLengthInSeconds_` - Length of a cycle, in seconds (must be >= 1 minute).
+- `periodLengthInCycles_` - Length of a period, in cycles (must be >= 2 cycles).
 - `freezeDurationInCycles_` - Initial number of cycles during which a newly staked NFT is locked before it can be unstaked.
 - `whitelistedNftContract_` - ERC1155-based contract to be whitelisted for performing transfer operations of NFTs for staking/unstaking.
 - `rewardsToken_` - ERC20-based token used as staking rewards.
@@ -59,7 +59,7 @@ Please see the mock contracts used for the tests in `contracts/mocks/staking/` f
 
 _Staking_ is the mechanism by-which an NFT is transferred to the `NftStaking` staking contract, to be held for a period of time, in exchange for a claimable ERC20-based token payout (rewards). While staked, the staking contract maintains ownership of the NFT on behalf of the original owner until such time as that owner decides to withdraw, or _unstake_, the NFT from the staking contract. The unstaked NFT is then transferred back to the original owner.
 
-Upon the initial stake of an NFT to the staking contract, the NFT will be "frozen" for a fixed duration (as specified by the `freezeDurationInCycles_` constructor argument) before being allowed to be unstaked from the staking contract. The minimum freeze duration is defined as two (2) cycles.
+Upon the initial stake of an NFT to the staking contract, the NFT will be "frozen" for a fixed duration (as specified by the `freezeDurationInCycles_` constructor argument) before being allowed to be unstaked from the staking contract.
 
 Before any staker can stake or unstake their NFTs from the staking contract, all outstanding claimable rewards must first be claimed.
 

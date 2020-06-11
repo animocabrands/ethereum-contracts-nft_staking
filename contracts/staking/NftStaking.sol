@@ -598,11 +598,11 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         return (((timestamp - startTimestamp) / uint256(cycleLengthInSeconds)) + 1).toUint16();
     }
 
-     /**
-      * Retrieves the current period (index-1 based).
-      * @param periodLengthInCycles_ Length of a period, in cycles.
-      * @return The current period (index-1 based).
-      */
+    /**
+     * Retrieves the current period (index-1 based).
+     * @param periodLengthInCycles_ Length of a period, in cycles.
+     * @return The current period (index-1 based).
+     */
     function _getCurrentPeriod(uint16 periodLengthInCycles_) internal view returns (uint16) {
         return _getPeriod(_getCycle(now), periodLengthInCycles_);
     }

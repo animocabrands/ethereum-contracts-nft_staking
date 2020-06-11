@@ -92,17 +92,17 @@ describe.only('NftStaking', function () {
             });
 
             it('should have assigned a weight of 1 for Common cars', async function () {
-                const weight = await this.stakingContract.valueStakeWeights(TokenHelper.Rarity.Common);
+                const weight = await this.stakingContract.weightByTokenAttribute(TokenHelper.Rarity.Common);
                 weight.should.be.bignumber.equal(new BN(1));
             });
 
             it('should have assigned a weight of 10 for Epic cars', async function () {
-                const weight = await this.stakingContract.valueStakeWeights(TokenHelper.Rarity.Epic);
+                const weight = await this.stakingContract.weightByTokenAttribute(TokenHelper.Rarity.Epic);
                 weight.should.be.bignumber.equal(new BN(10));
             });
 
             it('should have assigned a weight of 100 for Apex cars', async function () {
-                const weight = await this.stakingContract.valueStakeWeights(TokenHelper.Rarity.Apex);
+                const weight = await this.stakingContract.weightByTokenAttribute(TokenHelper.Rarity.Apex);
                 weight.should.be.bignumber.equal(new BN(100));
             });
         });
@@ -450,7 +450,7 @@ describe.only('NftStaking', function () {
             stakerBalanceBefore.should.be.bignumber.equal(stakerBalanceAfter);
             contractBalanceBefore.should.be.bignumber.equal(contractBalanceAfter);
 
-            // it's possible to not claim any rewards but still have the next
+            // it's possible not to claim any rewards but still have the next
             // claimable cycle advance. this happens when there is no reward
             // schedule defined for a claimed period
             stakerStateAfter.nextClaimablePeriod.toNumber().should.be.equal(nextClaimablePeriod);

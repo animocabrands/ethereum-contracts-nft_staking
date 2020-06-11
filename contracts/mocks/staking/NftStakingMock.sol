@@ -6,7 +6,7 @@ import "../../staking/NftStaking.sol";
 
 contract NftStakingMock is NftStaking {
 
-    mapping(uint256 => uint64) public valueStakeWeights; // NFT classification (e.g. tier, rarity, category) => weight
+    mapping(uint256 => uint64) public weightByTokenAttribute;
 
     constructor(
         uint32 cycleLengthInSeconds_,
@@ -14,8 +14,8 @@ contract NftStakingMock is NftStaking {
         uint16 freezeLengthInCycles_,
         address whitelistedNftContract_,
         address rewardsToken_,
-        uint256[] memory values,
-        uint64[] memory valueWeights
+        uint256[] memory tokenAttribute,
+        uint64[] memory weights
     ) NftStaking(
         cycleLengthInSeconds_,
         periodLengthInCycles_,
@@ -23,16 +23,16 @@ contract NftStakingMock is NftStaking {
         whitelistedNftContract_,
         rewardsToken_
     ) public {
-        require(values.length == valueWeights.length, "NftStakingMock: Mismatch in value/weight array argument lengths");
-        for (uint256 i = 0; i < values.length; ++i) {
-            valueStakeWeights[values[i]] = valueWeights[i];
+        require(tokenAttribute.length == weights.length, "NftStakingMock: inconsistent array lenghts");
+        for (uint256 i = 0; i < tokenAttribute.length; ++i) {
+            weightByTokenAttribute[tokenAttribute[i]] = weights[i];
         }
     }
 
     function _validateAndGetWeight(uint256 nftId) internal virtual override view returns (uint64) {
         uint256 tokenType = (nftId & (0xFF << 240)) >> 240;
         require(tokenType == 1, "NftStakingMock: Wrong NFT type");
-        uint256 value = (nftId & (0xFF << 176)) >> 176;
-        return valueStakeWeights[value];
+        uint256 attributeValue = (nftId & (0xFF << 176)) >> 176;
+        return weightByTokenAttribute[attributeValue];
     }
 }

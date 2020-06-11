@@ -449,6 +449,16 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
+     * Retrieves the last snapshot index, if any.
+     * @return The last snapshot index, or throws if there are no snapshots.
+     */
+    function lastSnapshotIndex() external view returns (uint256) {
+        uint256 length = snapshots.length;
+        require(length > 0, "NftStaking: no snapshots yet");
+        return length - 1;
+    }
+
+    /**
      * Ensures that the snapshot history is up-to-date to the current cycle.
      * @dev If the latest snapshot is related to a past period, it creates a snapshot for each missing
      * period and one for the current period (if needed).
@@ -633,8 +643,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint16 periodLengthInCycles_ = periodLengthInCycles;
         uint16 periodToClaim = stakerState.nextClaimablePeriod;
         uint16 currentPeriod = _getCurrentPeriod(periodLengthInCycles_);
-        uint256 lastSnapshotIndex = totalSnapshots - 1;
-        uint16 lastSnapshotPeriod = snapshots[lastSnapshotIndex].period;
+        uint256 lastSnapshotIndex_ = totalSnapshots - 1;
+        uint16 lastSnapshotPeriod = snapshots[lastSnapshotIndex_].period;
 
         // the current period has been reached (claim estimate), or the last
         // snapshot period has been reached (actual claim)
@@ -652,7 +662,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         // for a claim estimate, the last snapshot period is not the current
         // period and does not align with the end of its period
         if (estimate &&
-            (snapshotIndex == lastSnapshotIndex) &&
+            (snapshotIndex == lastSnapshotIndex_) &&
             (snapshot.period != currentPeriod) &&
             (snapshot.endCycle != periodToClaimEndCycle)) {
             // extend the last snapshot cycle range to align with the end of its
@@ -711,14 +721,14 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             // properties (excluding cycle range bounds) as the last snapshot,
             // for any subsequent periods to claim that do not have any
             // snapshots
-            if (snapshotIndex < lastSnapshotIndex) {
+            if (snapshotIndex < lastSnapshotIndex_) {
                 // advance the snapshot for the next loop iteration
                 ++snapshotIndex;
                 snapshot = snapshots[snapshotIndex];
             }
 
             // for a claim estimate, the last snapshot has been reached
-            if (estimate && (snapshotIndex == lastSnapshotIndex)) {
+            if (estimate && (snapshotIndex == lastSnapshotIndex_)) {
                 if (periodToClaim == lastSnapshotPeriod) {
                     // process the last snapshot
 

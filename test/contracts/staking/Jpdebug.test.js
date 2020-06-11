@@ -218,7 +218,7 @@ describe.only('NftStaking', function () {
         cycleGraph += `  (cycle: ${cycle})`;
         console.log(cycleGraph);
 
-        const totalSnapshots = await this.stakingContract.totalSnapshots();
+        const totalSnapshots = (await this.stakingContract.lastSnapshotIndex()).add(new BN('1'));
 
         const snapshots = [];
         for (let index = 0; index < totalSnapshots; index++) {
@@ -292,7 +292,7 @@ describe.only('NftStaking', function () {
             let snapshotIndex;
 
             if (index < 0) {
-                const totalSnapshots = await this.stakingContract.totalSnapshots();
+                const totalSnapshots = (await this.stakingContract.lastSnapshotIndex()).add(new BN('1'));
                 snapshotIndex = totalSnapshots.subn(1);
             } else {
                 snapshotIndex = new BN(snapshotIndex);
@@ -341,8 +341,15 @@ describe.only('NftStaking', function () {
 
     function shouldHaveNumberOfSnapshots(count) {
         it(`should have snapshot count: ${count}`, async function () {
-            const totalSnapshots = await this.stakingContract.totalSnapshots();
-            totalSnapshots.toNumber().should.equal(count);
+            if (count == 0) {
+                await expectRevert(
+                    this.stakingContract.lastSnapshotIndex(),
+                    "NftStaking: no snapshots yet"
+                );
+            } else {
+                const totalSnapshots = (await this.stakingContract.lastSnapshotIndex()).add(new BN('1'));
+                totalSnapshots.toNumber().should.equal(count);
+            }
         });
     }
 

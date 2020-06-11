@@ -46,7 +46,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint256 index,
         uint256 startCycle,
         uint256 endCycle,
-        uint256 stake
+        uint256 totalStake
     );
 
     // used to track the history of changes in the total staked amount
@@ -137,8 +137,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         address whitelistedNftContract_,
         address rewardsToken_
     ) internal {
-        require(cycleLengthInSeconds_ >= 1 minutes, "NftStaking: Cycles must be a least one minute");
-        require(periodLengthInCycles_ >= 2, "NftStaking: Periods must at least 2 cycles long");
+        require(cycleLengthInSeconds_ >= 1 minutes, "NftStaking: Cycles must be at least one minute");
+        require(periodLengthInCycles_ >= 2, "NftStaking: Periods must be at least 2 cycles long");
 
         cycleLengthInSeconds = cycleLengthInSeconds_;
         periodLengthInCycles = periodLengthInCycles_;

@@ -9,52 +9,49 @@ abstract contract NftStakingTestable is NftStaking {
     constructor(
         uint32 cycleLengthInSeconds_,
         uint16 periodLengthInCycles_,
-        uint16 freezeLengthInCycles_,
         address whitelistedNftContract_,
         address rewardsToken_
     ) NftStaking(
         cycleLengthInSeconds_,
         periodLengthInCycles_,
-        freezeLengthInCycles_,
         whitelistedNftContract_,
         rewardsToken_
     ) public {}
 
-    function getLatestSnapshot()
+    function getLatestGlobalSnapshot()
     public
     view
     returns(
-        uint16 startCycle,
-        uint16 endCycle,
-        uint64 stake
+        uint128 startCycle,
+        uint128 stake
     )
     {
-        Snapshot memory snapshot;
+        Snapshot memory globalSnapshot;
 
-        if (snapshots.length != 0) {
-            snapshot = snapshots[snapshots.length - 1];
+        if (globalHistory.length != 0) {
+            globalSnapshot = globalHistory[globalHistory.length - 1];
         }
 
-        return (
-            snapshot.startCycle,
-            snapshot.endCycle,
-            snapshot.totalStake
-        );
+        startCycle = globalSnapshot.startCycle;
+        stake = globalSnapshot.stake;
     }
 
-    function getOrCreateSnapshot() public returns(
-        uint16 period,
-        uint16 startCycle,
-        uint16 endCycle,
-        uint64 stake
-    ) {
-        ensureSnapshots(0);
-        uint256 snapshotIndex = snapshots.length - 1;
-        Snapshot memory snapshot = snapshots[snapshotIndex];
+    function getLatestStakerSnapshot(address staker)
+    public
+    view
+    returns(
+        uint128 startCycle,
+        uint128 stake
+    )
+    {
+        Snapshot[] memory stakerHistory = stakerHistories[staker];
+        Snapshot memory stakerSnapshot;
 
-        period = snapshot.period;
-        startCycle = snapshot.startCycle;
-        endCycle = snapshot.endCycle;
-        stake = snapshot.totalStake;
+        if (stakerHistory.length != 0) {
+            stakerSnapshot = stakerHistory[stakerHistory.length - 1];
+        }
+
+        startCycle = stakerSnapshot.startCycle;
+        stake = stakerSnapshot.stake;
     }
 }

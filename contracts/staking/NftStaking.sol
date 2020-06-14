@@ -4,6 +4,7 @@ pragma solidity ^0.6.8;
 
 import "@openzeppelin/contracts/math/Math.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/math/SignedSafeMath.sol";
 import "@openzeppelin/contracts/utils/SafeCast.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@animoca/ethereum-contracts-erc20_base/contracts/token/ERC20/IERC20.sol";
@@ -13,6 +14,7 @@ import "@animoca/ethereum-contracts-assets_inventory/contracts/token/ERC1155/ERC
 
 abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
+    using SignedSafeMath for int256;
     using SafeMath for uint256;
     using SafeCast for uint256;
 
@@ -54,8 +56,15 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     );
 
     // optimised for usage in storage
+    struct TokenInfo {
+        address owner;
+        uint64 weight;
+        uint16 depositCycle;
+    }
+
+    // optimised for usage in storage
     struct Snapshot {
-        uint128 stake;
+        uint128 stake; // an aggregate of staked weights
         uint128 startCycle;
     }
 
@@ -64,13 +73,6 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint16 period;
         uint64 globalHistoryIndex;
         uint64 stakerHistoryIndex;
-    }
-
-    // optimised for usage in storage
-    struct TokenInfo {
-        address owner;
-        uint64 weight;
-        uint16 depositCycle;
     }
 
     // used as a container to hold result values from computing claimable rewards.
@@ -102,10 +104,9 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     Snapshot[] public globalHistory;
     mapping(address /* staker */ => Snapshot[]) public stakerHistories;
-
     mapping(address /* staker */ => NextClaim) public nextClaims;
     mapping(uint256 /* tokenId */ => TokenInfo) public tokenInfos;
-    mapping(uint256 /* period */ => uint256 /* rewards per-cycle */) public rewardSchedule;
+    mapping(uint256 /* period */ => uint256 /* payout per-cycle */) public payoutSchedule;
 
     modifier hasStarted() {
         require(startTimestamp != 0, "NftStaking: Staking has not started yet");
@@ -161,7 +162,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         require(startPeriod != 0 && startPeriod <= endPeriod, "NftStaking: Wrong period range");
 
         for (uint16 period = startPeriod; period <= endPeriod; ++period) {
-            rewardSchedule[period] = payoutPerCycle;
+            payoutSchedule[period] = payoutPerCycle;
         }
 
         uint256 reward = payoutPerCycle;
@@ -174,8 +175,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * Transfers necessary reward balance to the contract from the reward token contract,
-     * and begins running the staking schedule.
+     * Transfers necessary reward balance to the contract and starts the first cycle.
      */
     function start() public onlyOwner {
         require(
@@ -260,18 +260,13 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         require(tokenInfo.owner == msg.sender, "NftStaking: Incorrect token owner or token already unstaked");
 
         uint16 currentCycle = _getCycle(now);
-        // uint16 currentPeriod = _getPeriod(currentCycle, periodLengthInCycles);
 
-        // by-pass operations if the contract is disabled, to avoid unnecessary calculations and
-        // reduce the gas requirements for the caller
         if (!disabled) {
             require(currentCycle - tokenInfo.depositCycle >= _FREEZE_LENGTH_IN_CYCLES, "NftStaking: Token is still frozen");
 
-            int64 stakeDelta = -int64(tokenInfo.weight); // int64 conversion is safe because weight < 2**64
-            _updateHistory(msg.sender, stakeDelta, currentCycle);
+            _updateHistory(msg.sender, -int128(tokenInfo.weight), currentCycle);
 
-            // clear the token owner to ensure that it cannot be unstaked again
-            // without being re-staked
+            // clear the token owner to ensure it cannot be unstaked again without being re-staked
             tokenInfos[tokenId].owner = address(0);
         }
 
@@ -413,12 +408,11 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         require(whitelistedNftContract == msg.sender, "NftStaking: Caller is not the whitelisted NFT contract");
 
         uint64 weight = _validateAndGetWeight(tokenId);
-        require(weight < 2**64, "NftStaking: weight is too big");
 
         uint16 periodLengthInCycles_ = periodLengthInCycles;
         uint16 currentCycle = _getCycle(now);
 
-        _updateHistory(tokenOwner, int64(weight), currentCycle);
+        _updateHistory(tokenOwner, int128(weight), currentCycle);
 
         if (nextClaims[tokenOwner].period == 0) {
             uint16 currentPeriod = _getPeriod(currentCycle, periodLengthInCycles_);
@@ -489,12 +483,11 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             result.nextClaim.period < currentPeriod // and period didn't reach current period
         ) {
             ComputeRewardsIterationVariables memory $;
-            // struct ComputeRewardsIterationVariables {
-            //     Snapshot globalSnapshot;
-            //     Snapshot nextGlobalSnapshot;
-            //     Snapshot stakerSnapshot;
-            //     Snapshot nextSnapshot;
-            // }
+            /*  struct ComputeRewardsIterationVariables {
+                    Snapshot globalSnapshot;
+                    Snapshot nextGlobalSnapshot;
+                    Snapshot stakerSnapshot;
+                    Snapshot nextSnapshot; } */
 
             // Retrieve the active global and staker snapshots
             Snapshot[] memory stakerHistory = stakerHistories[staker];
@@ -530,7 +523,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                     endOfPeriodReached = true;
                 }
                 uint256 snapshotReward = nbCycles;                         // nb cycles
-                snapshotReward *= rewardSchedule[result.nextClaim.period]; // * reward per-cycle
+                snapshotReward *= payoutSchedule[result.nextClaim.period]; // * reward per-cycle
                 snapshotReward *= $.stakerSnapshot.stake;                  // * staker stake
                 snapshotReward *= _DIVS_PRECISION;
                 snapshotReward /= $.globalSnapshot.stake;                  // / global stake
@@ -619,44 +612,41 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      */
     function _updateHistory(
         address staker,
-        int64 stakeDelta,
+        int128 stakeDelta,
         uint16 currentCycle
     ) internal
     {
         Snapshot[] storage stakerHistory = stakerHistories[staker];
         uint256 stakerHistoryLength = stakerHistory.length;
-        Snapshot memory newSnapshot;
+        Snapshot memory newStakerSnapshot;
         if (stakerHistoryLength != 0) {
-            newSnapshot = stakerHistory[stakerHistoryLength - 1];
-            // we assume the conversion to int64 is safe (stake < 2**64)
-            newSnapshot.stake = uint256(int64(newSnapshot.stake) + stakeDelta).toUint64(); // assumed to be safe
-        } else {
-            // startCycle defaults to zero
-            // can only happen on an initial staking operation (stakeDelta > 0)
-            newSnapshot.stake = uint256(stakeDelta).toUint64();
-        }
+            // there is an existing staker snapshot
+            newStakerSnapshot = stakerHistory[stakerHistoryLength - 1];
+        } 
 
-        if (newSnapshot.startCycle == currentCycle) {
+        newStakerSnapshot.stake = uint256(
+            int256(newStakerSnapshot.stake).add(stakeDelta)
+        ).toUint128();
+
+        if (newStakerSnapshot.startCycle == currentCycle) {
             // can only happen if there was a previous snapshot as currentCycle cannot be zero
             // replace the existing snapshot if it starts on the current cycle
-            stakerHistory[stakerHistoryLength - 1] = newSnapshot;
+            stakerHistory[stakerHistoryLength - 1] = newStakerSnapshot;
         } else {
             // add a new snapshot in the history
-            newSnapshot.startCycle = currentCycle;
-            stakerHistory.push(newSnapshot);
+            newStakerSnapshot.startCycle = currentCycle;
+            stakerHistory.push(newStakerSnapshot);
         }
 
         uint256 globalHistoryLength = globalHistory.length;
         Snapshot memory newGlobalSnapshot;
         if (globalHistoryLength != 0) {
             newGlobalSnapshot = globalHistory[globalHistoryLength - 1];
-            // we assume the conversion to int64 is safe (stake < 2**64)
-            newGlobalSnapshot.stake = uint256(int64(newGlobalSnapshot.stake) + stakeDelta).toUint64(); // assumed to be safe
-        } else {
-            // startCycle defaults to zero
-            // can only happen on an initial staking operation (stakeDelta > 0)
-            newGlobalSnapshot.stake = uint256(stakeDelta).toUint64();
         }
+
+        newGlobalSnapshot.stake = uint256(
+            int256(newGlobalSnapshot.stake).add(stakeDelta)
+        ).toUint128();
 
         if (newGlobalSnapshot.startCycle == currentCycle) {
             // can only happen if there was a previous snapshot as currentCycle cannot be zero
@@ -670,7 +660,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
         emit HistoryUpdated(
             staker,
-            newSnapshot.stake,
+            newGlobalSnapshot.stake,
             newGlobalSnapshot.stake,
             currentCycle
         );

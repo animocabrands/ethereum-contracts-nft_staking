@@ -17,6 +17,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     using SafeCast for uint256;
 
     uint40 internal constant _DIVS_PRECISION = 10 ** 10; // used to preserve significant figures in floating point calculations
+    uint16 internal constant _FREEZE_LENGTH_IN_CYCLES = 2;
 
     event PayoutScheduled(
         uint256 startPeriod,
@@ -98,8 +99,6 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     uint32 public immutable cycleLengthInSeconds;
     uint16 public immutable periodLengthInCycles;
-
-    uint16 internal constant _FREEZE_LENGTH_IN_CYCLES = 2;
 
     Snapshot[] public globalHistory;
     mapping(address /* staker */ => Snapshot[]) public stakerHistories;

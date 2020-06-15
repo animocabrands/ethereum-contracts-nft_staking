@@ -494,9 +494,13 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             uint16 nextPeriodStartCycle = result.nextClaim.period * periodLengthInCycles_ + 1;
             uint256 periodPayoutSchedule = payoutSchedule[result.nextClaim.period];
             uint256 startCycle = nextPeriodStartCycle - periodLengthInCycles_;
-            uint256 endCycle = 0; // exclusive of the cycle range to claim
+            uint256 endCycle = 0;
 
             while (endCycle != nextPeriodStartCycle) {
+                // find this iteration's range-to-claim starting cycle, where
+                // the current global snapshot, the current staker snapshot, and
+                // the current period overlap
+
                 if (globalSnapshot.startCycle > startCycle) {
                     startCycle = globalSnapshot.startCycle;
                 }
@@ -504,6 +508,12 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                 if (stakerSnapshot.startCycle > startCycle) {
                     startCycle = stakerSnapshot.startCycle;
                 }
+
+                // find this iteration's range-to-claim ending cycle, where the
+                // current global snapshot, the current staker snapshot, and
+                // the current period overlap. the ending cycle is exclusive of
+                // of the range-to-claim and represents the beginning cycle of
+                // the next range-to-claim
 
                 endCycle = nextPeriodStartCycle;
 
@@ -521,6 +531,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                     endCycle = nextStakerSnapshot.startCycle;
                 }
 
+                // only calculate and update the claimable rewards if there is
+                // something to calculate with
                 if (
                     (globalSnapshot.stake != 0) &&
                     (stakerSnapshot.stake != 0) &&
@@ -536,6 +548,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                     result.claimableRewards = result.claimableRewards.add(snapshotReward);
                 }
 
+                // advance the current global snapshot if we've finished
+                // processing its cycle range for the current period
                 if (nextGlobalSnapshot.startCycle == endCycle) {
                     globalSnapshot = nextGlobalSnapshot;
                     ++result.nextClaim.globalHistoryIndex;
@@ -547,6 +561,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                     }
                 }
 
+                // advance the current staker snapshot if we've finished
+                // processing its cycle range for the current period
                 if (nextStakerSnapshot.startCycle == endCycle) {
                     stakerSnapshot = nextStakerSnapshot;
                     ++result.nextClaim.stakerHistoryIndex;
@@ -559,6 +575,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                 }
             }
 
+            // advance the current period
             ++result.computedPeriods;
             ++result.nextClaim.period;
         }

@@ -101,7 +101,7 @@ describe.only('NftStaking', function () {
         gasHeavyScenario.bind(this, creator, staker, otherStaker, anotherStaker)();
     });
 
-    describe("interface support", function () {
+    describe("Interface support", function () {
         before(doFreshDeploy);
         shouldSupportInterfaces([
             interfaces.ERC1155TokenReceiver

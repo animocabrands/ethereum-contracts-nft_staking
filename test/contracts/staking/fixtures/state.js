@@ -1,22 +1,25 @@
 const { BN, expectRevert } = require('@openzeppelin/test-helpers');
 
-const shouldHaveNextClaim = function(staker, period, globalHistoryIndex, stakerHistoryIndex) {
-    it(`should have nextClaim.period=${period}`, async function () {
-        const nextClaim = await this.stakingContract.nextClaims(staker);
-        nextClaim.period.toNumber().should.equal(period);
+const shouldHaveNextClaim = function (params) {
+    it(`nextClaim[${params.staker}]`, async function () {
+        this.nextClaim = await this.stakingContract.nextClaims(params.staker);
     });
-    it(`should have nextClaim.globalHistoryIndex=${globalHistoryIndex}`, async function () {
-        const nextClaim = await this.stakingContract.nextClaims(staker);
-        nextClaim.globalHistoryIndex.toNumber().should.equal(globalHistoryIndex);
+    it(`\tnextClaim.period=${params.period}`, async function () {
+        // const nextClaim = 
+        this.nextClaim.period.toNumber().should.equal(params.period);
     });
-    it(`should have nextClaim.stakerHistoryIndex=${stakerHistoryIndex}`, async function () {
-        const nextClaim = await this.stakingContract.nextClaims(staker);
-        nextClaim.stakerHistoryIndex.toNumber().should.equal(stakerHistoryIndex);
+    it(`\tnextClaim.globalHistoryIndex=${params.globalHistoryIndex}`, async function () {
+        // const nextClaim = await this.stakingContract.nextClaims(params.staker);
+        this.nextClaim.globalHistoryIndex.toNumber().should.equal(params.globalHistoryIndex);
+    });
+    it(`\tnextClaim.stakerHistoryIndex=${params.stakerHistoryIndex}`, async function () {
+        // const nextClaim = await this.stakingContract.nextClaims(params.staker);
+        this.nextClaim.stakerHistoryIndex.toNumber().should.equal(params.stakerHistoryIndex);
     });
 }
 
-const shouldHaveCurrentCycleAndPeriod = function(cycle, period) {
-    it(`should currently have: cycle=${cycle}, period=${period}`, async function () {
+const shouldHaveCurrentCycleAndPeriod = function (cycle, period) {
+    it(`should currently be at: cycle=${cycle}, period=${period}`, async function () {
         const currentCycle = await this.stakingContract.getCurrentCycle();
         currentCycle.toNumber().should.equal(cycle);
         const currentPeriod = await this.stakingContract.getCurrentPeriod();
@@ -24,7 +27,7 @@ const shouldHaveCurrentCycleAndPeriod = function(cycle, period) {
     })
 }
 
-const shouldHaveGlobalHistoryLength = function(count) {
+const shouldHaveGlobalHistoryLength = function (count) {
     it(`should have global history length: ${count}`, async function () {
         if (count == 0) {
             await expectRevert(
@@ -38,7 +41,7 @@ const shouldHaveGlobalHistoryLength = function(count) {
     });
 }
 
-const shouldHaveStakerHistoryLength = function(staker, count) {
+const shouldHaveStakerHistoryLength = function (staker, count) {
     it(`should have staker history length: ${count}`, async function () {
         if (count == 0) {
             await expectRevert(
@@ -52,31 +55,33 @@ const shouldHaveStakerHistoryLength = function(staker, count) {
     });
 }
 
-const shouldHaveLastGlobalSnapshot = function(startCycle, stake, index) {
-    it(`should have the lastGlobalSnapshot at index=${index}`, async function () {
-        (await this.stakingContract.lastGlobalSnapshotIndex()).should.be.bignumber.equal(new BN(index));
+const shouldHaveLastGlobalSnapshot = function (params) {
+    it(`lastGlobalSnapshot at index=${params.index}`, async function () {
+        (await this.stakingContract.lastGlobalSnapshotIndex()).should.be.bignumber.equal(new BN(params.index));
+        this.lastGlobalSnapshot = await this.stakingContract.globalHistory(params.index);
     });
 
-    it(`should have lastGlobalSnapshot.startCycle=${startCycle}`, async function () {
-        (await this.stakingContract.globalHistory(index)).startCycle.should.be.bignumber.equal(new BN(startCycle));
+    it(`\tstartCycle=${params.startCycle}`, async function () {
+        this.lastGlobalSnapshot.startCycle.should.be.bignumber.equal(new BN(params.startCycle));
     });
 
-    it(`should have lastGlobalSnapshot.stake=${stake}`, async function () {
-        (await this.stakingContract.globalHistory(index)).stake.should.be.bignumber.equal(new BN(stake));
+    it(`\tstake=${params.stake}`, async function () {
+        this.lastGlobalSnapshot.stake.should.be.bignumber.equal(new BN(params.stake));
     });
 }
 
-const shouldHaveLastStakerSnapshot = function(staker, startCycle, stake, index) {
-    it(`should have the lastStakerSnapshot at index=${index}`, async function () {
-        (await this.stakingContract.lastStakerSnapshotIndex(staker)).should.be.bignumber.equal(new BN(index));
+const shouldHaveLastStakerSnapshot = function (params) {
+    it(`lastStakerSnapshot at index=${params.index}`, async function () {
+        (await this.stakingContract.lastStakerSnapshotIndex(params.staker)).should.be.bignumber.equal(new BN(params.index));
+        this.lastStakerSnapshot = await this.stakingContract.stakerHistories(params.staker, params.index);
     });
 
-    it(`should have lastStakerSnapshot.startCycle=${startCycle}`, async function () {
-        (await this.stakingContract.stakerHistories(staker, index)).startCycle.should.be.bignumber.equal(new BN(startCycle));
+    it(`\tstartCycle=${params.startCycle}`, async function () {
+        this.lastStakerSnapshot.startCycle.should.be.bignumber.equal(new BN(params.startCycle));
     });
 
-    it(`should have lastStakerSnapshot.stake=${stake}`, async function () {
-        (await this.stakingContract.stakerHistories(staker, index)).stake.should.be.bignumber.equal(new BN(stake));
+    it(`\tstake=${params.stake}`, async function () {
+        this.lastStakerSnapshot.stake.should.be.bignumber.equal(new BN(params.stake));
     });
 }
 

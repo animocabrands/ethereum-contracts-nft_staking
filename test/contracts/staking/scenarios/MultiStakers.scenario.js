@@ -5,8 +5,8 @@ const TokenHelper = require('../../../utils/tokenHelper');
 const { shouldRevertAndNotStakeNft, shouldStakeNft, shouldUnstakeNft, shouldEstimateRewards,
     shouldClaimRewards, shouldRevertAndNotUnstakeNft } = require('../fixtures/behavior');
 
-const {shouldHaveNextClaim, shouldHaveCurrentCycleAndPeriod, shouldHaveGlobalHistoryLength,
-    shouldHaveStakerHistoryLength, shouldHaveLastGlobalSnapshot, shouldHaveLastStakerSnapshot} = require('../fixtures/state');
+const { shouldHaveNextClaim, shouldHaveCurrentCycleAndPeriod, shouldHaveGlobalHistoryLength,
+    shouldHaveStakerHistoryLength, shouldHaveLastGlobalSnapshot, shouldHaveLastStakerSnapshot } = require('../fixtures/state');
 
 const { RewardsTokenInitialBalance,
     DayInSeconds, CycleLengthInSeconds, PeriodLengthInSeconds, PeriodLengthInCycles,
@@ -29,16 +29,12 @@ const multiStakersScenario = function (creator, staker, otherStaker) {
     describe('Start', function () {
         shouldHaveCurrentCycleAndPeriod(1, 1);
 
-        shouldStakeNft(staker, TokenIds[0], 1);
-        shouldHaveLastGlobalSnapshot(1, 1, 0);
-        shouldHaveLastStakerSnapshot(staker, 1, 1, 0);
-        shouldHaveNextClaim(
-            staker,
-            1, // period
-            0, // globalHistoryIndex
-            0, // stakerHistoryIndex
-        );
-        shouldEstimateRewards(staker, 1, 1, 0, 0);
+        shouldStakeNft({ staker, tokenId: TokenIds[0], cycle: 1 });
+        shouldHaveLastGlobalSnapshot({ startCycle: 1, stake: 1, index: 0 });
+        shouldHaveLastStakerSnapshot({ staker, startCycle: 1, stake: 1, index: 0 });
+        shouldHaveNextClaim({ staker, period: 1, globalHistoryIndex: 0, stakerHistoryIndex: 0 });
+
+        shouldEstimateRewards({ staker, periodsToClaim: 1, firstClaimablePeriod: 1, computedPeriods: 0, claimableRewards: 0 });
 
         describe('timewarp 1 period', function () {
             before(async function () {
@@ -47,17 +43,13 @@ const multiStakersScenario = function (creator, staker, otherStaker) {
 
             shouldHaveCurrentCycleAndPeriod(8, 2);
 
-            shouldStakeNft(otherStaker, OtherTokenIds[0], 8);
-            shouldHaveLastGlobalSnapshot(8, 2, 1);
-            shouldHaveLastStakerSnapshot(otherStaker, 8, 1, 0);
-            shouldHaveNextClaim(
-                otherStaker,
-                2, // period
-                1, // globalHistoryIndex
-                0, // stakerHistoryIndex
-            );
-            shouldEstimateRewards(staker, 1, 1, 1, 7000);
-            shouldEstimateRewards(otherStaker, 1, 2, 0, 0);
+            shouldStakeNft({ staker: otherStaker, tokenId: OtherTokenIds[0], cycle: 8 });
+            shouldHaveLastGlobalSnapshot({ startCycle: 8, stake: 2, index: 1 });
+            shouldHaveLastStakerSnapshot({ staker: otherStaker, startCycle: 8, stake: 1, index: 0 });
+            shouldHaveNextClaim({ staker: otherStaker, period: 2, globalHistoryIndex: 1, stakerHistoryIndex: 0 });
+
+            shouldEstimateRewards({ staker, periodsToClaim: 1, firstClaimablePeriod: 1, computedPeriods: 1, claimableRewards: 7000 });
+            shouldEstimateRewards({ staker: otherStaker, periodsToClaim: 1, firstClaimablePeriod: 2, computedPeriods: 0, claimableRewards: 0 });
 
             describe('timewarp 1 period', function () {
                 before(async function () {
@@ -66,8 +58,8 @@ const multiStakersScenario = function (creator, staker, otherStaker) {
 
                 shouldHaveCurrentCycleAndPeriod(15, 3);
 
-                shouldEstimateRewards(staker, 5, 1, 2, 10500);
-                shouldEstimateRewards(otherStaker, 5, 2, 1, 3500);
+                shouldEstimateRewards({ staker, periodsToClaim: 5, firstClaimablePeriod: 1, computedPeriods: 2, claimableRewards: 10500 });
+                shouldEstimateRewards({ staker: otherStaker, periodsToClaim: 5, firstClaimablePeriod: 2, computedPeriods: 1, claimableRewards: 3500 });
 
                 describe('timewarp 2 cycles', function () {
                     before(async function () {
@@ -76,31 +68,26 @@ const multiStakersScenario = function (creator, staker, otherStaker) {
 
                     shouldHaveCurrentCycleAndPeriod(17, 3);
 
-                    shouldEstimateRewards(staker, 5, 1, 2, 10500);
-                    shouldEstimateRewards(otherStaker, 5, 2, 1, 3500);
+                    shouldEstimateRewards({ staker, periodsToClaim: 5, firstClaimablePeriod: 1, computedPeriods: 2, claimableRewards: 10500 });
+                    shouldEstimateRewards({ staker: otherStaker, periodsToClaim: 5, firstClaimablePeriod: 2, computedPeriods: 1, claimableRewards: 3500 });
 
-                    shouldStakeNft(staker, TokenIds[1], 17);
-                    shouldHaveLastGlobalSnapshot(17, 12, 2);
-                    shouldHaveLastStakerSnapshot(staker, 17, 11, 1);
+                    shouldStakeNft({ staker, tokenId: TokenIds[1], cycle: 17 });
+                    shouldHaveLastGlobalSnapshot({ startCycle: 17, stake: 12, index: 2 });
+                    shouldHaveLastStakerSnapshot({ staker, startCycle: 17, stake: 11, index: 1 });
+                    shouldHaveNextClaim({ staker, period: 1, globalHistoryIndex: 0, stakerHistoryIndex: 0 });
 
-                    shouldHaveNextClaim(
-                        staker,
-                        1, // period
-                        0, // globalHistoryIndex
-                        0, // stakerHistoryIndex
-                    );
-                    shouldEstimateRewards(staker, 1, 1, 1, 7000);
-                    shouldEstimateRewards(staker, 5, 1, 2, 10500);
-                    shouldEstimateRewards(otherStaker, 5, 2, 1, 3500);
+                    shouldEstimateRewards({ staker, periodsToClaim: 1, firstClaimablePeriod: 1, computedPeriods: 1, claimableRewards: 7000 });
+                    shouldEstimateRewards({ staker, periodsToClaim: 5, firstClaimablePeriod: 1, computedPeriods: 2, claimableRewards: 10500 });
+                    shouldEstimateRewards({ staker: otherStaker, periodsToClaim: 5, firstClaimablePeriod: 2, computedPeriods: 1, claimableRewards: 3500 });
 
                     describe('timewarp 2 cycles', function () {
                         before(async function () {
                             await time.increase(CycleLengthInSeconds.muln(2).toNumber());
                         });
 
-                        shouldEstimateRewards(staker, 1, 1, 1, 7000);
-                        shouldEstimateRewards(staker, 5, 1, 2, 10500);
-                        shouldEstimateRewards(otherStaker, 5, 2, 1, 3500);
+                        shouldEstimateRewards({ staker, periodsToClaim: 1, firstClaimablePeriod: 1, computedPeriods: 1, claimableRewards: 7000 });
+                        shouldEstimateRewards({ staker, periodsToClaim: 5, firstClaimablePeriod: 1, computedPeriods: 2, claimableRewards: 10500 });
+                        shouldEstimateRewards({ staker: otherStaker, periodsToClaim: 5, firstClaimablePeriod: 2, computedPeriods: 1, claimableRewards: 3500 });
                     });
                 });
             });

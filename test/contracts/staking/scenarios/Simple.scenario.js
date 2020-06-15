@@ -13,21 +13,12 @@ const { RewardsTokenInitialBalance,
 const simpleScenario = function (staker) {
 
     shouldHaveCurrentCycleAndPeriod(1, 1);
-    shouldHaveNextClaim(
-        staker,
-        0, // period
-        0, // globalHistoryIndex
-        0, // stakerHistoryIndex
-    );
-    shouldStakeNft(staker, TokenIds[0], 1);
-    shouldHaveLastGlobalSnapshot(1, 1, 0);
-    shouldHaveLastStakerSnapshot(staker, 1, 1, 0);
-    shouldHaveNextClaim(
-        staker,
-        1, // period
-        0, // globalHistoryIndex
-        0, // stakerHistoryIndex
-    );
+    shouldHaveNextClaim({staker, period: 0, globalHistoryIndex: 0, stakerHistoryIndex: 0});
+
+    shouldStakeNft({staker, tokenId: TokenIds[0], cycle: 1});
+    shouldHaveLastGlobalSnapshot({startCycle: 1, stake: 1, index: 0 });
+    shouldHaveLastStakerSnapshot({ staker, startCycle: 1, stake: 1, index: 0 });
+    shouldHaveNextClaim({staker, period: 1, globalHistoryIndex: 0, stakerHistoryIndex: 0});
 
     describe('time warp 1 period and 1 cycle', function () {
         before(async function () {
@@ -36,23 +27,12 @@ const simpleScenario = function (staker) {
 
         shouldHaveCurrentCycleAndPeriod(9, 2);
 
-        shouldClaimRewards(staker, 99, 1, 1, 7000); // 7 cycles in period 1
-        shouldHaveNextClaim(
-            staker,
-            2, // period
-            0, // globalHistoryIndex
-            0, // stakerHistoryIndex
-        );
+        shouldClaimRewards({staker, periodsToClaim: 99, firstClaimablePeriod: 1, computedPeriods: 1, claimableRewards: 7000}); // 7 cycles in period 1
+        shouldHaveNextClaim({staker, period: 2, globalHistoryIndex: 0, stakerHistoryIndex: 0});
 
-        shouldUnstakeNft(staker, TokenIds[0], 9);
-        shouldHaveLastGlobalSnapshot(9, 0, 1);
-        shouldHaveLastStakerSnapshot(staker, 9, 0, 1);
-        shouldHaveNextClaim(
-            staker,
-            2, // period
-            0, // globalHistoryIndex
-            0, // stakerHistoryIndex
-        );
+        shouldUnstakeNft({staker, tokenId: TokenIds[0], cycle: 9 });
+        shouldHaveLastGlobalSnapshot({startCycle: 9, stake: 0, index: 1 });
+        shouldHaveLastStakerSnapshot({ staker, startCycle: 9, stake: 0, index: 1 });
     });
 }
 

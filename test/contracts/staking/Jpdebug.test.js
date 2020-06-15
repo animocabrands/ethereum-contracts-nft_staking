@@ -8,7 +8,7 @@ const {RewardsTokenInitialBalance,
     DayInSeconds, CycleLengthInSeconds, PeriodLengthInSeconds, PeriodLengthInCycles,
     RarityWeights, TokenIds, DefaultRewardSchedule, RewardsPool} = require('./constants');
 
-const { deploymentPreconditionsScenario, simpleScenario, lateClaimScenario,
+const { preconditionsScenario, simpleScenario, lateClaimScenario,
     periodLimitsScenario, multiStakersScenario, gasHeavyScenario } = require('./scenarios');
 
 const AssetsInventory = contract.fromArtifact("AssetsInventoryMock");
@@ -60,10 +60,11 @@ describe.only('NftStaking', function () {
         await this.stakingContract.start({ from: creator });
     }
 
-    describe('Deployment pre-conditions', function () {
+    describe('Preconditions', function () {
         before(doFreshDeploy);
+        before(start);
 
-        deploymentPreconditionsScenario.bind(this, staker)();
+        preconditionsScenario.bind(this, staker)();
     });
 
     describe('Scenario: Simple', function () {

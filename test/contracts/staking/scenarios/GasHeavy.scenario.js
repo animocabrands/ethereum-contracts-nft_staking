@@ -1,12 +1,13 @@
 const { time } = require('@openzeppelin/test-helpers');
 const TokenHelper = require('../../../utils/tokenHelper');
 
-
 const { shouldRevertAndNotStakeNft, shouldStakeNft, shouldUnstakeNft, shouldEstimateRewards,
     shouldClaimRewards, shouldRevertAndNotUnstakeNft } = require('../fixtures/behavior');
 
 const { shouldHaveNextClaim, shouldHaveCurrentCycleAndPeriod, shouldHaveGlobalHistoryLength,
     shouldHaveStakerHistoryLength, shouldHaveLastGlobalSnapshot, shouldHaveLastStakerSnapshot } = require('../fixtures/state');
+
+const { shouldWarpToTarget } = require('../fixtures/time');
 
 const { RewardsTokenInitialBalance,
     DayInSeconds, CycleLengthInSeconds, PeriodLengthInSeconds, PeriodLengthInCycles,

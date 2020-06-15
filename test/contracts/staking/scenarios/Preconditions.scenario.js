@@ -5,7 +5,10 @@ const { RewardsTokenInitialBalance,
     DayInSeconds, CycleLengthInSeconds, PeriodLengthInSeconds, PeriodLengthInCycles,
     RarityWeights, TokenIds, DefaultRewardSchedule, RewardsPool } = require('../constants');
 
-const deploymentPreconditionsScenario = function (staker) {
+const { shouldHaveNextClaim, shouldHaveCurrentCycleAndPeriod, shouldHaveGlobalHistoryLength,
+    shouldHaveStakerHistoryLength, shouldHaveLastGlobalSnapshot, shouldHaveLastStakerSnapshot } = require('../fixtures/state');
+
+const preconditionsScenario = function (staker) {
 
     context('Staking contract', function () {
         it('should have the correct cycle length', async function () {
@@ -32,6 +35,11 @@ const deploymentPreconditionsScenario = function (staker) {
             const weight = await this.stakingContract.weightByTokenAttribute(TokenHelper.Rarity.Apex);
             weight.should.be.bignumber.equal(new BN(100));
         });
+
+        shouldHaveCurrentCycleAndPeriod(1, 1);
+        shouldHaveNextClaim({ staker, period: 0, globalHistoryIndex: 0, stakerHistoryIndex: 0 });
+        shouldHaveGlobalHistoryLength(0);
+        shouldHaveStakerHistoryLength(staker, 0);
     });
 
     context('NFT Assets Inventory contract', function () {
@@ -90,5 +98,5 @@ const deploymentPreconditionsScenario = function (staker) {
 }
 
 module.exports = {
-    deploymentPreconditionsScenario
+    preconditionsScenario
 }

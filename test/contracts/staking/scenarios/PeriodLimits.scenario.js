@@ -1,10 +1,10 @@
-const { time } = require('@openzeppelin/test-helpers');
-
 const { shouldRevertAndNotStakeNft, shouldStakeNft, shouldUnstakeNft, shouldEstimateRewards,
     shouldClaimRewards, shouldRevertAndNotUnstakeNft } = require('../fixtures/behavior');
 
 const { shouldHaveNextClaim, shouldHaveCurrentCycleAndPeriod, shouldHaveGlobalHistoryLength,
     shouldHaveStakerHistoryLength, shouldHaveLastGlobalSnapshot, shouldHaveLastStakerSnapshot } = require('../fixtures/state');
+
+const { shouldWarpToTarget } = require('../fixtures/time');
 
 const { RewardsTokenInitialBalance,
     DayInSeconds, CycleLengthInSeconds, PeriodLengthInSeconds, PeriodLengthInCycles,
@@ -13,14 +13,7 @@ const { RewardsTokenInitialBalance,
 const periodLimitsScenario = function (staker, other) {
 
     describe('time warp 6 cycles', function () {
-        before(async function () {
-            await time.increase(CycleLengthInSeconds.muln(6).toNumber());
-        });
-
-        shouldHaveCurrentCycleAndPeriod(7, 1);
-        shouldHaveGlobalHistoryLength(0);
-        shouldHaveStakerHistoryLength(staker, 0);
-        shouldHaveNextClaim({ staker, period: 0, globalHistoryIndex: 0, stakerHistoryIndex: 0 });
+        shouldWarpToTarget({cycles:6, periods:0, targetCycle:7, targetPeriod: 1});
 
         shouldStakeNft({staker, tokenId: TokenIds[0], cycle: 7});
         shouldHaveLastGlobalSnapshot({ startCycle: 7, stake: 1, index: 0 });
@@ -35,11 +28,7 @@ const periodLimitsScenario = function (staker, other) {
         });
 
         describe('time warp 5 periods', function () {
-            before(async function () {
-                await time.increase(PeriodLengthInSeconds.muln(5).toNumber());
-            });
-
-            shouldHaveCurrentCycleAndPeriod(42, 6);
+            shouldWarpToTarget({cycles:0, periods:5, targetCycle:42, targetPeriod: 6});
 
             shouldEstimateRewards({ staker, periodsToClaim: 1, firstClaimablePeriod: 1, computedPeriods: 1, claimableRewards: 1000 }); // 1 cycle in period 1
             shouldEstimateRewards({ staker, periodsToClaim: 2, firstClaimablePeriod: 1, computedPeriods: 2, claimableRewards: 8000 }); // 1 cycle in period 1 + 7 cycles in period 2
@@ -67,11 +56,8 @@ const periodLimitsScenario = function (staker, other) {
             });
 
             describe('time warp 3 periods', function () {
-                before(async function () {
-                    await time.increase(PeriodLengthInSeconds.muln(3).toNumber());
-                });
+                shouldWarpToTarget({cycles:0, periods:3, targetCycle:63, targetPeriod: 9});
 
-                shouldHaveCurrentCycleAndPeriod(63, 9);
                 shouldEstimateRewards({ staker, periodsToClaim: 6, firstClaimablePeriod: 3, computedPeriods: 6, claimableRewards: 28000 }); // 7 cycles in period 3 + 7 cyles in period 4 + 28 cycles in period 5-8
                 shouldEstimateRewards({ staker, periodsToClaim: 100, firstClaimablePeriod: 3, computedPeriods: 6, claimableRewards: 28000 }); // 7 cycles in period 3 + 7 cyles in period 4 + 28 cycles in period 5-8
 
@@ -79,11 +65,7 @@ const periodLimitsScenario = function (staker, other) {
                 shouldHaveNextClaim({ staker, period: 9, globalHistoryIndex: 0, stakerHistoryIndex: 0 });
 
                 describe('time warp 2 periods', function () {
-                    before(async function () {
-                        await time.increase(PeriodLengthInSeconds.muln(2).toNumber());
-                    });
-
-                    shouldHaveCurrentCycleAndPeriod(77, 11);
+                    shouldWarpToTarget({cycles:0, periods:2, targetCycle:77, targetPeriod: 11});
 
                     shouldClaimRewards({staker, periodsToClaim: 2, firstClaimablePeriod: 9, computedPeriods: 2, claimableRewards: 0});
                     shouldHaveNextClaim({ staker, period: 11, globalHistoryIndex: 0, stakerHistoryIndex: 0 });

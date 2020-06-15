@@ -12,7 +12,7 @@ const shouldRevertAndNotStakeNft = function(params) {
         }
     });
 }
-// from, tokenId, expectedError
+
 const shouldRevertAndNotUnstakeNft = function(params) {
     it(`[UNSTAKE \u274C] revert and not unstake ${params.tokenId} by ${params.staker}`, async function () {
         const promise = this.stakingContract.unstakeNft(params.tokenId, { from: params.staker });

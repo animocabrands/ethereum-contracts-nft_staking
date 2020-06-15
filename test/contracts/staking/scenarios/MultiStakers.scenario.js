@@ -1,12 +1,12 @@
-const { time } = require('@openzeppelin/test-helpers');
 const TokenHelper = require('../../../utils/tokenHelper');
-
 
 const { shouldRevertAndNotStakeNft, shouldStakeNft, shouldUnstakeNft, shouldEstimateRewards,
     shouldClaimRewards, shouldRevertAndNotUnstakeNft } = require('../fixtures/behavior');
 
 const { shouldHaveNextClaim, shouldHaveCurrentCycleAndPeriod, shouldHaveGlobalHistoryLength,
     shouldHaveStakerHistoryLength, shouldHaveLastGlobalSnapshot, shouldHaveLastStakerSnapshot } = require('../fixtures/state');
+
+const { shouldWarpToTarget } = require('../fixtures/time');
 
 const { RewardsTokenInitialBalance,
     DayInSeconds, CycleLengthInSeconds, PeriodLengthInSeconds, PeriodLengthInCycles,
@@ -27,8 +27,6 @@ const multiStakersScenario = function (creator, staker, otherStaker) {
     });
 
     describe('Start', function () {
-        shouldHaveCurrentCycleAndPeriod(1, 1);
-
         shouldStakeNft({ staker, tokenId: TokenIds[0], cycle: 1 });
         shouldHaveLastGlobalSnapshot({ startCycle: 1, stake: 1, index: 0 });
         shouldHaveLastStakerSnapshot({ staker, startCycle: 1, stake: 1, index: 0 });
@@ -37,11 +35,7 @@ const multiStakersScenario = function (creator, staker, otherStaker) {
         shouldEstimateRewards({ staker, periodsToClaim: 1, firstClaimablePeriod: 1, computedPeriods: 0, claimableRewards: 0 });
 
         describe('timewarp 1 period', function () {
-            before(async function () {
-                await time.increase(PeriodLengthInSeconds.toNumber());
-            });
-
-            shouldHaveCurrentCycleAndPeriod(8, 2);
+            shouldWarpToTarget({cycles:0, periods:1, targetCycle:8, targetPeriod: 2});
 
             shouldStakeNft({ staker: otherStaker, tokenId: OtherTokenIds[0], cycle: 8 });
             shouldHaveLastGlobalSnapshot({ startCycle: 8, stake: 2, index: 1 });
@@ -52,21 +46,12 @@ const multiStakersScenario = function (creator, staker, otherStaker) {
             shouldEstimateRewards({ staker: otherStaker, periodsToClaim: 1, firstClaimablePeriod: 2, computedPeriods: 0, claimableRewards: 0 });
 
             describe('timewarp 1 period', function () {
-                before(async function () {
-                    await time.increase(PeriodLengthInSeconds.toNumber());
-                });
-
-                shouldHaveCurrentCycleAndPeriod(15, 3);
-
+                shouldWarpToTarget({cycles:0, periods:1, targetCycle:15, targetPeriod: 3});
                 shouldEstimateRewards({ staker, periodsToClaim: 5, firstClaimablePeriod: 1, computedPeriods: 2, claimableRewards: 10500 });
                 shouldEstimateRewards({ staker: otherStaker, periodsToClaim: 5, firstClaimablePeriod: 2, computedPeriods: 1, claimableRewards: 3500 });
 
                 describe('timewarp 2 cycles', function () {
-                    before(async function () {
-                        await time.increase(CycleLengthInSeconds.muln(2).toNumber());
-                    });
-
-                    shouldHaveCurrentCycleAndPeriod(17, 3);
+                    shouldWarpToTarget({cycles:2, periods:0, targetCycle:17, targetPeriod: 3});
 
                     shouldEstimateRewards({ staker, periodsToClaim: 5, firstClaimablePeriod: 1, computedPeriods: 2, claimableRewards: 10500 });
                     shouldEstimateRewards({ staker: otherStaker, periodsToClaim: 5, firstClaimablePeriod: 2, computedPeriods: 1, claimableRewards: 3500 });
@@ -81,9 +66,7 @@ const multiStakersScenario = function (creator, staker, otherStaker) {
                     shouldEstimateRewards({ staker: otherStaker, periodsToClaim: 5, firstClaimablePeriod: 2, computedPeriods: 1, claimableRewards: 3500 });
 
                     describe('timewarp 2 cycles', function () {
-                        before(async function () {
-                            await time.increase(CycleLengthInSeconds.muln(2).toNumber());
-                        });
+                        shouldWarpToTarget({cycles:2, periods:0, targetCycle:19, targetPeriod: 3});
 
                         shouldEstimateRewards({ staker, periodsToClaim: 1, firstClaimablePeriod: 1, computedPeriods: 1, claimableRewards: 7000 });
                         shouldEstimateRewards({ staker, periodsToClaim: 5, firstClaimablePeriod: 1, computedPeriods: 2, claimableRewards: 10500 });

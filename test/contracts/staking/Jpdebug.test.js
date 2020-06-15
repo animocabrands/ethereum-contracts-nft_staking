@@ -862,7 +862,7 @@ describe.only('NftStaking', function () {
         });
     });
 
-    describe.only('Scenario late claim', function () {
+    describe('Scenario late claim', function () {
         before(doFreshDeploy);
         before(start);
 

@@ -1,4 +1,5 @@
 const { BN } = require('@openzeppelin/test-helpers');
+const { PeriodLengthInCycles } = require('../constants');
 
 async function debugCurrentState(...stakers) {
     console.log();

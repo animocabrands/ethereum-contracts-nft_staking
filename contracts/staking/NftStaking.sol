@@ -488,15 +488,15 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         }
 
         while (
-            (result.computedPeriods < maxPeriods) &&
-            (result.nextClaim.period < currentPeriod)
+            (result.computedPeriods != maxPeriods) &&
+            (result.nextClaim.period != currentPeriod)
         ) {
             uint16 nextPeriodStartCycle = result.nextClaim.period * periodLengthInCycles_ + 1;
             uint256 periodPayoutSchedule = payoutSchedule[result.nextClaim.period];
             uint256 startCycle = nextPeriodStartCycle - periodLengthInCycles_;
             uint256 endCycle = 0; // exclusive of the cycle range to claim
 
-            while (endCycle != nextPeriodStartCycle) {                
+            while (endCycle != nextPeriodStartCycle) {
                 if (globalSnapshot.startCycle > startCycle) {
                     startCycle = globalSnapshot.startCycle;
                 }

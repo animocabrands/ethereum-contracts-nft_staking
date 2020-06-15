@@ -437,6 +437,34 @@ describe.only('NftStaking', function () {
         });
     }
 
+    function shouldHaveLastGlobalSnapshot(startCycle, stake, index) {
+        it(`should have the lastGlobalSnapshot at index=${index}`, async function () {
+            (await this.stakingContract.lastGlobalSnapshotIndex()).should.be.bignumber.equal(new BN(index));
+        });
+
+        it(`should have lastGlobalSnapshot.startCycle=${startCycle}`, async function () {
+            (await this.stakingContract.globalHistory(index)).startCycle.should.be.bignumber.equal(new BN(startCycle));
+        });
+
+        it(`should have lastGlobalSnapshot.stake=${stake}`, async function () {
+            (await this.stakingContract.globalHistory(index)).stake.should.be.bignumber.equal(new BN(stake));
+        });
+    }
+
+    function shouldHaveLastStakerSnapshot(staker, startCycle, stake, index) {
+        it(`should have the lastStakerSnapshot at index=${index}`, async function () {
+            (await this.stakingContract.lastStakerSnapshotIndex(staker)).should.be.bignumber.equal(new BN(index));
+        });
+
+        it(`should have lastStakerSnapshot.startCycle=${startCycle}`, async function () {
+            (await this.stakingContract.stakerHistories(staker, index)).startCycle.should.be.bignumber.equal(new BN(startCycle));
+        });
+
+        it(`should have lastStakerSnapshot.stake=${stake}`, async function () {
+            (await this.stakingContract.stakerHistories(staker, index)).stake.should.be.bignumber.equal(new BN(stake));
+        });
+    }
+
     function shouldStakeNft(from, tokenId, cycle) {
         it(`should have staked ${tokenId} in cycle ${cycle} by ${from}`, async function () {
             const globalSnapshotBefore = await this.stakingContract.getLatestGlobalSnapshot();
@@ -535,18 +563,6 @@ describe.only('NftStaking', function () {
         });
     }
 
-    // function shouldRevertAndNotClaimRewards(from, periodsToClaim, expectedError) {
-    //     it(`should revert and not have claimed tokens in ${periodsToClaim} periods by ${from}`, async function () {
-    //         const promise = this.stakingContract.claimRewards(periodsToClaim, { from: from });
-
-    //         if (expectedError) {
-    //             await expectRevert(promise, expectedError);
-    //         } else {
-    //             await expectRevert.unspecified(promise);
-    //         }
-    //     });
-    // }
-
     function shouldUnstakeNft(from, tokenId, cycle) {
         it(`should unstake ${tokenId} in cycle ${cycle} by ${from}`, async function () {
             const globalSnapshotBefore = await this.stakingContract.getLatestGlobalSnapshot();
@@ -593,10 +609,16 @@ describe.only('NftStaking', function () {
         before(start);
 
         describe('when staking a Common NFT', function () {
-            shouldStakeNft(staker, TokenIds[0], 1);
             shouldHaveCurrentCycleAndPeriod(1, 1);
-            shouldHaveGlobalHistoryLength(1);
-            shouldHaveStakerHistoryLength(staker, 1);
+            shouldHaveNextClaim(
+                staker,
+                0, // period
+                0, // globalHistoryIndex
+                0, // stakerHistoryIndex
+            );
+            shouldStakeNft(staker, TokenIds[0], 1);
+            shouldHaveLastGlobalSnapshot(1, 1, 0);
+            shouldHaveLastStakerSnapshot(staker, 1, 1, 0);
             shouldHaveNextClaim(
                 staker,
                 1, // period
@@ -604,36 +626,30 @@ describe.only('NftStaking', function () {
                 0, // stakerHistoryIndex
             );
 
-            describe('time warp 1 period', function () {
+            describe('time warp 1 period and 1 cycle', function () {
                 before(async function () {
                     await time.increase(PeriodLengthInSeconds.add(CycleLengthInSeconds).toNumber());
                 });
 
                 shouldHaveCurrentCycleAndPeriod(9, 2);
-                shouldHaveGlobalHistoryLength(1);
-                shouldHaveStakerHistoryLength(staker, 1);
 
-                describe('when estimating rewards for all periods', function () {
-                    shouldEstimateRewards(staker, 99, 1, 1, 7000); // 7 cycles in period 1
-                });
+                shouldClaimRewards(staker, 99, 1, 1, 7000); // 7 cycles in period 1
+                shouldHaveNextClaim(
+                    staker,
+                    2, // period
+                    0, // globalHistoryIndex
+                    0, // stakerHistoryIndex
+                );
 
-                describe('when claiming all periods', function () {
-                    shouldClaimRewards(staker, 99, 1, 1, 7000); // 7 cycles in period 1
-                    shouldHaveCurrentCycleAndPeriod(9, 2);
-                    shouldHaveGlobalHistoryLength(1);
-                    shouldHaveStakerHistoryLength(staker, 1);
-                    shouldHaveNextClaim(
-                        staker,
-                        2, // period
-                        0, // globalHistoryIndex
-                        0, // stakerHistoryIndex
-                    );
-
-
-                    describe('when unstaking the NFT', function () {
-                        shouldUnstakeNft(staker, TokenIds[0], 9);
-                    });
-                });
+                shouldUnstakeNft(staker, TokenIds[0], 9);
+                shouldHaveLastGlobalSnapshot(9, 0, 1);
+                shouldHaveLastStakerSnapshot(staker, 9, 0, 1);
+                shouldHaveNextClaim(
+                    staker,
+                    2, // period
+                    0, // globalHistoryIndex
+                    0, // stakerHistoryIndex
+                );
             });
         });
     });
@@ -786,7 +802,7 @@ describe.only('NftStaking', function () {
         })
     });
 
-    describe('Scenario #2', function () {
+    describe('Multi stakers scenario', function () {
         const OtherTokenIds = [
             TokenHelper.makeTokenId(TokenHelper.Rarity.Common, TokenHelper.Type.Car),
             TokenHelper.makeTokenId(TokenHelper.Rarity.Epic, TokenHelper.Type.Car),
@@ -802,60 +818,74 @@ describe.only('NftStaking', function () {
             }
         });
 
-        describe('when staker #1 stakes a Common NFT', function () {
+        describe('Start', function () {
+            shouldHaveCurrentCycleAndPeriod(1, 1);
+
             shouldStakeNft(staker, TokenIds[0], 1);
-            shouldEstimateRewards(staker, 1, 1, 0, 0);
+            shouldHaveLastGlobalSnapshot(1, 1, 0);
+            shouldHaveLastStakerSnapshot(staker, 1, 1, 0);
             shouldHaveNextClaim(
                 staker,
                 1, // period
                 0, // globalHistoryIndex
                 0, // stakerHistoryIndex
             );
+            shouldEstimateRewards(staker, 1, 1, 0, 0);
 
             describe('timewarp 1 period', function () {
                 before(async function () {
                     await time.increase(PeriodLengthInSeconds.toNumber());
                 });
 
-                describe('when staker #2 stakes a Common NFT', function () {
-                    shouldStakeNft(otherStaker, OtherTokenIds[0], 8);
-                    shouldHaveNextClaim(
-                        otherStaker,
-                        2, // period
-                        1, // globalHistoryIndex
-                        0, // stakerHistoryIndex
-                    );
-                    shouldEstimateRewards(otherStaker, 1, 2, 0, 0);
-                    shouldEstimateRewards(staker, 1, 1, 1, 7000);
+                shouldHaveCurrentCycleAndPeriod(8, 2);
 
-                    describe('timewarp 1 period', function () {
+                shouldStakeNft(otherStaker, OtherTokenIds[0], 8);
+                shouldHaveLastGlobalSnapshot(8, 2, 1);
+                shouldHaveLastStakerSnapshot(otherStaker, 8, 1, 0);
+                shouldHaveNextClaim(
+                    otherStaker,
+                    2, // period
+                    1, // globalHistoryIndex
+                    0, // stakerHistoryIndex
+                );
+                shouldEstimateRewards(otherStaker, 1, 2, 0, 0);
+                shouldEstimateRewards(staker, 1, 1, 1, 7000);
+
+                describe('timewarp 1 period', function () {
+                    before(async function () {
+                        await time.increase(PeriodLengthInSeconds.toNumber());
+                    });
+
+                    shouldHaveCurrentCycleAndPeriod(15, 3);
+
+                    shouldEstimateRewards(otherStaker, 1, 2, 1, 3500);
+                    shouldEstimateRewards(staker, 2, 1, 2, 10500);
+
+                    describe('timewarp 2 cycles', function () {
                         before(async function () {
-                            await time.increase(PeriodLengthInSeconds.toNumber());
+                            await time.increase(CycleLengthInSeconds.muln(2).toNumber());
                         });
 
-                        shouldEstimateRewards(otherStaker, 1, 2, 1, 3500);
-                        shouldEstimateRewards(staker, 2, 1, 2, 10500);
+                        shouldHaveCurrentCycleAndPeriod(17, 3);
 
-                        describe('timewarp 2 cycles', function () {
-                            before(async function () {
-                                await time.increase(CycleLengthInSeconds.muln(2).toNumber());
-                            });
+                        shouldEstimateRewards(otherStaker, 10, 2, 1, 3500);
+                        shouldEstimateRewards(staker, 10, 1, 2, 10500);
+                        shouldHaveNextClaim(
+                            staker,
+                            1, // period
+                            0, // globalHistoryIndex
+                            0, // stakerHistoryIndex
+                        );
 
-                            shouldEstimateRewards(otherStaker, 10, 2, 1, 3500);
-                            shouldEstimateRewards(staker, 10, 1, 2, 10500);
-
-                            describe('when staker #1 stakes a Rare NFT', function () {
-                                shouldStakeNft(staker, TokenIds[1], 17);
-                                shouldHaveNextClaim(
-                                    staker,
-                                    1, // period
-                                    0, // globalHistoryIndex
-                                    0, // stakerHistoryIndex
-                                );
-                                shouldEstimateRewards(otherStaker, 10, 2, 1, 3500);
-                                shouldEstimateRewards(staker, 10, 1, 2, 10500);
-                            });
-                        });
+                        shouldStakeNft(staker, TokenIds[1], 17);
+                        shouldHaveNextClaim(
+                            staker,
+                            1, // period
+                            0, // globalHistoryIndex
+                            0, // stakerHistoryIndex
+                        );
+                        shouldEstimateRewards(otherStaker, 10, 2, 1, 3500);
+                        shouldEstimateRewards(staker, 10, 1, 2, 10500);
                     });
                 });
             });

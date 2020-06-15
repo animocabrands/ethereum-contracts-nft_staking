@@ -6,7 +6,7 @@ async function debugCurrentState(...stakers) {
 
     const cycle = (await this.stakingContract.getCurrentCycle()).toNumber();
     const period = Math.floor((cycle - 1) / PeriodLengthInCycles) + 1;
-    const titleWidth = 18;
+    const titleWidth = 25;
     const titlePartition = '|';
     const titlePadding = 2;
 

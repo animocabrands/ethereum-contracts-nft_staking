@@ -325,7 +325,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
         Snapshot[] memory stakerHistory = stakerHistories[msg.sender];
         Snapshot memory lastStakerSnapshot = stakerHistory[stakerHistory.length - 1];
-        uint256 lastClaimableCycle = SafeMath.mul(result.firstClaimablePeriod + result.computedPeriods - 1, periodLengthInCycles);
+        // safe because of multiplication of uint16 values into a uint256
+        uint256 lastClaimableCycle = (result.firstClaimablePeriod + result.computedPeriods - 1) * periodLengthInCycles;
         if (
             lastClaimableCycle >= lastStakerSnapshot.startCycle && // the claim overlaps with the last staker snapshot
             lastStakerSnapshot.stake == 0                          // and nothing is staked in the last staker snapshot

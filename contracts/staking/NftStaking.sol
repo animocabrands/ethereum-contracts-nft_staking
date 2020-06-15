@@ -530,17 +530,14 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                     nbCycles = nextPeriodStartCycle - startCycle;
                     endOfPeriodReached = true;
                 }
-                uint256 snapshotReward;
                 if ($.globalSnapshot.stake > 0) {
-                    snapshotReward = nbCycles;                                 // nb cycles
+                    uint256 snapshotReward = nbCycles;                         // nb cycles
                     snapshotReward *= payoutSchedule[result.nextClaim.period]; // * reward per-cycle
                     snapshotReward *= $.stakerSnapshot.stake;                  // * staker stake
                     snapshotReward *= _DIVS_PRECISION;
                     snapshotReward /= $.globalSnapshot.stake;                  // / global stake
                     snapshotReward /= _DIVS_PRECISION;
                     result.claimableRewards = result.claimableRewards.add(snapshotReward);
-                } else {
-                    snapshotReward = 0;
                 }
 
                 if (

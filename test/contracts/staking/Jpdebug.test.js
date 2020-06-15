@@ -40,6 +40,9 @@ describe.only('NftStaking', function () {
         );
         this.contract = this.stakingContract;
 
+        // for 'interface support' tests
+        this.mock = this.stakingContract;
+
         await this.rewardsToken.approve(this.stakingContract.address, RewardsTokenInitialBalance, { from: creator });
 
         for (const tokenId of TokenIds) {
@@ -109,4 +112,3 @@ describe.only('NftStaking', function () {
         ]);
     });
 });
-

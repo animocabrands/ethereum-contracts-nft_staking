@@ -45,6 +45,7 @@ describe.only('NftStaking', function () {
     const [
         creator,
         staker,
+        otherStaker,
         ...otherAccounts
     ] = accounts;
 
@@ -185,7 +186,7 @@ describe.only('NftStaking', function () {
         let rewardMark = ('reward per-cycle' + titlePartition).padStart(titleWidth) + ' '.repeat(titlePadding);
         const rewardSchedule = [];
         for (let count = 1; count <= period; count++) {
-            rewardSchedule.push(await this.stakingContract.rewardSchedule(count));
+            rewardSchedule.push(await this.stakingContract.payoutSchedule(count));
         }
         for (let index = 0; index < (period - 1); index++) {
             rewardMark += rewardSchedule[index].toString().padEnd(21, ' ');
@@ -230,23 +231,35 @@ describe.only('NftStaking', function () {
             if (index == 0) {
                 snapshotGraph += ' '.repeat((startCycle - 1) * 3);
             }
-            const endCycle = snapshot.endCycle.toNumber();
-            snapshotGraph += `[${'.'.repeat(((endCycle - startCycle + 1) * 3) - 2)}]`;
+            if (index < totalSnapshots - 1) {
+                const nextSnapshot = globalHistory[index + 1];
+                const endCycle = nextSnapshot.startCycle.toNumber() - 1;
+                snapshotGraph += `[${'.'.repeat(((endCycle - startCycle + 1) * 3) - 2)}]`;
+            } else {
+                const endCycle = cycle;
+                snapshotGraph += `[${'.'.repeat(((endCycle - startCycle + 1) * 3) - 1)}`;
+            }
         }
         console.log(snapshotGraph);
 
-        // let snapshotMark = ('snapshot' + titlePartition).padStart(titleWidth, ' ') + ' '.repeat(titlePadding);
-        // for (let index = 0; index < totalSnapshots; index++) {
-        //     const snapshot = globalHistory[index];
-        //     const startCycle = snapshot.startCycle.toNumber();
-        //     if (index == 0) {
-        //         const offset = (startCycle - 1) * 3;
-        //         snapshotMark += ' '.repeat(offset);
-        //     }
-        //     const endCycle = snapshot.endCycle.toNumber();
-        //     snapshotMark += (index + '').padEnd((startCycle + 1) * 3, ' ');
-        // }
-        // console.log(snapshotMark);
+        let snapshotMark = ('global snapshot' + titlePartition).padStart(titleWidth, ' ') + ' '.repeat(titlePadding);
+        for (let index = 0; index < totalSnapshots; index++) {
+            const snapshot = globalHistory[index];
+            const startCycle = snapshot.startCycle.toNumber();
+            if (index == 0) {
+                const offset = (startCycle - 1) * 3;
+                snapshotMark += ' '.repeat(offset);
+            }
+            if (index < totalSnapshots - 1) {
+                const nextSnapshot = globalHistory[index + 1];
+                const endCycle = nextSnapshot.startCycle.toNumber() - 1;
+                snapshotMark += (index + '').padEnd((endCycle - startCycle + 1) * 3, ' ');
+            } else {
+                const endCycle = cycle;
+                snapshotMark += (index + '').padEnd((endCycle - startCycle + 1) * 3, ' ');
+            }
+        }
+        console.log(snapshotMark);
 
         let totalStakeMark = ('global stake' + titlePartition).padStart(titleWidth, ' ') + ' '.repeat(titlePadding);
         for (let index = 0; index < totalSnapshots; index++) {
@@ -257,14 +270,70 @@ describe.only('NftStaking', function () {
                 totalStakeMark += ' '.repeat(offset);
             }
             const stake = snapshot.stake.toNumber();
-            totalStakeMark += (stake + '').padEnd((startCycle + 1) * 3, ' ');
+            if (index < totalSnapshots - 1) {
+                const nextSnapshot = globalHistory[index + 1];
+                const endCycle = nextSnapshot.startCycle.toNumber() - 1;
+                totalStakeMark += (stake + '').padEnd((endCycle - startCycle + 1) * 3, ' ');
+            } else {
+                const endCycle = cycle;
+                totalStakeMark += (stake + '').padEnd((endCycle - startCycle + 1) * 3, ' ');
+            }
         }
         console.log(totalStakeMark);
 
+        const stakersHistory = {};
         for (let index = 0; index < stakers.length; index++) {
+            const staker = stakers[index];
+            const lastStakerSnapshotIndex = await this.stakingContract.lastStakerSnapshotIndex(staker);
+            const totalSnapshots = lastStakerSnapshotIndex.toNumber() + 1;
+            const stakerHistory = [];
+            for (let sIndex = 0; sIndex < totalSnapshots; sIndex++) {
+                stakerHistory.push(await this.stakingContract.stakerHistories(staker, sIndex));
+            }
+            stakersHistory[staker] = stakerHistory;
+        }
+
+        for (let index = 0; index < stakers.length; index++) {
+            let stakerSnapshotGraph = `staker #${index + 1} snapshot${titlePartition}`.padStart(titleWidth, ' ') + ' '.repeat(titlePadding);
             const nextClaim = await this.stakingContract.nextClaims(stakers[index]);
-            const stake = nextClaim.stake.toNumber();
-            // const nextClaimableCycle = await(this.stakingContract.nextClaim.nextClaimableCycle.toNumber();
+            const lastStakerSnapshotIndex = await this.stakingContract.lastStakerSnapshotIndex(stakers[index]);
+            const totalSnapshots = lastStakerSnapshotIndex.toNumber() + 1;
+            const stakerHistory = [];
+            for (let sIndex = 0; sIndex < totalSnapshots; sIndex++) {
+                stakerHistory.push(await this.stakingContract.stakerHistories(stakers[index], sIndex));
+            }
+            for (let sIndex = 0; sIndex < totalSnapshots; sIndex++) {
+                const snapshot = stakerHistory[sIndex];
+                const startCycle = snapshot.startCycle.toNumber();
+                if (sIndex == 0) {
+                    stakerSnapshotGraph += ' '.repeat((startCycle - 1) * 3);
+                }
+                if (sIndex < totalSnapshots - 1) {
+                    const nextSnapshot = stakerHistory[sIndex + 1];
+                    const endCycle = nextSnapshot.startCycle.toNumber() - 1;
+                    stakerSnapshotGraph += `[${'.'.repeat(((endCycle - startCycle + 1) * 3) - 2)}]`;
+                } else {
+                    const endCycle = cycle;
+                    stakerSnapshotGraph += `[${'.'.repeat(((endCycle - startCycle + 1) * 3) - 1)}`;
+                }
+            }
+            console.log(stakerSnapshotGraph);
+            for (let sIndex = 0; sIndex < totalSnapshots; sIndex++) {
+                const snapshot = stakerHistory[sIndex];
+                const startCycle = snapshot.startCycle.toNumber();
+                if (sIndex == 0) {
+                    stakerSnapshotGraph += ' '.repeat((startCycle - 1) * 3);
+                }
+                if (sIndex < totalSnapshots - 1) {
+                    const nextSnapshot = stakerHistory[sIndex + 1];
+                    const endCycle = nextSnapshot.startCycle.toNumber() - 1;
+                    stakerSnapshotGraph += `[${'.'.repeat(((endCycle - startCycle + 1) * 3) - 2)}]`;
+                } else {
+                    const endCycle = cycle;
+                    stakerSnapshotGraph += `[${'.'.repeat(((endCycle - startCycle + 1) * 3) - 1)}`;
+                }
+            }
+            // const nextClaimableCycle = await this.stakingContract.nextClaim.nextClaimableCycle.toNumber();
             // let stakerStakeMark = `staker #${index + 1} stake${titlePartition}`.padStart(titleWidth, ' ') + ' '.repeat(titlePadding);
             // if ((stake > 0) && (nextClaimableCycle > 0)) {
             //     stakerStakeMark += '   '.repeat(nextClaimableCycle - 1);
@@ -373,7 +442,7 @@ describe.only('NftStaking', function () {
             const stakerSnapshotBefore = await this.stakingContract.getLatestStakerSnapshot(from);
             const tokenInfoBefore = await this.stakingContract.tokenInfos(tokenId);
 
-            const receipt = await this.nftContract.transferFrom(staker, this.stakingContract.address, tokenId, { from: from });
+            const receipt = await this.nftContract.transferFrom(from, this.stakingContract.address, tokenId, { from: from });
 
             const globalSnapshotAfter = await this.stakingContract.getLatestGlobalSnapshot();
             const stakerSnapshotAfter = await this.stakingContract.getLatestStakerSnapshot(from);
@@ -513,7 +582,6 @@ describe.only('NftStaking', function () {
             }
         });
     }
-
 
     describe('Scenario #0', function () {
         before(doFreshDeploy);
@@ -706,6 +774,64 @@ describe.only('NftStaking', function () {
                                         });
                                     });
                                 });
+                            });
+                        });
+                    });
+                });
+            });
+        })
+    });
+
+    describe('Scenario #2', function () {
+        const OtherTokenIds = [
+            TokenHelper.makeTokenId(TokenHelper.Rarity.Common, TokenHelper.Type.Car),
+            TokenHelper.makeTokenId(TokenHelper.Rarity.Epic, TokenHelper.Type.Car),
+            TokenHelper.makeTokenId(TokenHelper.Rarity.Apex, TokenHelper.Type.Car)
+        ];
+
+        before(doFreshDeploy);
+        before(start);
+
+        before(async function () {
+            for (const tokenId of OtherTokenIds) {
+                await this.nftContract.mintNonFungible(otherStaker, tokenId, { from: creator });
+            }
+        });
+
+        describe('when staker #1 stakes a Common NFT', function () {
+            shouldStakeNft(staker, TokenIds[0], 1);
+            shouldEstimateRewards(staker, 1, 1, 0, 0);
+
+            describe('timewarp 1 period', function () {
+                before(async function () {
+                    await time.increase(PeriodLengthInSeconds.toNumber());
+                });
+
+                describe('when staker #2 stakes a Common NFT', function () {
+                    shouldStakeNft(otherStaker, OtherTokenIds[0], 8);
+                    shouldEstimateRewards(otherStaker, 1, 2, 0, 0);
+                    shouldEstimateRewards(staker, 1, 1, 1, 7000);
+
+                    describe('timewarp 1 period', function () {
+                        before(async function () {
+                            await time.increase(PeriodLengthInSeconds.toNumber());
+                        });
+
+                        shouldEstimateRewards(otherStaker, 1, 2, 1, 3500);
+                        shouldEstimateRewards(staker, 2, 1, 2, 10500);
+
+                        describe('timewarp 2 cycles', function () {
+                            before(async function () {
+                                await time.increase(CycleLengthInSeconds.muln(2).toNumber());
+                            });
+
+                            shouldEstimateRewards(otherStaker, 10, 2, 1, 3500);
+                            shouldEstimateRewards(staker, 10, 1, 2, 10500);
+
+                            describe('when staker #1 stakes a Rare NFT', function () {
+                                shouldStakeNft(staker, TokenIds[1], 17);
+                                shouldEstimateRewards(otherStaker, 10, 2, 1, 3500);
+                                shouldEstimateRewards(staker, 10, 1, 2, 45500);
                             });
                         });
                     });

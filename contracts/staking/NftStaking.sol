@@ -82,14 +82,6 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint16 computedPeriods;
     }
 
-    // used to bypass the stack limit
-    struct ComputeRewardsIterationVariables {
-        Snapshot globalSnapshot;
-        Snapshot nextGlobalSnapshot;
-        Snapshot stakerSnapshot;
-        Snapshot nextStakerSnapshot;
-    }
-
     bool public disabled = false;
 
     uint256 public prizePool = 0; // prize pool for the entire schedule
@@ -459,10 +451,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             return result;
         }
 
-        uint256 globalHistoryLength = globalHistory.length;
-
         // the history is empty
-        if (globalHistoryLength == 0) {
+        if (globalHistory.length == 0) {
             return result;
         }
 
@@ -484,90 +474,87 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
         Snapshot[] memory stakerHistory = stakerHistories[staker];
 
-        // iterate over periods
+        Snapshot memory globalSnapshot = globalHistory[result.nextClaim.globalHistoryIndex];
+        Snapshot memory stakerSnapshot = stakerHistory[result.nextClaim.stakerHistoryIndex];
+        Snapshot memory nextGlobalSnapshot;
+        Snapshot memory nextStakerSnapshot;
+
+        if (result.nextClaim.globalHistoryIndex != globalHistory.length - 1) {
+            nextGlobalSnapshot = globalHistory[result.nextClaim.globalHistoryIndex + 1];
+        }
+
+        if (result.nextClaim.stakerHistoryIndex != stakerHistory.length - 1) {
+            nextStakerSnapshot = stakerHistory[result.nextClaim.stakerHistoryIndex + 1];
+        }
+
         while (
-            result.computedPeriods < maxPeriods &&  // max number of periods not reached
-            result.nextClaim.period < currentPeriod // and period didn't reach current period
+            (result.computedPeriods < maxPeriods) &&
+            (result.nextClaim.period < currentPeriod)
         ) {
-            ComputeRewardsIterationVariables memory $;
-            /*  struct ComputeRewardsIterationVariables {
-                    Snapshot globalSnapshot;
-                    Snapshot nextGlobalSnapshot;
-                    Snapshot stakerSnapshot;
-                    Snapshot nextStakerSnapshot; } */
-
-            // Retrieve the active global and staker snapshots
-            $.globalSnapshot = globalHistory[result.nextClaim.globalHistoryIndex];
-            $.stakerSnapshot = stakerHistory[result.nextClaim.stakerHistoryIndex];
-            if (result.nextClaim.globalHistoryIndex != globalHistory.length - 1) {
-                // there is a next global snapshot
-                $.nextGlobalSnapshot = globalHistory[result.nextClaim.globalHistoryIndex + 1];
-
-                // there can't be a next staker snapshot if there is not a next global snapshot
-                if (result.nextClaim.stakerHistoryIndex != stakerHistory.length - 1) {
-                    // there is a next staker snapshot
-                    $.nextStakerSnapshot = stakerHistory[result.nextClaim.stakerHistoryIndex + 1];
-                }
-            }
-
-            // iterate over global snapshots inside the period
             uint16 nextPeriodStartCycle = result.nextClaim.period * periodLengthInCycles_ + 1;
-            bool endOfPeriodReached = false;
-            while (!endOfPeriodReached) {
-                uint256 startCycle = Math.max(
-                    $.globalSnapshot.startCycle,                 // if the global snapshot starts before the current period,
-                    nextPeriodStartCycle - periodLengthInCycles_ // use the current period first cycle as starting point for computation
-                );
-                uint256 nbCycles;
-                if (
-                    $.nextGlobalSnapshot.startCycle != 0 &&                // there is a next global snapshot
-                    $.nextGlobalSnapshot.startCycle < nextPeriodStartCycle // which starts during the current period
-                ) {
-                    // compute until next global snapshot
-                    nbCycles = $.nextGlobalSnapshot.startCycle - startCycle;
-                } else {
-                    // compute until end of period
-                    nbCycles = nextPeriodStartCycle - startCycle;
-                    endOfPeriodReached = true;
+            uint256 periodPayoutSchedule = payoutSchedule[result.nextClaim.period];
+            uint256 startCycle = nextPeriodStartCycle - periodLengthInCycles_;
+            uint256 endCycle = 0; // exclusive of the cycle range to claim
+
+            while (endCycle != nextPeriodStartCycle) {                
+                if (globalSnapshot.startCycle > startCycle) {
+                    startCycle = globalSnapshot.startCycle;
                 }
-                if ($.globalSnapshot.stake > 0) {
-                    uint256 snapshotReward = nbCycles;                         // nb cycles
-                    snapshotReward *= payoutSchedule[result.nextClaim.period]; // * reward per-cycle
-                    snapshotReward *= $.stakerSnapshot.stake;                  // * staker stake
+
+                if (stakerSnapshot.startCycle > startCycle) {
+                    startCycle = stakerSnapshot.startCycle;
+                }
+
+                endCycle = nextPeriodStartCycle;
+
+                if (
+                    (nextGlobalSnapshot.startCycle != 0) &&
+                    (nextGlobalSnapshot.startCycle < endCycle)
+                ) {
+                    endCycle = nextGlobalSnapshot.startCycle;
+                }
+
+                if (
+                    (nextStakerSnapshot.startCycle != 0) &&
+                    (nextStakerSnapshot.startCycle < endCycle)
+                ) {
+                    endCycle = nextStakerSnapshot.startCycle;
+                }
+
+                if (
+                    (globalSnapshot.stake != 0) &&
+                    (stakerSnapshot.stake != 0) &&
+                    (periodPayoutSchedule != 0)
+                ) {
+                    uint256 snapshotReward = endCycle - startCycle;
+                    snapshotReward *= periodPayoutSchedule;
+                    snapshotReward *= stakerSnapshot.stake;
                     snapshotReward *= _DIVS_PRECISION;
-                    snapshotReward /= $.globalSnapshot.stake;                  // / global stake
+                    snapshotReward /= globalSnapshot.stake;
                     snapshotReward /= _DIVS_PRECISION;
+
                     result.claimableRewards = result.claimableRewards.add(snapshotReward);
                 }
 
-                if (
-                    !endOfPeriodReached ||                                  // there are more global snapshots in the current period
-                    $.nextGlobalSnapshot.startCycle == nextPeriodStartCycle // or the next global snapshot starts at next period start cycle
-                ) {
-                    // move current global snapshot to next global snapshot
-                    $.globalSnapshot = $.nextGlobalSnapshot;
+                if (nextGlobalSnapshot.startCycle == endCycle) {
+                    globalSnapshot = nextGlobalSnapshot;
                     ++result.nextClaim.globalHistoryIndex;
+
                     if (result.nextClaim.globalHistoryIndex != globalHistory.length - 1) {
-                        // there is a next global snapshot
-                        $.nextGlobalSnapshot = globalHistory[result.nextClaim.globalHistoryIndex + 1];
-                        if (
-                            $.nextStakerSnapshot.startCycle != 0 &&                            // there is a next staker snapshot
-                            $.nextStakerSnapshot.startCycle == $.nextGlobalSnapshot.startCycle // which starts at the next global snapshot
-                        ) {
-                            // move current staker snapshot to next
-                            $.stakerSnapshot = $.nextStakerSnapshot;
-                            ++result.nextClaim.stakerHistoryIndex;
-                            if (result.nextClaim.stakerHistoryIndex != stakerHistory.length - 1) {
-                                // there is a next staker snapshot
-                                $.nextStakerSnapshot = stakerHistory[result.nextClaim.stakerHistoryIndex + 1];
-                            } else {
-                                // there is no next staker snapshot
-                                $.nextStakerSnapshot = Snapshot(0, 0);
-                            }
-                        }
+                        nextGlobalSnapshot = globalHistory[result.nextClaim.globalHistoryIndex + 1];
                     } else {
-                        // there is no next global snapshot
-                        $.nextGlobalSnapshot = Snapshot(0, 0);
+                        nextGlobalSnapshot = Snapshot(0, 0);
+                    }
+                }
+
+                if (nextStakerSnapshot.startCycle == endCycle) {
+                    stakerSnapshot = nextStakerSnapshot;
+                    ++result.nextClaim.stakerHistoryIndex;
+
+                    if (result.nextClaim.stakerHistoryIndex != stakerHistory.length - 1) {
+                        nextStakerSnapshot = stakerHistory[result.nextClaim.stakerHistoryIndex + 1];
+                    } else {
+                        nextStakerSnapshot = Snapshot(0, 0);
                     }
                 }
             }
@@ -575,6 +562,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             ++result.computedPeriods;
             ++result.nextClaim.period;
         }
+
         return result;
     }
 

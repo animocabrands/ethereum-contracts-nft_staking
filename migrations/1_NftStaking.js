@@ -10,7 +10,6 @@ const ERC20 = artifacts.require("ERC20WithOperatorsMock");
 const DayInSeconds = 86400;
 const CycleLengthInSeconds = new BN(DayInSeconds);
 const PeriodLengthInCycles = new BN(7);
-const FreezeLengthInCycles = new BN(1);
 
 const RewardsTokenInitialBalance = toWei('320000000');
 const PayoutSchedule = [ // payouts are expressed in decimal form and need to be converted to wei
@@ -84,10 +83,9 @@ module.exports = async (deployer, network, accounts) => {
     }
 
 
-    const result = await deployer.deploy(NftStaking,
+    await deployer.deploy(NftStaking,
         CycleLengthInSeconds,
         PeriodLengthInCycles,
-        FreezeLengthInCycles,
         this.nftContract.address,
         this.rewardsTokenContract.address,
         Object.keys(RarityToWeightsMap),

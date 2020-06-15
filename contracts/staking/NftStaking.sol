@@ -19,7 +19,6 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     using SafeCast for uint256;
 
     uint40 internal constant _DIVS_PRECISION = 10 ** 10; // used to preserve significant figures in floating point calculations
-    uint16 internal constant _FREEZE_LENGTH_IN_CYCLES = 2;
 
     event PayoutScheduled(
         uint256 startPeriod,
@@ -262,7 +261,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint16 currentCycle = _getCycle(now);
 
         if (!disabled) {
-            require(currentCycle - tokenInfo.depositCycle >= _FREEZE_LENGTH_IN_CYCLES, "NftStaking: Token is still frozen");
+            require(currentCycle - tokenInfo.depositCycle >= 2, "NftStaking: Token is still frozen");
 
             _updateHistory(msg.sender, -int128(tokenInfo.weight), currentCycle);
 
@@ -323,9 +322,13 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             return;
         }
 
+        if (nextClaims[msg.sender].period == 0) {
+            return;
+        }
+
         Snapshot[] memory stakerHistory = stakerHistories[msg.sender];
         Snapshot memory lastStakerSnapshot = stakerHistory[stakerHistory.length - 1];
-        // safe because of multiplication of uint16 values into a uint256
+        // assumed safe because of manipulation of uint16 values into a uint256
         uint256 lastClaimableCycle = (result.firstClaimablePeriod + result.computedPeriods - 1) * periodLengthInCycles;
         if (
             lastClaimableCycle >= lastStakerSnapshot.startCycle && // the claim overlaps with the last staker snapshot
@@ -390,6 +393,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         require(length > 0, "NftStaking: empty staker history");
         return length - 1;
     }
+
 
 /////////////////////////////////// Staking Internal Functions ////////////////////////////////////
 
@@ -523,13 +527,18 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                     nbCycles = nextPeriodStartCycle - startCycle;
                     endOfPeriodReached = true;
                 }
-                uint256 snapshotReward = nbCycles;                         // nb cycles
-                snapshotReward *= payoutSchedule[result.nextClaim.period]; // * reward per-cycle
-                snapshotReward *= $.stakerSnapshot.stake;                  // * staker stake
-                snapshotReward *= _DIVS_PRECISION;
-                snapshotReward /= $.globalSnapshot.stake;                  // / global stake
-                snapshotReward /= _DIVS_PRECISION;
-                result.claimableRewards = result.claimableRewards.add(snapshotReward);
+                uint256 snapshotReward;
+                if ($.globalSnapshot.stake > 0) {
+                    snapshotReward = nbCycles;                                 // nb cycles
+                    snapshotReward *= payoutSchedule[result.nextClaim.period]; // * reward per-cycle
+                    snapshotReward *= $.stakerSnapshot.stake;                  // * staker stake
+                    snapshotReward *= _DIVS_PRECISION;
+                    snapshotReward /= $.globalSnapshot.stake;                  // / global stake
+                    snapshotReward /= _DIVS_PRECISION;
+                    result.claimableRewards = result.claimableRewards.add(snapshotReward);
+                } else {
+                    snapshotReward = 0;
+                }
 
                 if (
                     !endOfPeriodReached ||                                  // there are more global snapshots in the current period
@@ -666,6 +675,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             currentCycle
         );
     }
+
 
 ///////////////////////////////////////// Internal Hooks //////////////////////////////////////////
 

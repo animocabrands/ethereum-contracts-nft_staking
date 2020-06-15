@@ -482,6 +482,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             return result;
         }
 
+        Snapshot[] memory stakerHistory = stakerHistories[staker];
+
         // iterate over periods
         while (
             result.computedPeriods < maxPeriods &&  // max number of periods not reached
@@ -495,7 +497,6 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                     Snapshot nextStakerSnapshot; } */
 
             // Retrieve the active global and staker snapshots
-            Snapshot[] memory stakerHistory = stakerHistories[staker];
             $.globalSnapshot = globalHistory[result.nextClaim.globalHistoryIndex];
             $.stakerSnapshot = stakerHistory[result.nextClaim.stakerHistoryIndex];
             if (result.nextClaim.globalHistoryIndex != globalHistory.length - 1) {

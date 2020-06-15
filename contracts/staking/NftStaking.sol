@@ -87,7 +87,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         Snapshot globalSnapshot;
         Snapshot nextGlobalSnapshot;
         Snapshot stakerSnapshot;
-        Snapshot nextSnapshot;
+        Snapshot nextStakerSnapshot;
     }
 
     bool public disabled = false;
@@ -492,7 +492,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                     Snapshot globalSnapshot;
                     Snapshot nextGlobalSnapshot;
                     Snapshot stakerSnapshot;
-                    Snapshot nextSnapshot; } */
+                    Snapshot nextStakerSnapshot; } */
 
             // Retrieve the active global and staker snapshots
             Snapshot[] memory stakerHistory = stakerHistories[staker];
@@ -501,9 +501,11 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             if (result.nextClaim.globalHistoryIndex != globalHistory.length - 1) {
                 // there is a next global snapshot
                 $.nextGlobalSnapshot = globalHistory[result.nextClaim.globalHistoryIndex + 1];
+
+                // there can't be a next staker snapshot if there is not a next global snapshot
                 if (result.nextClaim.stakerHistoryIndex != stakerHistory.length - 1) {
                     // there is a next staker snapshot
-                    $.nextSnapshot = stakerHistory[result.nextClaim.stakerHistoryIndex + 1];
+                    $.nextStakerSnapshot = stakerHistory[result.nextClaim.stakerHistoryIndex + 1];
                 }
             }
 
@@ -523,7 +525,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                     // compute until next global snapshot
                     nbCycles = $.nextGlobalSnapshot.startCycle - startCycle;
                 } else {
-                    // extrapolate until end of period
+                    // compute until end of period
                     nbCycles = nextPeriodStartCycle - startCycle;
                     endOfPeriodReached = true;
                 }
@@ -544,25 +546,25 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                     !endOfPeriodReached ||                                  // there are more global snapshots in the current period
                     $.nextGlobalSnapshot.startCycle == nextPeriodStartCycle // or the next global snapshot starts at next period start cycle
                 ) {
-                    // move current global snapshot to next snapshot
+                    // move current global snapshot to next global snapshot
                     $.globalSnapshot = $.nextGlobalSnapshot;
                     ++result.nextClaim.globalHistoryIndex;
                     if (result.nextClaim.globalHistoryIndex != globalHistory.length - 1) {
                         // there is a next global snapshot
                         $.nextGlobalSnapshot = globalHistory[result.nextClaim.globalHistoryIndex + 1];
                         if (
-                            $.nextSnapshot.startCycle != 0 &&                            // there is a next staker snapshot
-                            $.nextSnapshot.startCycle == $.nextGlobalSnapshot.startCycle // which starts at the next global snapshot
+                            $.nextStakerSnapshot.startCycle != 0 &&                            // there is a next staker snapshot
+                            $.nextStakerSnapshot.startCycle == $.nextGlobalSnapshot.startCycle // which starts at the next global snapshot
                         ) {
                             // move current staker snapshot to next
-                            $.stakerSnapshot = $.nextSnapshot;
+                            $.stakerSnapshot = $.nextStakerSnapshot;
                             ++result.nextClaim.stakerHistoryIndex;
                             if (result.nextClaim.stakerHistoryIndex != stakerHistory.length - 1) {
                                 // there is a next staker snapshot
-                                $.nextSnapshot = stakerHistory[result.nextClaim.stakerHistoryIndex + 1];
+                                $.nextStakerSnapshot = stakerHistory[result.nextClaim.stakerHistoryIndex + 1];
                             } else {
                                 // there is no next staker snapshot
-                                $.nextSnapshot = Snapshot(0, 0);
+                                $.nextStakerSnapshot = Snapshot(0, 0);
                             }
                         }
                     } else {

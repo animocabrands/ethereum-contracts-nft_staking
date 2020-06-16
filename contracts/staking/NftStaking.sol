@@ -54,6 +54,12 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint256 globalStake
     );
 
+    event Started(
+        uint256 timestamp
+    );
+
+    event Disabled();
+
     // optimised for storage
     struct TokenInfo {
         address owner;
@@ -177,6 +183,16 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         );
 
         startTimestamp = now;
+
+        emit Started(startTimestamp);
+    }
+
+    /**
+     * Permanently disables all staking and claiming functionality of the contract.
+     */
+    function disable() public onlyOwner {
+        disabled = true;
+        emit Disabled();
     }
 
     /**
@@ -190,13 +206,6 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         );
     }
 
-    /**
-     * Permanently disables all staking and claiming functionality of the contract.
-     */
-    function disable() public onlyOwner {
-        disabled = true;
-    }
-
 
 ////////////////////////////////////// ERC1155TokenReceiver ///////////////////////////////////////
 
@@ -206,11 +215,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint256 id,
         uint256 /*value*/,
         bytes calldata /*data*/
-    )
-    external
-    virtual
-    override
-    returns (bytes4)
+    ) external virtual override returns (bytes4)
     {
         _stakeNft(id, from);
         return _ERC1155_RECEIVED;
@@ -222,11 +227,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint256[] calldata ids,
         uint256[] calldata /*values*/,
         bytes calldata /*data*/
-    )
-    external
-    virtual
-    override
-    returns (bytes4)
+    ) external virtual override returns (bytes4)
     {
         for (uint256 i = 0; i < ids.length; ++i) {
             _stakeNft(ids[i], from);
@@ -652,7 +653,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @return The cycle (index-1 based) at the specified timestamp.
      */
     function _getCycle(uint256 timestamp) internal view returns (uint16) {
-        require(timestamp >= startTimestamp, "NftStaking: cycle preceeds contract start");
+        require(timestamp >= startTimestamp, "NftStaking: timestamp preceeds contract start");
         return (((timestamp - startTimestamp) / uint256(cycleLengthInSeconds)) + 1).toUint16();
     }
 
@@ -664,7 +665,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @return The period (index-1 based) for the specified cycle and period length.
      */
     function _getPeriod(uint16 cycle, uint16 periodLengthInCycles_) internal pure returns (uint16) {
-        require(cycle != 0, "NftStaking: period cycle cannot be zero");
+        require(cycle != 0, "NftStaking: cycle cannot be zero");
         return (cycle - 1) / periodLengthInCycles_ + 1;
     }
 

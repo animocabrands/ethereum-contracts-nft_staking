@@ -77,7 +77,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint64 stakerSnapshotIndex;
     }
 
-    // used as a container to hold result values from computing claimable rewards.
+    // used as a container to hold result values from computing rewards.
     struct ComputedClaim {
         uint16 startPeriod;
         uint16 periods;
@@ -287,7 +287,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     /**
      * Estimates the claimable rewards for the specified number of periods.
-     * @param maxPeriods The maximum number of claimable periods to calculate for.
+     * @param maxPeriods The maximum number of periods to calculate for.
      * @return startPeriod The first period on which the computation starts.
      * @return periods The number of periods computed for.
      * @return amount The total claimable rewards.
@@ -323,10 +323,10 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         Snapshot[] memory stakerHistory = stakerHistories[msg.sender];
         Snapshot memory lastStakerSnapshot = stakerHistory[stakerHistory.length - 1];
         // assumed safe because of manipulation of uint16 values into a uint256
-        uint256 lastClaimableCycle = (claim.startPeriod + claim.periods - 1) * periodLengthInCycles;
+        uint256 lastClaimedCycle = (claim.startPeriod + claim.periods - 1) * periodLengthInCycles;
         if (
-            lastClaimableCycle >= lastStakerSnapshot.startCycle && // the claim overlaps with the last staker snapshot
-            lastStakerSnapshot.stake == 0                          // and nothing is staked in the last staker snapshot
+            lastClaimedCycle >= lastStakerSnapshot.startCycle && // the claim reached the last staker snapshot
+            lastStakerSnapshot.stake == 0                        // and nothing is staked in the last staker snapshot
         ) {
             // re-init the next claim
             delete nextClaims[msg.sender];
@@ -433,7 +433,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * Calculates the amount of rewards for a staker over a capped number of periods.
      * @dev Processes until the specified maximum number of periods to claim is reached, or the last computable period is reached, whichever occurs first.
      * @param staker The staker for whom the rewards will be computed.
-     * @param maxPeriods Maximum number of periods over which to compute the claimable rewards.
+     * @param maxPeriods Maximum number of periods over which to compute the rewards.
      * @return claim the result of computation
      * @return nextClaim the next claim which can be used to update the staker's state
      */

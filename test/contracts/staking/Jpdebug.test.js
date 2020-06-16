@@ -1,20 +1,14 @@
 const { accounts, contract } = require('@openzeppelin/test-environment');
-const { NFCollectionMaskLength } = require('../../../src').constants;
-
 const { shouldSupportInterfaces } = require('@animoca/ethereum-contracts-core_library');
 const { interfaces } = require('@animoca/ethereum-contracts-assets_inventory');
 
-const {RewardsTokenInitialBalance,
-    DayInSeconds, CycleLengthInSeconds, PeriodLengthInSeconds, PeriodLengthInCycles,
-    RarityWeights, TokenIds, DefaultRewardSchedule, MigrationRewardSchedule, RewardsPool} = require('./constants');
+const { MigrationRewardSchedule } = require('./constants');
+const { deploy, start } = require('./setup');
 
-const { preconditionsScenario, simpleScenario, lateClaimScenario,
-    periodLimitsScenario, multiStakersScenario, gasHeavyScenario,
-    restakeScenario } = require('./scenarios');
-
-const AssetsInventory = contract.fromArtifact("AssetsInventoryMock");
-const ERC20WithOperators = contract.fromArtifact("ERC20WithOperatorsMock");
-const NftStaking = contract.fromArtifact("NftStakingTestableMock");
+const {
+    preconditionsScenario, simpleScenario, lateClaimScenario, periodLimitsScenario,
+    multiStakersScenario, gasHeavyScenario, restakeScenario
+} = require('./scenarios');
 
 describe.only('NftStaking', function () {
     const [
@@ -25,113 +19,57 @@ describe.only('NftStaking', function () {
         ...otherAccounts
     ] = accounts;
 
-    async function doFreshDeploy() {
-        this.nftContract = await AssetsInventory.new(NFCollectionMaskLength, { from: creator });
-
-        this.rewardsToken = await ERC20WithOperators.new(RewardsTokenInitialBalance, { from: creator });
-
-        this.stakingContract = await NftStaking.new(
-            CycleLengthInSeconds,
-            PeriodLengthInCycles,
-            this.nftContract.address,
-            this.rewardsToken.address,
-            RarityWeights.map(x => x.rarity),
-            RarityWeights.map(x => x.weight),
-            { from: creator }
-        );
-        this.contract = this.stakingContract;
-
-        // for 'interface support' tests
-        this.mock = this.stakingContract;
-
-        await this.rewardsToken.approve(this.stakingContract.address, RewardsTokenInitialBalance, { from: creator });
-
-        for (const tokenId of TokenIds) {
-            await this.nftContract.mintNonFungible(staker, tokenId, { from: creator });
-        }
-    }
-
-    async function start(rewardSchedule = DefaultRewardSchedule) {
-        for (schedule of rewardSchedule) {
-            await this.stakingContract.setRewardsForPeriods(
-                schedule.startPeriod,
-                schedule.endPeriod,
-                schedule.rewardPerCycle,
-                { from: creator }
-            );
-        }
-
-        await this.stakingContract.start({ from: creator });
-        this.cycle = 1;
-        this.period = 1;
-    }
-
-    async function startMigrationLike(rewardSchedule = MigrationRewardSchedule) {
-        for (schedule of rewardSchedule) {
-            await this.stakingContract.setRewardsForPeriods(
-                schedule.startPeriod,
-                schedule.endPeriod,
-                schedule.rewardPerCycle,
-                { from: creator }
-            );
-        }
-
-        await this.stakingContract.start({ from: creator });
-        this.cycle = 1;
-        this.period = 1;
-    }
-
     describe('Preconditions', function () {
-        before(doFreshDeploy);
+        before(deploy);
         before(start);
 
-        preconditionsScenario.bind(this, staker)();
+        preconditionsScenario(staker);
     });
 
     describe('Scenario: Simple', function () {
-        before(doFreshDeploy);
+        before(deploy);
         before(start);
 
-        simpleScenario.bind(this, staker)();
+        simpleScenario(staker);
     });
 
     describe('Scenario: Period Limits', function () {
-        before(doFreshDeploy);
+        before(deploy);
         before(start);
 
-        periodLimitsScenario.bind(this, staker, otherStaker)();
+        periodLimitsScenario(staker, otherStaker);
     });
 
     describe('Scenario: Late Claim', function () {
-        before(doFreshDeploy);
+        before(deploy);
         before(start);
 
-        lateClaimScenario.bind(this, staker)();
+        lateClaimScenario(staker);
     });
 
     describe('Scenario: Multi Stakers', function () {
-        before(doFreshDeploy);
+        before(deploy);
         before(start);
 
-        multiStakersScenario.bind(this, creator, staker, otherStaker)();
+        multiStakersScenario(creator, staker, otherStaker);
     });
 
     describe('Scenario: Gas Heavy', function () {
-        before(doFreshDeploy);
+        before(deploy);
         before(start);
 
-        gasHeavyScenario.bind(this, creator, staker, otherStaker, anotherStaker)();
+        gasHeavyScenario(creator, staker, otherStaker, anotherStaker);
     });
 
     describe('Scenario: Restake', function () {
-        before(doFreshDeploy);
-        before(startMigrationLike);
+        before(deploy);
+        before(function () { return start.bind(this)(MigrationRewardSchedule) });
 
-        restakeScenario.bind(this, staker, otherStaker)();
+        restakeScenario(staker, otherStaker);
     });
 
     describe("Interface support", function () {
-        before(doFreshDeploy);
+        before(deploy);
         shouldSupportInterfaces([
             interfaces.ERC1155TokenReceiver
         ]);

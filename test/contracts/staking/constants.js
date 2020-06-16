@@ -2,7 +2,7 @@
 
 const { BN } = require('@openzeppelin/test-helpers');
 const TokenHelper = require('../../utils/tokenHelper');
-const {toWei} = require("web3-utils");
+const { toWei } = require("web3-utils");
 const RewardsTokenInitialBalance = new BN(toWei('400000000'));
 
 const DayInSeconds = 86400;

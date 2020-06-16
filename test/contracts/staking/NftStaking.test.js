@@ -8,7 +8,7 @@ const { interfaces } = require('@animoca/ethereum-contracts-assets_inventory');
 const { inventoryIds } = require('@animoca/blockchain-inventory_metadata');
 const { NFCollectionMaskLength } = require('../../../src').constants;
 
-const NftStaking = contract.fromArtifact("NftStakingTestableMock");
+const NftStaking = contract.fromArtifact("NftStakingMock");
 const AssetsInventory = contract.fromArtifact("AssetsInventoryMock");
 const ERC20WithOperators = contract.fromArtifact("ERC20WithOperatorsMock");
 

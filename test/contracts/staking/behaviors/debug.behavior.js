@@ -1,4 +1,3 @@
-const { BN } = require('@openzeppelin/test-helpers');
 const { PeriodLengthInCycles } = require('../constants');
 
 const TITLE_WIDTH = 25;
@@ -13,13 +12,14 @@ function getTitleString(title) {
 async function getGlobalHistory() {
     const history = [];
 
-    const snapshot = await this.stakingContract.getLatestGlobalSnapshot();
+    const lastGlobalSnapshotIndex = await this.stakingContract.lastGlobalSnapshotIndex();
+    const snapshot = await this.stakingContract.globalHistory(lastGlobalSnapshotIndex);
 
     if (snapshot.startCycle == 0) {
         return history;
     }
 
-    const totalSnapshots = (await this.stakingContract.lastGlobalSnapshotIndex()).addn(1).toNumber();
+    const totalSnapshots = lastGlobalSnapshotIndex.addn(1).toNumber();
 
     for (let index = 0; index < totalSnapshots; index++) {
         history.push(await this.stakingContract.globalHistory(index));
@@ -31,13 +31,14 @@ async function getGlobalHistory() {
 async function getStakerHistory(staker) {
     const history = [];
 
-    const snapshot = await this.stakingContract.getLatestStakerSnapshot(staker);
+    const lastSnapshotIndex = await this.stakingContract.lastStakerSnapshotIndex(staker);
+    const snapshot = await this.stakingContract.stakerHistories(staker, lastSnapshotIndex);
 
     if (snapshot.startCycle == 0) {
         return history;
     }
 
-    const totalSnapshots = (await this.stakingContract.lastStakerSnapshotIndex(staker)).addn(1).toNumber();
+    const totalSnapshots = lastSnapshotIndex.addn(1).toNumber();
 
     for (let index = 0; index < totalSnapshots; index++) {
         history.push(await this.stakingContract.stakerHistories(staker, index));
@@ -115,7 +116,7 @@ function renderCycleGraph(cycle, period) {
         graph += `|-${'-*-'.repeat(6)}-`.repeat(period - 1);
     }
 
-    if (trailingCycles > 0 ) {
+    if (trailingCycles > 0) {
         graph += '|-'
 
         if (trailingCycles > 1) {
@@ -253,7 +254,7 @@ async function debugCurrentState(...stakers) {
     console.log();
 }
 
-const shouldDebugCurrentState = function(...stakers) {
+const shouldDebugCurrentState = function (...stakers) {
     it('should debug the current state', async function () {
         await debugCurrentState.bind(this, ...stakers)();
         true.should.be.true;

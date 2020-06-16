@@ -1,30 +1,12 @@
 const { BN, expectRevert } = require('@openzeppelin/test-helpers');
 
-const shouldHaveNextClaim = function (params) {
-    it(`nextClaim[${params.staker}]`, async function () {
-        this.nextClaim = await this.stakingContract.nextClaims(params.staker);
-    });
-    it(`\tnextClaim.period=${params.period}`, async function () {
-        // const nextClaim = 
+const shouldHaveNextClaim = function (staker, params) {
+    it(`nextClaim for staker [${staker}] should have period=${params.period}, globalSnapshotIndex=${params.globalSnapshotIndex} and stakerSnapshotIndex=${params.stakerSnapshotIndex}`, async function () {
+        this.nextClaim = await this.stakingContract.nextClaims(staker);
         this.nextClaim.period.toNumber().should.equal(params.period);
-    });
-    it(`\tnextClaim.globalSnapshotIndex=${params.globalSnapshotIndex}`, async function () {
-        // const nextClaim = await this.stakingContract.nextClaims(params.staker);
         this.nextClaim.globalSnapshotIndex.toNumber().should.equal(params.globalSnapshotIndex);
-    });
-    it(`\tnextClaim.stakerSnapshotIndex=${params.stakerSnapshotIndex}`, async function () {
-        // const nextClaim = await this.stakingContract.nextClaims(params.staker);
         this.nextClaim.stakerSnapshotIndex.toNumber().should.equal(params.stakerSnapshotIndex);
     });
-}
-
-const shouldHaveCurrentCycleAndPeriod = function (cycle, period) {
-    it(`should currently be at: cycle=${cycle}, period=${period}`, async function () {
-        const currentCycle = await this.stakingContract.getCurrentCycle();
-        currentCycle.toNumber().should.equal(cycle);
-        const currentPeriod = await this.stakingContract.getCurrentPeriod();
-        currentPeriod.toNumber().should.equal(period);
-    })
 }
 
 const shouldHaveGlobalHistoryLength = function (count) {
@@ -87,7 +69,6 @@ const shouldHaveLastStakerSnapshot = function (params) {
 
 module.exports = {
     shouldHaveNextClaim,
-    shouldHaveCurrentCycleAndPeriod,
     shouldHaveGlobalHistoryLength,
     shouldHaveStakerHistoryLength,
     shouldHaveLastGlobalSnapshot,

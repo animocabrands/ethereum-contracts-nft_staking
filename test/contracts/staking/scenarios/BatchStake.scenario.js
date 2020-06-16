@@ -1,5 +1,3 @@
-const { contract } = require('@openzeppelin/test-environment');
-
 const {
     shouldBatchStakeNfts, shouldTimeWarpBy, shouldEstimateRewards, shouldHaveNextClaim
 } = require('../behaviors');

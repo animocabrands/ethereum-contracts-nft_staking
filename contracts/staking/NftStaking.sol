@@ -11,19 +11,22 @@ import "@animoca/ethereum-contracts-assets_inventory/contracts/token/ERC721/IERC
 import "@animoca/ethereum-contracts-assets_inventory/contracts/token/ERC1155/IERC1155.sol";
 import "@animoca/ethereum-contracts-assets_inventory/contracts/token/ERC1155/ERC1155TokenReceiver.sol";
 
+/**
+ * @title NFT Staking
+ */
 abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     using SafeCast for uint256;
     using SafeMath for uint256;
     using SignedSafeMath for int256;
 
-    uint64 internal constant _DIVS_PRECISION = 10 ** 15; // used to preserve significant figures in floating point calculations
-
     event RewardsScheduled(
         uint256 startPeriod,
         uint256 endPeriod,
         uint256 rewardsPerCycle
     );
+
+    event Started();
 
     event NftStaked(
         address staker,
@@ -53,8 +56,6 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint256 stakerStake,
         uint256 globalStake
     );
-
-    event Started();
 
     event Disabled();
 
@@ -99,11 +100,11 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     bool public disabled = false;
 
-    uint256 public prizePool = 0; // prize pool for the entire schedule
-    uint256 public startTimestamp = 0; // starting timestamp of the staking schedule, in seconds since epoch
+    uint256 public prizePool = 0;
+    uint256 public startTimestamp = 0;
 
-    address public immutable whitelistedNftContract; // ERC1155-compliant NFT contract from which staking is accepted.
-    address public immutable rewardsToken; // ERC20-compliant contract used as staking rewards
+    address /* IERC1155 */ public immutable whitelistedNftContract;
+    address /* IERC20 */ public immutable rewardsToken;
 
     uint32 public immutable cycleLengthInSeconds;
     uint16 public immutable periodLengthInCycles;
@@ -112,7 +113,9 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     mapping(address /* staker */ => Snapshot[]) public stakerHistories;
     mapping(address /* staker */ => NextClaim) public nextClaims;
     mapping(uint256 /* tokenId */ => TokenInfo) public tokenInfos;
-    mapping(uint256 /* period */ => uint256 /* rewardsPerCycle */) public payoutSchedule;
+    mapping(uint256 /* period */ => uint256 /* rewardsPerCycle */) public rewardsSchedule;
+
+    uint64 internal constant _DIVS_PRECISION = 10 ** 15; // used to preserve significant figures in floating point calculations
 
     modifier hasStarted() {
         require(startTimestamp != 0, "NftStaking: staking not started");
@@ -168,7 +171,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         require(startPeriod != 0 && startPeriod <= endPeriod, "NftStaking: wrong period range");
 
         for (uint16 period = startPeriod; period <= endPeriod; ++period) {
-            payoutSchedule[period] = rewardsPerCycle;
+            rewardsSchedule[period] = rewardsPerCycle;
         }
 
         uint256 scheduledRewards =
@@ -182,7 +185,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * Transfers necessary reward balance to the contract and starts the first cycle.
+     * Transfers necessary reward balance for the entire schedule 
+     * to the contract and starts the first cycle.
      */
     function start() public onlyOwner {
         require(
@@ -276,21 +280,16 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         }
 
         try IERC1155(whitelistedNftContract).safeTransferFrom(address(this), msg.sender, tokenId, 1, "") {
-        } catch Error(string memory /*reason*/) {
-            // This is executed in case evert was called inside
-            // getData and a reason string was provided.
-
             // attempting a non-safe transferFrom() of the token in the case
             // that the failure was caused by a ethereum client wallet
             // implementation that does not support safeTransferFrom()
+        } catch Error(string memory /*reason*/) {
+            // executed in case revert was called inside
+            // getData and a reason string was provided.
             IERC721(whitelistedNftContract).transferFrom(address(this), msg.sender, tokenId);
         } catch (bytes memory /*lowLevelData*/) {
-            // This is executed in case revert() was used or there was
+            // executed in case revert() was used or there was
             // a failing assertion, division by zero, etc. inside getData.
-
-            // attempting a non-safe transferFrom() of the token in the case
-            // that the failure was caused by a ethereum client wallet
-            // implementation that does not support safeTransferFrom()
             IERC721(whitelistedNftContract).transferFrom(address(this), msg.sender, tokenId);
         }
 
@@ -514,7 +513,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             (nextClaim.period != currentPeriod)
         ) {
             uint16 nextPeriodStartCycle = nextClaim.period * periodLengthInCycles_ + 1;
-            uint256 rewardPerCycle = payoutSchedule[nextClaim.period];
+            uint256 rewardPerCycle = rewardsSchedule[nextClaim.period];
             uint256 startCycle = nextPeriodStartCycle - periodLengthInCycles_;
             uint256 endCycle = 0;
 

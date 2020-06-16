@@ -51,20 +51,20 @@ function renderDivider() {
     console.log(getTitleString());
 }
 
-async function renderPayoutScheduleMarks(period) {
-    let marks = getTitleString('payout schedule');
+async function renderRewardsScheduleMarks(period) {
+    let marks = getTitleString('reward schedule');
 
-    const payoutSchedule = [];
+    const rewardsSchedule = [];
 
     for (let count = 1; count <= period; count++) {
-        payoutSchedule.push(await this.stakingContract.payoutSchedule(count));
+        rewardsSchedule.push(await this.stakingContract.rewardsSchedule(count));
     }
 
     for (let index = 0; index < (period - 1); index++) {
-        marks += payoutSchedule[index].toString().padEnd(21, ' ');
+        marks += rewardsSchedule[index].toString().padEnd(21, ' ');
     }
 
-    marks += payoutSchedule[period - 1];
+    marks += rewardsSchedule[period - 1];
 
     console.log(marks);
 }
@@ -228,7 +228,7 @@ async function debugCurrentState(...stakers) {
 
     renderPeriodMarks(period);
     renderPeriodGraph(cycle, period);
-    await renderPayoutScheduleMarks.bind(this, period)();
+    await renderRewardsScheduleMarks.bind(this, period)();
     renderDivider();
     renderCycleMarks(period);
     renderCycleGraph(cycle, period);

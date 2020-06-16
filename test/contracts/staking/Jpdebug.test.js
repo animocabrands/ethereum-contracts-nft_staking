@@ -7,7 +7,7 @@ const { deploy, start } = require('./setup');
 
 const {
     preconditionsScenario, simpleScenario, lateClaimScenario, periodLimitsScenario,
-    multiStakersScenario, gasHeavyScenario, restakeScenario
+    multiStakersScenario, gasHeavyScenario, restakeScenario, nonWhitelistedNftContractScenario
 } = require('./scenarios');
 
 describe.only('NftStaking', function () {
@@ -66,6 +66,13 @@ describe.only('NftStaking', function () {
         before(function () { return start.bind(this)(MigrationRewardSchedule) });
 
         restakeScenario(staker, otherStaker);
+    });
+
+    describe('Scenario: Non-Whitelisted NFT Contract', function () {
+        before(deploy);
+        before(start);
+
+        nonWhitelistedNftContractScenario(creator, staker);
     });
 
     describe("Interface support", function () {

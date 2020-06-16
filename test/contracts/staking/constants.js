@@ -20,14 +20,19 @@ const RarityWeights = [
         weight: 10
     },
     {
-        rarity: TokenHelper.Rarity.Apex,
+        rarity: TokenHelper.Rarity.Legendary,
         weight: 100
+    },
+    {
+        rarity: TokenHelper.Rarity.Apex,
+        weight: 500
     }
 ];
 
 const TokenIds = [
     TokenHelper.makeTokenId(TokenHelper.Rarity.Common, TokenHelper.Type.Car),
     TokenHelper.makeTokenId(TokenHelper.Rarity.Epic, TokenHelper.Type.Car),
+    TokenHelper.makeTokenId(TokenHelper.Rarity.Legendary, TokenHelper.Type.Car),
     TokenHelper.makeTokenId(TokenHelper.Rarity.Apex, TokenHelper.Type.Car)
 ];
 

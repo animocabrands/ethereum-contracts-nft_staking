@@ -15,7 +15,8 @@ const Type = {
 const Rarity = {
     Common: 1,
     Epic: 2,
-    Apex: 3
+    Legendary: 3,
+    Apex: 3,
 };
 
 const MAX_UINT_8 = (new BN(2)).pow(new BN(8)).subn(1);

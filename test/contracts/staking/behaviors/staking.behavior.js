@@ -10,7 +10,7 @@ const shouldSetNextClaimIfUnset = async function (staker, stateBefore, stateAfte
     }
 }
 
-const shouldUpdateHistory = async function (receipt, eventName, staker, tokenId, stateBefore, stateAfter) {
+const shouldUpdateHistory = async function (receipt, eventName, staker, tokenIds, stateBefore, stateAfter) {
 
     if (stateBefore.lastGlobalSnapshot.startCycle.eq(new BN(this.cycle))) {
         stateAfter.lastGlobalSnapshotIndex.should.be.bignumber.equal(stateBefore.lastGlobalSnapshotIndex); // no new snapshot
@@ -26,31 +26,38 @@ const shouldUpdateHistory = async function (receipt, eventName, staker, tokenId,
 
     let newGlobalStake;
     let newStakerStake;
-    if (eventName == 'NftStaked') {
-        newGlobalStake = stateBefore.lastGlobalSnapshot.stake.add(stateAfter.tokenInfo.weight);
-        newStakerStake = stateBefore.lastStakerSnapshot.stake.add(stateAfter.tokenInfo.weight);
-        stateBefore.tokenInfo.owner.should.equal(constants.ZeroAddress);
-        stateAfter.tokenInfo.owner.should.equal(staker);
-    } else if ('NftUnstaked') {
-        newGlobalStake = stateBefore.lastGlobalSnapshot.stake.sub(stateAfter.tokenInfo.weight);
-        newStakerStake = stateBefore.lastStakerSnapshot.stake.sub(stateAfter.tokenInfo.weight);
-        stateBefore.tokenInfo.owner.should.equal(staker);
-        stateAfter.tokenInfo.owner.should.equal(constants.ZeroAddress);
+
+    for (var index = 0; index < tokenIds.length; index++) {
+        if (eventName == 'NftStaked') {
+            newGlobalStake = stateBefore.lastGlobalSnapshot.stake.add(stateAfter.tokenInfos[index].weight);
+            newStakerStake = stateBefore.lastStakerSnapshot.stake.add(stateAfter.tokenInfos[index].weight);
+            stateBefore.tokenInfos[index].owner.should.equal(constants.ZeroAddress);
+            stateAfter.tokenInfos[index].owner.should.equal(staker);
+        } else if ('NftUnstaked') {
+            newGlobalStake = stateBefore.lastGlobalSnapshot.stake.sub(stateAfter.tokenInfos[index].weight);
+            newStakerStake = stateBefore.lastStakerSnapshot.stake.sub(stateAfter.tokenInfos[index].weight);
+            stateBefore.tokenInfos[index].owner.should.equal(staker);
+            stateAfter.tokenInfos[index].owner.should.equal(constants.ZeroAddress);
+        }
     }
 
     stateAfter.lastGlobalSnapshot.stake.should.be.bignumber.equal(newGlobalStake);
     stateAfter.lastStakerSnapshot.stake.should.be.bignumber.equal(newStakerStake);
 
-    await expectEvent.inTransaction(
-        receipt.tx,
-        this.stakingContract,
-        eventName,
-        {
-            staker,
-            cycle: new BN(this.cycle),
-            tokenId,
-            weight: stateAfter.tokenInfo.weight
-        });
+    for (var index = 0; index < tokenIds.length; index++) {
+        var tokenId = tokenIds[index];
+
+        await expectEvent.inTransaction(
+            receipt.tx,
+            this.stakingContract,
+            eventName,
+            {
+                staker,
+                cycle: new BN(this.cycle),
+                tokenId,
+                weight: stateAfter.tokenInfos[index].weight
+            });
+    }
 
     await expectEvent.inTransaction(
         receipt.tx,
@@ -64,7 +71,7 @@ const shouldUpdateHistory = async function (receipt, eventName, staker, tokenId,
         });
 }
 
-const retrieveStakingState = async function (staker, tokenId) {
+const retrieveStakingState = async function (staker, tokenIds) {
 
     const state = {};
     try {
@@ -83,7 +90,12 @@ const retrieveStakingState = async function (staker, tokenId) {
         state.lastStakerSnapshot = { startCycle: new BN(0), stake: new BN(0) };
     }
 
-    state.tokenInfo = await this.stakingContract.tokenInfos(tokenId);
+    state.tokenInfos = [];
+
+    for (var tokenId of tokenIds) {
+        state.tokenInfos.push(await this.stakingContract.tokenInfos(tokenId));
+    }
+
     state.nextClaim = await this.stakingContract.nextClaims(staker);
 
     return state;
@@ -107,14 +119,26 @@ const shouldRevertAndNotUnstakeNft = function (staker, tokenId, error) {
     });
 }
 
+const shouldRevertAndNotBatchStakeNfts = function (staker, tokenIds, error) {
+    it(`[STAKE] revert and not stake ${JSON.stringify(tokenIds)} by ${staker}`, async function () {
+        var data = constants.EmptyByte;
+        var values = Array(tokenIds.length).fill(1);
+
+        await expectRevert(
+            this.nftContract.safeBatchTransferFrom(staker, this.stakingContract.address, tokenIds, values, data, { from: staker }),
+            error
+        );
+    });
+}
+
 const shouldStakeNft = function (staker, tokenId) {
     it(`[STAKE] ${tokenId} by ${staker}`, async function () {
 
-        const stateBefore = await retrieveStakingState.bind(this)(staker, tokenId);
+        const stateBefore = await retrieveStakingState.bind(this)(staker, [tokenId]);
         const receipt = await this.nftContract.transferFrom(staker, this.stakingContract.address, tokenId, { from: staker });
-        const stateAfter = await retrieveStakingState.bind(this)(staker, tokenId);
+        const stateAfter = await retrieveStakingState.bind(this)(staker, [tokenId]);
 
-        await shouldUpdateHistory.bind(this)(receipt, 'NftStaked', staker, tokenId, stateBefore, stateAfter);
+        await shouldUpdateHistory.bind(this)(receipt, 'NftStaked', staker, [tokenId], stateBefore, stateAfter);
         await shouldSetNextClaimIfUnset.bind(this)(stateBefore, stateAfter);
     });
 }
@@ -122,17 +146,33 @@ const shouldStakeNft = function (staker, tokenId) {
 const shouldUnstakeNft = function (staker, tokenId) {
     it(`[UNSTAKE] ${tokenId} by ${staker}`, async function () {
 
-        const stateBefore = await retrieveStakingState.bind(this)(staker, tokenId);
+        const stateBefore = await retrieveStakingState.bind(this)(staker, [tokenId]);
         const receipt = await this.stakingContract.unstakeNft(tokenId, { from: staker });
-        const stateAfter = await retrieveStakingState.bind(this)(staker, tokenId);
+        const stateAfter = await retrieveStakingState.bind(this)(staker, [tokenId]);
 
-        await shouldUpdateHistory.bind(this)(receipt, 'NftUnstaked', staker, tokenId, stateBefore, stateAfter);
+        await shouldUpdateHistory.bind(this)(receipt, 'NftUnstaked', staker, [tokenId], stateBefore, stateAfter);
+    });
+}
+
+const shouldBatchStakeNfts = function (staker, tokenIds) {
+    it(`[STAKE] ${JSON.stringify(tokenIds)} by ${staker}`, async function () {
+        var data = constants.EmptyByte;
+        var values = Array(tokenIds.length).fill(1);
+
+        const stateBefore = await retrieveStakingState.bind(this)(staker, tokenIds);
+        const receipt = await this.nftContract.safeBatchTransferFrom(staker, this.stakingContract.address, tokenIds, values, data, { from: staker });
+        const stateAfter = await retrieveStakingState.bind(this)(staker, tokenIds);
+
+        await shouldUpdateHistory.bind(this)(receipt, 'NftStaked', staker, tokenIds, stateBefore, stateAfter);
+        await shouldSetNextClaimIfUnset.bind(this)(stateBefore, stateAfter);
     });
 }
 
 module.exports = {
     shouldStakeNft,
     shouldUnstakeNft,
+    shouldBatchStakeNfts,
     shouldRevertAndNotStakeNft,
-    shouldRevertAndNotUnstakeNft
+    shouldRevertAndNotUnstakeNft,
+    shouldRevertAndNotBatchStakeNfts
 }

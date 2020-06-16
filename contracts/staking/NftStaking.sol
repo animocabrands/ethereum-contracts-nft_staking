@@ -115,7 +115,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     mapping(uint256 /* tokenId */ => TokenInfo) public tokenInfos;
     mapping(uint256 /* period */ => uint256 /* rewardsPerCycle */) public rewardsSchedule;
 
-    uint64 internal constant _DIVS_PRECISION = 10 ** 15; // used to preserve significant figures in floating point calculations
+    // used to preserve significant figures in floating point calculations
+    uint64 internal constant _DIVS_PRECISION = 10 ** 15;
 
     modifier hasStarted() {
         require(startTimestamp != 0, "NftStaking: staking not started");
@@ -131,10 +132,10 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * Constructor.
      * @dev Reverts if the period length value is zero.
      * @dev Reverts if the cycle length value is zero.
-     * @param cycleLengthInSeconds_ the length of a cycle, in seconds.
-     * @param periodLengthInCycles_ the length of a period, in cycles.
-     * @param whitelistedNftContract_ the ERC1155-compliant contract from which staking is accepted.
-     * @param rewardsTokenContract_ the ERC20-based token used as staking rewards.
+     * @param cycleLengthInSeconds_ The length of a cycle, in seconds.
+     * @param periodLengthInCycles_ The length of a period, in cycles.
+     * @param whitelistedNftContract_ The ERC1155-compliant contract from which staking is accepted.
+     * @param rewardsTokenContract_ The ERC20-based token used as staking rewards.
      */
     constructor(
         uint32 cycleLengthInSeconds_,

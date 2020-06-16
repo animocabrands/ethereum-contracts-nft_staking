@@ -8,7 +8,7 @@ const { deploy, start } = require('./setup');
 const {
     preconditionsScenario, multiNftStakingScenario, lateClaimScenario, periodLimitsScenario,
     multiStakersScenario, gasHeavyScenario, restakeScenario, nonWhitelistedNftContractScenario,
-    batchStakeScenario
+    batchStakeScenario, earlyUnstakeScenario
 } = require('./scenarios');
 
 describe.only('NftStaking', function () {
@@ -81,6 +81,13 @@ describe.only('NftStaking', function () {
         before(start);
 
         batchStakeScenario(staker);
+    });
+
+    describe('Scenario: Early Unstake', function () {
+        before(deploy);
+        before(start);
+
+        earlyUnstakeScenario(staker);
     });
 
     describe("Interface support", function () {

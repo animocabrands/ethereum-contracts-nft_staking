@@ -6,7 +6,7 @@ const { MigrationRewardSchedule, FlatRewardSchedule } = require('./constants');
 const { deploy, start } = require('./setup');
 
 const {
-    preconditionsScenario, simpleScenario, lateClaimScenario, periodLimitsScenario,
+    preconditionsScenario, multiNftStakingScenario, lateClaimScenario, periodLimitsScenario,
     multiStakersScenario, gasHeavyScenario, restakeScenario, nonWhitelistedNftContractScenario,
     batchStakeScenario
 } = require('./scenarios');
@@ -27,11 +27,11 @@ describe.only('NftStaking', function () {
         preconditionsScenario(staker);
     });
 
-    describe('Scenario: Simple', function () {
+    describe('Scenario: Multi NFT Staking', function () {
         before(deploy);
         before(start);
 
-        simpleScenario(staker);
+        multiNftStakingScenario(staker);
     });
 
     describe('Scenario: Period Limits', function () {

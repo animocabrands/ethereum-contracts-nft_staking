@@ -1,12 +1,10 @@
 const {
-    shouldRevertAndNotStakeNft, shouldStakeNft, shouldUnstakeNft, shouldEstimateRewards,
-    shouldClaimRewards, shouldRevertAndNotUnstakeNft, shouldHaveNextClaim, shouldHaveGlobalHistoryLength,
-    shouldHaveStakerHistoryLength, shouldHaveCurrentCycleAndPeriod, shouldTimeWarpBy, shouldDebugCurrentState
+    shouldStakeNft, shouldEstimateRewards, shouldClaimRewards, shouldTimeWarpBy
 } = require('../behaviors');
 
 const { TokenIds } = require('../constants');
 
-const simpleScenario = function (staker) {
+const multiNftStakingScenario = function (staker) {
 
     describe('Stake an NFT at start of period 1', function () {
         shouldStakeNft(staker, TokenIds[0]);
@@ -30,5 +28,5 @@ const simpleScenario = function (staker) {
 }
 
 module.exports = {
-    simpleScenario
+    multiNftStakingScenario
 }

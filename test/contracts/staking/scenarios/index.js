@@ -1,5 +1,5 @@
 const { preconditionsScenario } = require('./Preconditions.scenario');
-const { simpleScenario } = require('./Simple.scenario');
+const { multiNftStakingScenario } = require('./MultiNftStaking.scenario');
 const { lateClaimScenario } = require('./LateClaim.scenario');
 const { periodLimitsScenario } = require('./PeriodLimits.scenario');
 const { multiStakersScenario } = require('./MultiStakers.scenario');
@@ -10,7 +10,7 @@ const { batchStakeScenario } = require('./BatchStake.scenario');
 
 module.exports = {
     preconditionsScenario,
-    simpleScenario,
+    multiNftStakingScenario,
     lateClaimScenario,
     periodLimitsScenario,
     multiStakersScenario,

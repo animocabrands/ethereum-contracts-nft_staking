@@ -29,11 +29,28 @@ const restakeScenario = function (staker) {
         shouldUnstakeNft({ staker, tokenId: TokenIds[0] });
         shouldStakeNft({ staker, tokenId: TokenIds[0] });
     });
+    
+    describe('unstake and stake and claim common car within period 4', function () {
+        shouldTimeWarpBy({ cycles: 2}, {cycle: 17, period: 3 });
+        shouldUnstakeNft({ staker, tokenId: TokenIds[0], cycle: 17 });
+        shouldTimeWarpBy({ cycles: 1}, {cycle: 18, period: 3 });
+        shouldStakeNft({ staker, tokenId: TokenIds[0], cycle: 18 });
+        shouldTimeWarpBy({ cycles: 2}, {cycle: 20, period: 3 });
+        shouldUnstakeNft({ staker, tokenId: TokenIds[0], cycle: 20 });
+        shouldClaimRewards({ staker, periodsToClaim: 10, startPeriod: 3, periods: 5, amount: "0" });
+        shouldStakeNft({ staker, tokenId: TokenIds[0], cycle: 20 });
+        shouldTimeWarpBy({ cycles: 2}, {cycle: 22, period: 4 });
+    });
+
+    describe('claim period 5', function () {
+        shouldTimeWarpBy({ periods: 1}, {cycle: 29, period: 5 });
+        shouldClaimRewards({ staker, periodsToClaim: 10, startPeriod: 3, periods: 2, amount: "35100000000000000000000000" });
+    });
 
     describe('Unstake the 2nd NFT and claim all the periods at start of period 8', function () {
-        shouldTimeWarpBy({ periods: 5 }, { period: 8 });
+        shouldTimeWarpBy({ periods: 3 }, { period: 8 });
         shouldUnstakeNft({ staker, tokenId: TokenIds[0] });
-        shouldClaimRewards({ staker, periodsToClaim: 10, startPeriod: 3, periods: 5, amount: "82950000000000000000000000" });
+        shouldClaimRewards({ staker, periodsToClaim: 10, startPeriod: 5, periods: 3, amount: "45150000000000000000000000" });
     });
 
     describe('Stake the 2nd NFT start of period 12', function () {

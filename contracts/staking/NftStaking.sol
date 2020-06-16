@@ -443,8 +443,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     ) internal view returns (
         ComputedClaim memory claim,
         NextClaim memory nextClaim
-    )
-    {
+    ) {
         // ComputeRewardsResult memory result;
 
         // calculating for 0 periods

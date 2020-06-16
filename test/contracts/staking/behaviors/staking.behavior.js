@@ -24,18 +24,18 @@ const shouldUpdateHistory = async function (receipt, eventName, staker, tokenIds
         stateAfter.lastStakerSnapshotIndex.should.be.bignumber.equal(stateBefore.lastStakerSnapshotIndex.add(new BN(1))); // new snapshot
     }
 
-    let newGlobalStake;
-    let newStakerStake;
+    let newGlobalStake = stateBefore.lastGlobalSnapshot.stake;
+    let newStakerStake = stateBefore.lastStakerSnapshot.stake;
 
     for (var index = 0; index < tokenIds.length; index++) {
         if (eventName == 'NftStaked') {
-            newGlobalStake = stateBefore.lastGlobalSnapshot.stake.add(stateAfter.tokenInfos[index].weight);
-            newStakerStake = stateBefore.lastStakerSnapshot.stake.add(stateAfter.tokenInfos[index].weight);
+            newGlobalStake = newGlobalStake.add(stateAfter.tokenInfos[index].weight);
+            newStakerStake = newStakerStake.add(stateAfter.tokenInfos[index].weight);
             stateBefore.tokenInfos[index].owner.should.equal(constants.ZeroAddress);
             stateAfter.tokenInfos[index].owner.should.equal(staker);
         } else if ('NftUnstaked') {
-            newGlobalStake = stateBefore.lastGlobalSnapshot.stake.sub(stateAfter.tokenInfos[index].weight);
-            newStakerStake = stateBefore.lastStakerSnapshot.stake.sub(stateAfter.tokenInfos[index].weight);
+            newGlobalStake = newGlobalStake.sub(stateAfter.tokenInfos[index].weight);
+            newStakerStake = newStakerStake.sub(stateAfter.tokenInfos[index].weight);
             stateBefore.tokenInfos[index].owner.should.equal(staker);
             stateAfter.tokenInfos[index].owner.should.equal(constants.ZeroAddress);
         }

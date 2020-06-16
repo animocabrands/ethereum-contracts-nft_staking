@@ -12,10 +12,11 @@ function getTitleString(title) {
 async function getGlobalHistory() {
     const history = [];
 
-    const lastGlobalSnapshotIndex = await this.stakingContract.lastGlobalSnapshotIndex();
-    const snapshot = await this.stakingContract.globalHistory(lastGlobalSnapshotIndex);
+    let lastGlobalSnapshotIndex;
 
-    if (snapshot.startCycle == 0) {
+    try {
+        lastGlobalSnapshotIndex = await this.stakingContract.lastGlobalSnapshotIndex();
+    } catch (err) {
         return history;
     }
 
@@ -31,10 +32,11 @@ async function getGlobalHistory() {
 async function getStakerHistory(staker) {
     const history = [];
 
-    const lastSnapshotIndex = await this.stakingContract.lastStakerSnapshotIndex(staker);
-    const snapshot = await this.stakingContract.stakerHistories(staker, lastSnapshotIndex);
+    let lastSnapshotIndex;
 
-    if (snapshot.startCycle == 0) {
+    try {
+        lastSnapshotIndex = await this.stakingContract.lastGlobalSnapshotIndex();
+    } catch (err) {
         return history;
     }
 

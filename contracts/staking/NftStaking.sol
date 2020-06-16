@@ -107,12 +107,12 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     mapping(uint256 /* period */ => uint256 /* rewardsPerCycle */) public payoutSchedule;
 
     modifier hasStarted() {
-        require(startTimestamp != 0, "NftStaking: Staking has not started yet");
+        require(startTimestamp != 0, "NftStaking: staking not started");
         _;
     }
 
     modifier isEnabled() {
-        require(!disabled, "NftStaking: Staking operations are disabled");
+        require(!disabled, "NftStaking: contract disabled");
         _;
     }
 

@@ -511,9 +511,9 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             // iterate over global snapshots
             while (endCycle != nextPeriodStartCycle) {
 
-                // find this iteration's range-to-claim starting cycle, where
-                // the current global snapshot, the current staker snapshot, and
-                // the current period overlap
+                // find the range-to-claim starting cycle, where the current
+                // global snapshot, the current staker snapshot, and the current
+                // period overlap
                 if (globalSnapshot.startCycle > startCycle) {
                     startCycle = globalSnapshot.startCycle;
                 }
@@ -521,11 +521,11 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                     startCycle = stakerSnapshot.startCycle;
                 }
 
-                // find this iteration's range-to-claim ending cycle, where the
-                // current global snapshot, the current staker snapshot, and
-                // the current period overlap. The end cycle is exclusive of
-                // of the range-to-claim and represents the beginning cycle of
-                // the next range-to-claim
+                // find the range-to-claim ending cycle, where the current
+                // global snapshot, the current staker snapshot, and the current
+                // period no longer overlap. The end cycle is exclusive of the
+                // range-to-claim and represents the beginning cycle of the next
+                // range-to-claim
                 endCycle = nextPeriodStartCycle;
                 if (
                     (nextGlobalSnapshot.startCycle != 0) &&

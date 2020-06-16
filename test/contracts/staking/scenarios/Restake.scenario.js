@@ -29,11 +29,28 @@ const restakeScenario = function (staker) {
         shouldUnstakeNft({ staker, tokenId: TokenIds[0], cycle: 15 });
         shouldStakeNft({ staker, tokenId: TokenIds[0], cycle: 15 });
     });
+    
+    describe('unstake and stake and claim common car within period 4', function () {
+        shouldWarpToTarget({ cycles: 2, periods: 0, targetCycle: 17, targetPeriod: 3 });
+        shouldUnstakeNft({ staker, tokenId: TokenIds[0], cycle: 17 });
+        shouldWarpToTarget({ cycles: 1, periods: 0, targetCycle: 18, targetPeriod: 3 });
+        shouldStakeNft({ staker, tokenId: TokenIds[0], cycle: 18 });
+        shouldWarpToTarget({ cycles: 2, periods: 0, targetCycle: 20, targetPeriod: 3 });
+        shouldUnstakeNft({ staker, tokenId: TokenIds[0], cycle: 20 });
+        shouldClaimRewards({ staker, periodsToClaim: 10, firstClaimablePeriod: 3, computedPeriods: 5, claimableRewards: "0" });
+        shouldStakeNft({ staker, tokenId: TokenIds[0], cycle: 20 });
+        shouldWarpToTarget({ cycles: 2, periods: 0, targetCycle: 22, targetPeriod: 4 });
+    });
+
+    describe('claim period 5', function () {
+        shouldWarpToTarget({ cycles: 0, periods: 1, targetCycle: 29, targetPeriod: 5 });
+        shouldClaimRewards({ staker, periodsToClaim: 10, firstClaimablePeriod: 3, computedPeriods: 2, claimableRewards: "35100000000000000000000000" });
+    });
 
     describe('Unstake the 2nd NFT and claim all the periods at start of period 8', function () {
-        shouldWarpToTarget({ cycles: 0, periods: 5, targetCycle: 50, targetPeriod: 8 });
+        shouldWarpToTarget({ cycles: 0, periods: 3, targetCycle: 50, targetPeriod: 8 });
         shouldUnstakeNft({ staker, tokenId: TokenIds[0], cycle: 50 });
-        shouldClaimRewards({ staker, periodsToClaim: 10, firstClaimablePeriod: 3, computedPeriods: 5, claimableRewards: "82950000000000000000000000" });
+        shouldClaimRewards({ staker, periodsToClaim: 10, firstClaimablePeriod: 5, computedPeriods: 3, claimableRewards: "45150000000000000000000000" });
     });
 
     describe('Stake the 2nd NFT start of period 7', function () {

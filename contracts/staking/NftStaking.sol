@@ -54,9 +54,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint256 globalStake
     );
 
-    event Started(
-        uint256 timestamp
-    );
+    event Started();
 
     event Disabled();
 
@@ -184,7 +182,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
         startTimestamp = now;
 
-        emit Started(startTimestamp);
+        emit Started();
     }
 
     /**

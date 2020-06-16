@@ -25,25 +25,25 @@ const restakeScenario = function (staker) {
     describe('Unstake first NFT, claim, unstake 2nd car, stake the 2nd car again period 3', function () {
         shouldWarpToTarget({ cycles: 0, periods: 1, targetCycle: 15, targetPeriod: 3 });
         shouldUnstakeNft({ staker, tokenId: TokenIds[3], cycle: 15 });
-        shouldClaimRewards({ staker, periodsToClaim: 99, firstClaimablePeriod: 1, computedPeriods: 2, claimableRewards: 14000 });
+        shouldClaimRewards({ staker, periodsToClaim: 99, firstClaimablePeriod: 1, computedPeriods: 2, claimableRewards: 37800000000000000000000000 });
         shouldUnstakeNft({ staker, tokenId: TokenIds[0], cycle: 15 });
         shouldStakeNft({ staker, tokenId: TokenIds[0], cycle: 15 });
     });
 
-    describe('Unstake the 2nd NFT and claim all the periods at start of period 5', function () {
-        shouldWarpToTarget({ cycles: 0, periods: 2, targetCycle: 29, targetPeriod: 5 });
-        shouldUnstakeNft({ staker, tokenId: TokenIds[0], cycle: 29 });
-        shouldClaimRewards({ staker, periodsToClaim: 10, firstClaimablePeriod: 3, computedPeriods: 2, claimableRewards: 14000 });
+    describe('Unstake the 2nd NFT and claim all the periods at start of period 8', function () {
+        shouldWarpToTarget({ cycles: 0, periods: 5, targetCycle: 50, targetPeriod: 8 });
+        shouldUnstakeNft({ staker, tokenId: TokenIds[0], cycle: 50 });
+        shouldClaimRewards({ staker, periodsToClaim: 10, firstClaimablePeriod: 3, computedPeriods: 5, claimableRewards: 24500 });
     });
 
     describe('Stake the 2nd NFT start of period 7', function () {
-        shouldWarpToTarget({ cycles: 0, periods: 2, targetCycle: 43, targetPeriod: 7 });
-        shouldStakeNft({ staker, tokenId: TokenIds[0], cycle: 43 });
+        shouldWarpToTarget({ cycles: 0, periods: 4, targetCycle: 78, targetPeriod: 12 });
+        shouldStakeNft({ staker, tokenId: TokenIds[0], cycle: 78 });
     });
 
     describe('Estimate start of period 9', function () {
-        shouldWarpToTarget({ cycles: 0, periods: 2, targetCycle: 57, targetPeriod: 9 });
-        shouldEstimateRewards({ staker, periodsToClaim: 99, firstClaimablePeriod: 5, computedPeriods: 4, claimableRewards: 7000 });
+        shouldWarpToTarget({ cycles: 0, periods: 2, targetCycle: 92, targetPeriod: 14 });
+        shouldEstimateRewards({ staker, periodsToClaim: 99, firstClaimablePeriod: 8, computedPeriods: 6, claimableRewards: 7000 });
     });
 }
 

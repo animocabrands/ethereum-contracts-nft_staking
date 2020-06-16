@@ -43,11 +43,10 @@ Your contract's constructor will need to provide the following arguments to the 
 
 - `cycleLengthInSeconds_` - Length of a cycle, in seconds (must be >= 1 minute).
 - `periodLengthInCycles_` - Length of a period, in cycles (must be >= 2 cycles).
-- `freezeLengthInCycles_` - Initial number of cycles during which a newly staked NFT is locked before it can be unstaked.
 - `whitelistedNftContract_` - ERC1155-based contract to be whitelisted for performing transfer operations of NFTs for staking/unstaking.
-- `rewardsToken_` - ERC20-based token used as staking rewards.
+- `rewardsTokenContract_` - ERC20-based token used as staking rewards.
 
-Finally, override the `_validateAndGetWeight()` abstract function, which is used to evaluate the allowable types of NFTs which can be staked and return their staked weight.
+Finally, override the `_validateAndGetNftWeight()` abstract function, which is used to evaluate the allowable types of NFTs which can be staked and return their staked weight.
 
 Please see the mock contracts used for the tests in `contracts/mocks/staking/` for examples.
 

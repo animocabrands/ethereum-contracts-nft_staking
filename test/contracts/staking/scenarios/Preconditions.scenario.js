@@ -96,16 +96,14 @@ const preconditionsScenario = function (staker) {
 
     context('Rewards Token contract', function () {
         it('should be used as the rewards token', async function () {
-            const rewardsToken = await this.stakingContract.rewardsToken();
+            const rewardsToken = await this.stakingContract.rewardsTokenContract();
             rewardsToken.should.be.equal(this.rewardsToken.address);
         });
 
-        // // The rewards token transfer to the contract should now occur when
-        // // starting the staking event by calling the start() function
-        // it(`should have a token balance of ${RewardsTokenInitialBalance.toString()} for the staking contract`, async function () {
-        //     const balance = await this.rewardsToken.balanceOf(this.stakingContract.address);
-        //     balance.should.be.bignumber.equal(RewardsTokenInitialBalance);
-        // });
+        it(`should have a token balance equal to the total prize pool`, async function () {
+            const balance = await this.rewardsToken.balanceOf(this.stakingContract.address);
+            balance.should.be.bignumber.equal(await this.stakingContract.totalPrizePool());
+        });
     });
 }
 

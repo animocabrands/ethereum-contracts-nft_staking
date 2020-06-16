@@ -6,6 +6,7 @@ const { multiStakersScenario } = require('./MultiStakers.scenario');
 const { gasHeavyScenario } = require('./GasHeavy.scenario');
 const { restakeScenario } = require('./Restake.scenario');
 const { nonWhitelistedNftContractScenario } = require('./NonWhitelistedNftContract.scenario');
+const { batchStakeScenario } = require('./BatchStake.scenario');
 
 module.exports = {
     preconditionsScenario,
@@ -15,5 +16,6 @@ module.exports = {
     multiStakersScenario,
     gasHeavyScenario,
     restakeScenario,
-    nonWhitelistedNftContractScenario
+    nonWhitelistedNftContractScenario,
+    batchStakeScenario
 }

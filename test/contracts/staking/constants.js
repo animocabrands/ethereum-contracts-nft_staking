@@ -41,6 +41,10 @@ const DefaultRewardSchedule = [
     { startPeriod: 5, endPeriod: 8, rewardPerCycle: 500 }
 ];
 
+const FlatRewardSchedule = [
+    { startPeriod: 1, endPeriod: 12, rewardPerCycle: 1000 }
+];
+
 const MigrationRewardSchedule = [
     { startPeriod: 1, endPeriod: 4, rewardPerCycle: toWei('2700000') },
     { startPeriod: 5, endPeriod: 5, rewardPerCycle: toWei('2200000') },
@@ -68,7 +72,7 @@ const MigrationRewardSchedule = [
 const RewardsPool = 42000;
 
 module.exports = {
-    RewardsTokenInitialBalance,
+    DefaultRewardSchedule, MigrationRewardSchedule, FlatRewardSchedule,
     DayInSeconds, CycleLengthInSeconds, PeriodLengthInSeconds, PeriodLengthInCycles,
-    RarityWeights, TokenIds, DefaultRewardSchedule, RewardsPool, MigrationRewardSchedule
+    RarityWeights, TokenIds, RewardsTokenInitialBalance, RewardsPool
 }

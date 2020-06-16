@@ -2,7 +2,7 @@ const { accounts, contract } = require('@openzeppelin/test-environment');
 const { shouldSupportInterfaces } = require('@animoca/ethereum-contracts-core_library');
 const { interfaces } = require('@animoca/ethereum-contracts-assets_inventory');
 
-const { MigrationRewardSchedule } = require('./constants');
+const { MigrationRewardSchedule, FlatRewardSchedule } = require('./constants');
 const { deploy, start } = require('./setup');
 
 const {
@@ -56,7 +56,7 @@ describe.only('NftStaking', function () {
 
     describe('Scenario: Gas Heavy', function () {
         before(deploy);
-        before(start);
+        before(function () { return start.bind(this)(FlatRewardSchedule) });
 
         gasHeavyScenario(creator, staker, otherStaker, anotherStaker);
     });

@@ -55,7 +55,7 @@ const shouldUpdateHistory = async function (receipt, eventName, staker, tokenId,
     await expectEvent.inTransaction(
         receipt.tx,
         this.stakingContract,
-        'HistoryUpdated',
+        'HistoriesUpdated',
         {
             staker,
             startCycle: new BN(this.cycle),

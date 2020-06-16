@@ -2,10 +2,9 @@
 
 pragma solidity ^0.6.8;
 
-import "@openzeppelin/contracts/math/Math.sol";
+import "@openzeppelin/contracts/utils/SafeCast.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/math/SignedSafeMath.sol";
-import "@openzeppelin/contracts/utils/SafeCast.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@animoca/ethereum-contracts-erc20_base/contracts/token/ERC20/IERC20.sol";
 import "@animoca/ethereum-contracts-assets_inventory/contracts/token/ERC721/IERC721.sol";
@@ -14,16 +13,16 @@ import "@animoca/ethereum-contracts-assets_inventory/contracts/token/ERC1155/ERC
 
 abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
-    using SignedSafeMath for int256;
-    using SafeMath for uint256;
     using SafeCast for uint256;
+    using SafeMath for uint256;
+    using SignedSafeMath for int256;
 
     uint64 internal constant _DIVS_PRECISION = 10 ** 15; // used to preserve significant figures in floating point calculations
 
-    event PayoutScheduled(
+    event RewardsScheduled(
         uint256 startPeriod,
         uint256 endPeriod,
-        uint256 payoutPerCycle
+        uint256 rewardsPerCycle
     );
 
     event NftStaked(
@@ -48,7 +47,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint256 amount
     );
 
-    event HistoryUpdated(
+    event HistoriesUpdated(
         address staker,
         uint256 startCycle,
         uint256 stakerStake,
@@ -62,9 +61,9 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint16 depositCycle;
     }
 
-    // optimised for storage
     // This struct is used as a history record of stake
     // Used for both global history and staker histories
+    // optimised for storage
     struct Snapshot {
         uint128 stake; // an aggregate of staked tokens weights
         uint128 startCycle;
@@ -99,7 +98,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     mapping(address /* staker */ => Snapshot[]) public stakerHistories;
     mapping(address /* staker */ => NextClaim) public nextClaims;
     mapping(uint256 /* tokenId */ => TokenInfo) public tokenInfos;
-    mapping(uint256 /* period */ => uint256 /* payout per-cycle */) public payoutSchedule;
+    mapping(uint256 /* period */ => uint256 /* rewardsPerCycle */) public payoutSchedule;
 
     modifier hasStarted() {
         require(startTimestamp != 0, "NftStaking: Staking has not started yet");
@@ -126,8 +125,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         address whitelistedNftContract_,
         address rewardsToken_
     ) internal {
-        require(cycleLengthInSeconds_ >= 1 minutes, "NftStaking: Cycles must be at least one minute");
-        require(periodLengthInCycles_ >= 2, "NftStaking: Periods must be at least 2 cycles long");
+        require(cycleLengthInSeconds_ >= 1 minutes, "NftStaking: invalid cycle length");
+        require(periodLengthInCycles_ >= 2, "NftStaking: invalid period length");
 
         cycleLengthInSeconds = cycleLengthInSeconds_;
         periodLengthInCycles = periodLengthInCycles_;
@@ -145,26 +144,27 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @dev Emits the RewardSet event when the function is called successfully.
      * @param startPeriod The starting period (inclusive).
      * @param endPeriod The ending period (inclusive).
-     * @param payoutPerCycle The prize for each cycle within range.
+     * @param rewardsPerCycle The prize for each cycle within range.
      */
     function setRewardsForPeriods(
         uint16 startPeriod,
         uint16 endPeriod,
-        uint256 payoutPerCycle
+        uint256 rewardsPerCycle
     ) public onlyOwner {
-        require(startPeriod != 0 && startPeriod <= endPeriod, "NftStaking: Wrong period range");
+        require(startPeriod != 0 && startPeriod <= endPeriod, "NftStaking: wrong period range");
 
         for (uint16 period = startPeriod; period <= endPeriod; ++period) {
-            payoutSchedule[period] = payoutPerCycle;
+            payoutSchedule[period] = rewardsPerCycle;
         }
 
-        uint256 reward = payoutPerCycle;
-        reward = reward.mul(periodLengthInCycles);
-        reward = reward.mul(endPeriod - startPeriod + 1);
+        uint256 scheduledRewards =
+            rewardsPerCycle
+            .mul(periodLengthInCycles)
+            .mul(endPeriod - startPeriod + 1);
 
-        prizePool = prizePool.add(reward);
+        prizePool = prizePool.add(scheduledRewards);
 
-        emit PayoutScheduled(startPeriod, endPeriod, payoutPerCycle);
+        emit RewardsScheduled(startPeriod, endPeriod, rewardsPerCycle);
     }
 
     /**
@@ -173,7 +173,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     function start() public onlyOwner {
         require(
             IERC20(rewardsToken).transferFrom(msg.sender, address(this), prizePool),
-            "NftStaking: Failed to transfer the total reward"
+            "NftStaking: failed to fund the reward pool"
         );
 
         startTimestamp = now;
@@ -186,7 +186,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     function withdrawRewardsPool(uint256 amount) public onlyOwner {
         require(
             IERC20(rewardsToken).transfer(msg.sender, amount),
-            "NftStaking: Failed to withdraw from the rewards pool"
+            "NftStaking: failed to withdraw from the rewards pool"
         );
     }
 
@@ -250,14 +250,17 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     function unstakeNft(uint256 tokenId) external virtual {
         TokenInfo memory tokenInfo = tokenInfos[tokenId];
 
-        require(tokenInfo.owner == msg.sender, "NftStaking: Incorrect token owner or token already unstaked");
+        require(tokenInfo.owner == msg.sender, "NftStaking: token not staked or incorrect token owner");
 
         uint16 currentCycle = _getCycle(now);
 
         if (!disabled) {
-            require(currentCycle - tokenInfo.depositCycle >= 2, "NftStaking: Token is still frozen");
+            // ensure that at least an entire cycle has elapsed before unstaking the token to avoid
+            // an exploit where a a fukll cycle would be claimable if staking just before the end
+            // of a cycle and unstaking right after the start of the new cycle
+            require(currentCycle - tokenInfo.depositCycle >= 2, "NftStaking: token still frozen");
 
-            _updateHistory(msg.sender, -int128(tokenInfo.weight), currentCycle);
+            _updateHistories(msg.sender, -int128(tokenInfo.weight), currentCycle);
 
             // clear the token owner to ensure it cannot be unstaked again without being re-staked
             tokenInfos[tokenId].owner = address(0);
@@ -307,11 +310,21 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * Claims the rewards for the specified number of periods.
      * @dev Creates any missing snapshots, up-to the current cycle.
      * @dev Emits the RewardsClaimed event when the function is called successfully.
-     * @dev May emit the HistoryUpdated event if any snapshots are created or modified to ensure that snapshots exist, up-to the current cycle.
+     * @dev May emit the HistoriesUpdated event if any snapshots are created or modified to ensure that snapshots exist, up-to the current cycle.
      * @param maxPeriods The maximum number of periods to claim for.
      */
     function claimRewards(uint16 maxPeriods) external isEnabled hasStarted {
-        (ComputedClaim memory claim, NextClaim memory nextClaim) = _computeRewards(msg.sender, maxPeriods);
+
+        NextClaim memory nextClaim = nextClaims[msg.sender];
+
+        (ComputedClaim memory claim, NextClaim memory newNextClaim) = _computeRewards(msg.sender, maxPeriods);
+
+        // free up memory on already processed staker snapshots
+        Snapshot[] storage stakerHistory = stakerHistories[msg.sender];
+        while (nextClaim.stakerSnapshotIndex < newNextClaim.stakerSnapshotIndex) {
+            delete stakerHistory[nextClaim.stakerSnapshotIndex++];
+        }
+
         if (claim.periods == 0) {
             return;
         }
@@ -320,9 +333,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             return;
         }
 
-        Snapshot[] memory stakerHistory = stakerHistories[msg.sender];
         Snapshot memory lastStakerSnapshot = stakerHistory[stakerHistory.length - 1];
-        // assumed safe because of manipulation of uint16 values into a uint256
+
         uint256 lastClaimedCycle = (claim.startPeriod + claim.periods - 1) * periodLengthInCycles;
         if (
             lastClaimedCycle >= lastStakerSnapshot.startCycle && // the claim reached the last staker snapshot
@@ -331,13 +343,13 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             // re-init the next claim
             delete nextClaims[msg.sender];
         } else {
-            nextClaims[msg.sender] = nextClaim;
+            nextClaims[msg.sender] = newNextClaim;
         }
 
         if (claim.amount != 0) {
             require(
                 IERC20(rewardsToken).transfer(msg.sender, claim.amount),
-                "NftStaking: Failed to transfer claimed rewards");
+                "NftStaking: failed to transfer rewards");
         }
 
         emit RewardsClaimed(
@@ -356,7 +368,6 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @return The current cycle (index-1 based).
      */
     function getCurrentCycle() external view returns (uint16) {
-        // index is 1 based
         return _getCycle(now);
     }
 
@@ -396,7 +407,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * Stakes the NFT received by the contract, referenced by its specified token identifier and owner.
      * @dev Reverts if the caller is not the whitelisted NFT contract.
      * @dev Creates any missing snapshots, up-to the current cycle.
-     * @dev May emit the HistoryUpdated event if any snapshots are created or modified to ensure that snapshots exist, up-to the current cycle.
+     * @dev May emit the HistoriesUpdated event if any snapshots are created or modified to ensure that snapshots exist, up-to the current cycle.
      * @dev Emits the NftStaked event when the function is called successfully.
      * @param tokenId Identifier of the staked NFT.
      * @param tokenOwner Owner of the staked NFT.
@@ -405,15 +416,18 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint256 tokenId,
         address tokenOwner
     ) internal isEnabled hasStarted {
-        require(whitelistedNftContract == msg.sender, "NftStaking: Caller is not the whitelisted NFT contract");
+        require(whitelistedNftContract == msg.sender, "NftStaking: contract not whitelisted");
 
         uint64 weight = _validateAndGetWeight(tokenId);
 
         uint16 periodLengthInCycles_ = periodLengthInCycles;
         uint16 currentCycle = _getCycle(now);
 
-        _updateHistory(tokenOwner, int128(weight), currentCycle);
+        _updateHistories(tokenOwner, int128(weight), currentCycle);
 
+        // initialise the next claim if it was the first stake for this staker or if
+        // the next claim was re-initialised (ie. rewards were claimed until the last
+        // staker snapshot and the last staker snapshot has no stake)
         if (nextClaims[tokenOwner].period == 0) {
             uint16 currentPeriod = _getPeriod(currentCycle, periodLengthInCycles_);
             nextClaims[tokenOwner] = NextClaim(currentPeriod, uint64(globalHistory.length - 1), 0);
@@ -444,9 +458,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         ComputedClaim memory claim,
         NextClaim memory nextClaim
     ) {
-        // ComputeRewardsResult memory result;
-
-        // calculating for 0 periods
+        // computing 0 periods
         if (maxPeriods == 0) {
             return (claim, nextClaim);
         }
@@ -472,6 +484,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             return (claim, nextClaim);
         }
 
+        // retrieve the next snapshots if they exist
         Snapshot[] memory stakerHistory = stakerHistories[staker];
 
         Snapshot memory globalSnapshot = globalHistory[nextClaim.globalSnapshotIndex];
@@ -482,11 +495,11 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         if (nextClaim.globalSnapshotIndex != globalHistory.length - 1) {
             nextGlobalSnapshot = globalHistory[nextClaim.globalSnapshotIndex + 1];
         }
-
         if (nextClaim.stakerSnapshotIndex != stakerHistory.length - 1) {
             nextStakerSnapshot = stakerHistory[nextClaim.stakerSnapshotIndex + 1];
         }
 
+        // iterate over periods
         while (
             (claim.periods != maxPeriods) &&
             (nextClaim.period != currentPeriod)
@@ -496,27 +509,25 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             uint256 startCycle = nextPeriodStartCycle - periodLengthInCycles_;
             uint256 endCycle = 0;
 
+            // iterate over global snapshots
             while (endCycle != nextPeriodStartCycle) {
+
                 // find this iteration's range-to-claim starting cycle, where
                 // the current global snapshot, the current staker snapshot, and
                 // the current period overlap
-
                 if (globalSnapshot.startCycle > startCycle) {
                     startCycle = globalSnapshot.startCycle;
                 }
-
                 if (stakerSnapshot.startCycle > startCycle) {
                     startCycle = stakerSnapshot.startCycle;
                 }
 
                 // find this iteration's range-to-claim ending cycle, where the
                 // current global snapshot, the current staker snapshot, and
-                // the current period overlap. the ending cycle is exclusive of
+                // the current period overlap. The end cycle is exclusive of
                 // of the range-to-claim and represents the beginning cycle of
                 // the next range-to-claim
-
                 endCycle = nextPeriodStartCycle;
-
                 if (
                     (nextGlobalSnapshot.startCycle != 0) &&
                     (nextGlobalSnapshot.startCycle < endCycle)
@@ -571,12 +582,64 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                 }
             }
 
-            // advance the current period
             ++claim.periods;
             ++nextClaim.period;
         }
 
         return (claim, nextClaim);
+    }
+
+    /**
+     * Updates the global and staker histories at the current cycle with a new difference in stake.
+     * @param staker The staker who is updating the history.
+     * @param stakeDelta The difference to apply to the current stake.
+     * @param currentCycle The current cycle.
+     */
+    function _updateHistories(address staker, int128 stakeDelta, uint16 currentCycle) internal
+    {
+        Snapshot memory stakerSnapshot = _updateHistory(stakerHistories[staker], stakeDelta, currentCycle);
+        Snapshot memory globalSnapshot = _updateHistory(globalHistory, stakeDelta, currentCycle);
+
+        emit HistoriesUpdated(
+            staker,
+            currentCycle,
+            stakerSnapshot.stake,
+            globalSnapshot.stake
+        );
+    }
+
+    /**
+     * Updates the history at the current cycle with a new difference in stake.
+     * @dev It will update the latest snapshot if it starts at the current cycle, otherwise will create a new snapshot with the updated stake.
+     * @param history The history to update.
+     * @param stakeDelta The difference to apply to the current stake.
+     * @param currentCycle The current cycle.
+     */
+    function _updateHistory(
+        Snapshot[] storage history,
+        int128 stakeDelta,
+        uint16 currentCycle
+    ) internal returns (Snapshot memory snapshot)
+    {
+        uint256 historyLength = history.length;
+        if (historyLength != 0) {
+            // there is an existing staker snapshot
+            snapshot = history[historyLength - 1];
+        }
+
+        snapshot.stake = uint256(
+            int256(snapshot.stake).add(stakeDelta)
+        ).toUint128();
+
+        if (snapshot.startCycle == currentCycle) {
+            // can only happen if there was a previous snapshot as currentCycle cannot be zero!
+            // replace the existing snapshot if it starts on the current cycle
+            history[historyLength - 1] = snapshot;
+        } else {
+            // add a new snapshot in the history
+            snapshot.startCycle = currentCycle;
+            history.push(snapshot);
+        }
     }
 
 
@@ -589,7 +652,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @return The cycle (index-1 based) at the specified timestamp.
      */
     function _getCycle(uint256 timestamp) internal view returns (uint16) {
-        require(timestamp >= startTimestamp, "NftStaking: Cycle timestamp preceeds the contract start timestamp");
+        require(timestamp >= startTimestamp, "NftStaking: cycle preceeds contract start");
         return (((timestamp - startTimestamp) / uint256(cycleLengthInSeconds)) + 1).toUint16();
     }
 
@@ -601,7 +664,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @return The period (index-1 based) for the specified cycle and period length.
      */
     function _getPeriod(uint16 cycle, uint16 periodLengthInCycles_) internal pure returns (uint16) {
-        require(cycle != 0, "NftStaking: Period cycle cannot be zero");
+        require(cycle != 0, "NftStaking: period cycle cannot be zero");
         return (cycle - 1) / periodLengthInCycles_ + 1;
     }
 
@@ -614,79 +677,16 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         return _getPeriod(_getCycle(now), periodLengthInCycles_);
     }
 
-    /**
-     * Updates the histories at the current cycle with a new difference in stake.
-     * @dev It will update the latest snapshot if it starts at the current cycle, otherwise will adjust the snapshots range end back by one cycle (the previous cycle) and create a new snapshot for the current cycle with the stake update.
-     * @param staker The staker who is updating the history.
-     * @param stakeDelta The difference to apply to the current stake.
-     * @param currentCycle The current staking cycle.
-     */
-    function _updateHistory(
-        address staker,
-        int128 stakeDelta,
-        uint16 currentCycle
-    ) internal
-    {
-        Snapshot[] storage stakerHistory = stakerHistories[staker];
-        uint256 stakerHistoryLength = stakerHistory.length;
-        Snapshot memory newStakerSnapshot;
-        if (stakerHistoryLength != 0) {
-            // there is an existing staker snapshot
-            newStakerSnapshot = stakerHistory[stakerHistoryLength - 1];
-        }
-
-        newStakerSnapshot.stake = uint256(
-            int256(newStakerSnapshot.stake).add(stakeDelta)
-        ).toUint128();
-
-        if (newStakerSnapshot.startCycle == currentCycle) {
-            // can only happen if there was a previous snapshot as currentCycle cannot be zero
-            // replace the existing snapshot if it starts on the current cycle
-            stakerHistory[stakerHistoryLength - 1] = newStakerSnapshot;
-        } else {
-            // add a new snapshot in the history
-            newStakerSnapshot.startCycle = currentCycle;
-            stakerHistory.push(newStakerSnapshot);
-        }
-
-        uint256 globalHistoryLength = globalHistory.length;
-        Snapshot memory newGlobalSnapshot;
-        if (globalHistoryLength != 0) {
-            newGlobalSnapshot = globalHistory[globalHistoryLength - 1];
-        }
-
-        newGlobalSnapshot.stake = uint256(
-            int256(newGlobalSnapshot.stake).add(stakeDelta)
-        ).toUint128();
-
-        if (newGlobalSnapshot.startCycle == currentCycle) {
-            // can only happen if there was a previous snapshot as currentCycle cannot be zero
-            // replace the existing snapshot if it starts on the current cycle
-            globalHistory[globalHistoryLength - 1] = newGlobalSnapshot;
-        } else {
-            // add a new snapshot in the history
-            newGlobalSnapshot.startCycle = currentCycle;
-            globalHistory.push(newGlobalSnapshot);
-        }
-
-        emit HistoryUpdated(
-            staker,
-            currentCycle,
-            newStakerSnapshot.stake,
-            newGlobalSnapshot.stake
-        );
-    }
-
 
 ///////////////////////////////////////// Internal Hooks //////////////////////////////////////////
 
     /**
-     * Abstract function which validates whether or not the supplied NFT identifier is accepted for staking
-     * and retrieves its associated weight.
+     * Abstract function which validates whether or not an NFT is accepted for staking and
+     * retrieves its associated weight.
      * @dev MUST throw if the token is invalid.
-     * @param nftId uint256 NFT identifier used to determine if the token is valid for staking.
-     * @return uint32 the weight of the NFT.
+     * @param tokenId uint256 token identifier of the NFT.
+     * @return uint64 the weight of the NFT.
      */
-    function _validateAndGetWeight(uint256 nftId) internal virtual view returns (uint64);
+    function _validateAndGetWeight(uint256 tokenId) internal virtual view returns (uint64);
 
 }

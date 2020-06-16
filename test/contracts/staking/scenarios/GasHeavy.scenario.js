@@ -78,16 +78,11 @@ const gasHeavyScenario = function (creator, staker, otherStaker, anotherStaker) 
             shouldHaveStakerHistoryLength(otherStaker, 50); // ceil(cycleCounter / 2)
             shouldHaveStakerHistoryLength(anotherStaker, 49); // floor(cycleCounter / 2)
 
-            shouldClaimRewards(staker, 99999999, { startPeriod: 1, periods: 14, amount: 24493 });
+            shouldClaimRewards(staker, 99999999, { startPeriod: 1, periods: 14, amount: 48993 });
 
             // payout share for staker 1 for every 4 cycles (repeating) is 1, 1/2, 1/3, 1/2
-            // for periods 1-4 (28 cycles w/ payout schedule of 1000 per-cycle)
-            //      total payout = 7 * (1000 + 500 + 333 + 500) = 16331
-            // for periods 5-8 (28 cycles w/ payout schedule of 500 per-cycle)
-            //      total payout += 7 * (500 + 250 + 166 + 250) = 8162
-            // for remaining periods (98 - 28 - 28 = 42 cycles)
-            //      total payout += 0
-            // total payout = 16331 + 8162 + 0 = 24493
+            // for periods 1-12 (54 cycles w/ payout schedule of 1000 per-cycle)
+            //      total payout = 21 * (1000 + 500 + 333 + 500) = 48993
 
         });
     });

@@ -13,7 +13,7 @@ const periodLimitsScenario = function (staker, other) {
         shouldStakeNft(staker, TokenIds[0]);
 
         // TODO move out
-        shouldRevertAndNotUnstakeNft(staker, TokenIds[0], 'NftStaking: Token is still frozen');
+        shouldRevertAndNotUnstakeNft(staker, TokenIds[0], 'NftStaking: token still frozen');
     })
 
     describe('Estimate after 5 periods', function () {
@@ -31,7 +31,7 @@ const periodLimitsScenario = function (staker, other) {
 
         // TODO move out of scenario
         describe('when unstaking an NFT not owned by the caller', function () {
-            shouldRevertAndNotUnstakeNft(other, TokenIds[0], 'NftStaking: Incorrect token owner or token already unstaked');
+            shouldRevertAndNotUnstakeNft(other, TokenIds[0], 'NftStaking: token not staked or incorrect token owner');
         });
     });
 

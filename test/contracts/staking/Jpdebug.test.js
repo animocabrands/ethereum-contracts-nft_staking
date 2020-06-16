@@ -106,7 +106,7 @@ describe.only('NftStaking', function () {
         gasHeavyScenario.bind(this, creator, staker, otherStaker, anotherStaker)();
     });
 
-    describe('Scenario: Restake', function () {
+    describe.only('Scenario: Restake', function () {
         before(doFreshDeploy);
         before(start);
 

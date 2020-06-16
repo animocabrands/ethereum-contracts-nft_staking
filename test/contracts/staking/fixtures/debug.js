@@ -1,173 +1,253 @@
 const { BN } = require('@openzeppelin/test-helpers');
 const { PeriodLengthInCycles } = require('../constants');
 
+const TITLE_WIDTH = 25;
+const TITLE_PARTITION = '|';
+const TITLE_PADDING = 2;
+
+function getTitleString(title) {
+    title = title === undefined ? '' : title;
+    return (title + TITLE_PARTITION).padStart(TITLE_WIDTH) + ' '.repeat(TITLE_PADDING);
+}
+
+async function getGlobalHistory() {
+    const history = [];
+
+    const snapshot = await this.stakingContract.getLatestGlobalSnapshot();
+
+    if (snapshot.startCycle == 0) {
+        return history;
+    }
+
+    const totalSnapshots = (await this.stakingContract.lastGlobalSnapshotIndex()).addn(1).toNumber();
+
+    for (let index = 0; index < totalSnapshots; index++) {
+        history.push(await this.stakingContract.globalHistory(index));
+    }
+
+    return history;
+}
+
+async function getStakerHistory(staker) {
+    const history = [];
+
+    const snapshot = await this.stakingContract.getLatestStakerSnapshot(staker);
+
+    if (snapshot.startCycle == 0) {
+        return history;
+    }
+
+    const totalSnapshots = (await this.stakingContract.lastStakerSnapshotIndex(staker)).addn(1).toNumber();
+
+    for (let index = 0; index < totalSnapshots; index++) {
+        history.push(await this.stakingContract.stakerHistories(staker, index));
+    }
+
+    return history;
+}
+
+function renderDivider() {
+    console.log(getTitleString());
+}
+
+async function renderPayoutScheduleMarks(period) {
+    let marks = getTitleString('payout schedule');
+
+    const payoutSchedule = [];
+
+    for (let count = 1; count <= period; count++) {
+        payoutSchedule.push(await this.stakingContract.payoutSchedule(count));
+    }
+
+    for (let index = 0; index < (period - 1); index++) {
+        marks += payoutSchedule[index].toString().padEnd(21, ' ');
+    }
+
+    marks += payoutSchedule[period - 1];
+
+    console.log(marks);
+}
+
+function renderPeriodMarks(period) {
+    let marks = getTitleString();
+
+    for (let count = 1; count < period; count++) {
+        marks += count.toString().padEnd(21, ' ');
+    }
+
+    marks += period;
+
+    console.log(marks);
+}
+
+function renderPeriodGraph(cycle, period) {
+    const trailingCycles = cycle % PeriodLengthInCycles;
+
+    let graph = getTitleString('period');
+
+    if (period > 1) {
+        graph += `[${'`'.repeat(19)}]`.repeat(period - 1);
+    }
+
+    graph += trailingCycles == 0 ? '' : '[' + '`'.repeat((trailingCycles * 3) - 2);
+
+    console.log(graph);
+}
+
+function renderCycleMarks(period) {
+    let marks = getTitleString();
+
+    for (let count = 1; count < period; count++) {
+        marks += (((count - 1) * PeriodLengthInCycles) + 1).toString().padEnd(21, ' ');
+    }
+
+    marks += (((period - 1) * PeriodLengthInCycles) + 1).toString();
+
+    console.log(marks);
+}
+
+function renderCycleGraph(cycle, period) {
+    const trailingCycles = cycle % PeriodLengthInCycles;
+
+    let graph = getTitleString('cycle');
+
+    if (cycle > 1) {
+        graph += `|-${'-*-'.repeat(6)}-`.repeat(period - 1);
+    }
+
+    if (trailingCycles > 0 ) {
+        graph += '|-'
+
+        if (trailingCycles > 1) {
+            graph += '-*-'.repeat(trailingCycles - 1);
+        }
+    }
+
+    graph += ` (cycle: ${cycle})`;
+
+    console.log(graph);
+}
+
+function renderHistoryMarks(cycle, history) {
+    let mark = getTitleString();
+
+    for (let index = 0; index < history.length; index++) {
+        const snapshot = history[index];
+        const startCycle = snapshot.startCycle.toNumber();
+
+        if (index == 0) {
+            const offset = (startCycle - 1) * 3;
+            mark += ' '.repeat(offset);
+        }
+
+        if (index < history.length - 1) {
+            const nextSnapshot = history[index + 1];
+            const endCycle = nextSnapshot.startCycle.toNumber() - 1;
+            mark += (index + '').padEnd((endCycle - startCycle + 1) * 3, ' ');
+        } else {
+            const endCycle = cycle;
+            mark += (index + '').padEnd((endCycle - startCycle + 1) * 3, ' ');
+        }
+    }
+
+    console.log(mark);
+}
+
+function renderHistoryGraph(cycle, label, history) {
+    let graph = getTitleString(`${label} snapshot`);
+
+    for (let index = 0; index < history.length; index++) {
+        const snapshot = history[index];
+        const startCycle = snapshot.startCycle.toNumber();
+
+        if (index == 0) {
+            graph += ' '.repeat((startCycle - 1) * 3);
+        }
+
+        if (index < history.length - 1) {
+            const nextSnapshot = history[index + 1];
+            const endCycle = nextSnapshot.startCycle.toNumber() - 1;
+            graph += `[${'.'.repeat(((endCycle - startCycle + 1) * 3) - 2)}]`;
+        } else {
+            const endCycle = cycle;
+            graph += `[${'.'.repeat(((endCycle - startCycle + 1) * 3) - 2)}`;
+        }
+    }
+
+    console.log(graph);
+}
+
+function renderHistoryStakeMarks(cycle, label, history) {
+    let totalStakeMark = getTitleString(`${label} stake`);
+
+    for (let index = 0; index < history.length; index++) {
+        const snapshot = history[index];
+        const startCycle = snapshot.startCycle.toNumber();
+
+        if (index == 0) {
+            const offset = (snapshot.startCycle.toNumber() - 1) * 3;
+            totalStakeMark += ' '.repeat(offset);
+        }
+
+        const stake = snapshot.stake.toNumber();
+
+        if (index < history.length - 1) {
+            const nextSnapshot = history[index + 1];
+            const endCycle = nextSnapshot.startCycle.toNumber() - 1;
+            totalStakeMark += (stake + '').padEnd((endCycle - startCycle + 1) * 3, ' ');
+        } else {
+            const endCycle = cycle;
+            totalStakeMark += (stake + '').padEnd((endCycle - startCycle + 1) * 3, ' ');
+        }
+    }
+
+    console.log(totalStakeMark);
+}
+
+async function renderStakerNextClaimMark(staker, label, stakerHistory, globalHistory) {
+    let mark = getTitleString(`${label} next claim`);
+
+    const nextClaim = await this.stakingContract.nextClaims(staker);
+    const nextClaimablePeriod = nextClaim.period;
+
+    if (nextClaimablePeriod > 0) {
+        const prevClaimablePeriodEndCycle = (nextClaimablePeriod - 1) * PeriodLengthInCycles;
+        mark += '   '.repeat(prevClaimablePeriodEndCycle);
+        mark += `* (cycle: ${prevClaimablePeriodEndCycle + 1})`;
+    }
+
+    console.log(mark);
+}
+
 async function debugCurrentState(...stakers) {
     console.log();
 
     const cycle = (await this.stakingContract.getCurrentCycle()).toNumber();
     const period = Math.floor((cycle - 1) / PeriodLengthInCycles) + 1;
-    const titleWidth = 25;
-    const titlePartition = '|';
-    const titlePadding = 2;
 
-    let rewardMark = ('reward per-cycle' + titlePartition).padStart(titleWidth) + ' '.repeat(titlePadding);
-    const rewardSchedule = [];
-    for (let count = 1; count <= period; count++) {
-        rewardSchedule.push(await this.stakingContract.payoutSchedule(count));
-    }
-    for (let index = 0; index < (period - 1); index++) {
-        rewardMark += rewardSchedule[index].toString().padEnd(21, ' ');
-    }
-    rewardMark += rewardSchedule[period - 1];
-    console.log(rewardMark);
+    renderPeriodMarks(period);
+    renderPeriodGraph(cycle, period);
+    await renderPayoutScheduleMarks.bind(this, period)();
+    renderDivider();
+    renderCycleMarks(period);
+    renderCycleGraph(cycle, period);
+    renderDivider();
 
-    let periodMark = ('period' + titlePartition).padStart(titleWidth) + ' '.repeat(titlePadding);
-    for (let count = 1; count < period; count++) {
-        periodMark += count.toString().padEnd(21, ' ');
-    }
-    periodMark += period;
-    console.log(periodMark);
+    const globalHistory = await getGlobalHistory.bind(this)();
 
-    const trailingCycles = cycle % PeriodLengthInCycles;
-    let periodGraph = titlePartition.padStart(titleWidth) + ' '.repeat(titlePadding);
-    if (period > 1) {
-        periodGraph += '[```````````````````]'.repeat(period - 1);
-    }
-    periodGraph += trailingCycles == 0 ? '' : '[' + '`'.repeat((trailingCycles * 3) - 2);
-    console.log(periodGraph);
+    renderHistoryMarks(cycle, globalHistory);
+    renderHistoryGraph(cycle, 'global', globalHistory);
+    renderHistoryStakeMarks(cycle, 'global', globalHistory);
 
-    let cycleGraph = ('cycle' + titlePartition).padStart(titleWidth) + ' '.repeat(titlePadding);
-    cycleGraph += '*-';
-    if (cycle > 1) {
-        cycleGraph += '-*-'.repeat(cycle - 1);
-    }
-    cycleGraph += `  (cycle: ${cycle})`;
-    console.log(cycleGraph);
-
-    const totalSnapshots = (await this.stakingContract.lastGlobalSnapshotIndex()).add(new BN('1'));
-
-    const globalHistory = [];
-    for (let index = 0; index < totalSnapshots; index++) {
-        globalHistory.push(await this.stakingContract.globalHistory(index));
-    }
-
-    let snapshotGraph = titlePartition.padStart(titleWidth) + ' '.repeat(titlePadding);
-    for (let index = 0; index < totalSnapshots; index++) {
-        const snapshot = globalHistory[index];
-        const startCycle = snapshot.startCycle.toNumber();
-        if (index == 0) {
-            snapshotGraph += ' '.repeat((startCycle - 1) * 3);
-        }
-        if (index < totalSnapshots - 1) {
-            const nextSnapshot = globalHistory[index + 1];
-            const endCycle = nextSnapshot.startCycle.toNumber() - 1;
-            snapshotGraph += `[${'.'.repeat(((endCycle - startCycle + 1) * 3) - 2)}]`;
-        } else {
-            const endCycle = cycle;
-            snapshotGraph += `[${'.'.repeat(((endCycle - startCycle + 1) * 3) - 1)}`;
-        }
-    }
-    console.log(snapshotGraph);
-
-    let snapshotMark = ('global snapshot' + titlePartition).padStart(titleWidth, ' ') + ' '.repeat(titlePadding);
-    for (let index = 0; index < totalSnapshots; index++) {
-        const snapshot = globalHistory[index];
-        const startCycle = snapshot.startCycle.toNumber();
-        if (index == 0) {
-            const offset = (startCycle - 1) * 3;
-            snapshotMark += ' '.repeat(offset);
-        }
-        if (index < totalSnapshots - 1) {
-            const nextSnapshot = globalHistory[index + 1];
-            const endCycle = nextSnapshot.startCycle.toNumber() - 1;
-            snapshotMark += (index + '').padEnd((endCycle - startCycle + 1) * 3, ' ');
-        } else {
-            const endCycle = cycle;
-            snapshotMark += (index + '').padEnd((endCycle - startCycle + 1) * 3, ' ');
-        }
-    }
-    console.log(snapshotMark);
-
-    let totalStakeMark = ('global stake' + titlePartition).padStart(titleWidth, ' ') + ' '.repeat(titlePadding);
-    for (let index = 0; index < totalSnapshots; index++) {
-        const snapshot = globalHistory[index];
-        const startCycle = snapshot.startCycle.toNumber();
-        if (index == 0) {
-            const offset = (snapshot.startCycle.toNumber() - 1) * 3;
-            totalStakeMark += ' '.repeat(offset);
-        }
-        const stake = snapshot.stake.toNumber();
-        if (index < totalSnapshots - 1) {
-            const nextSnapshot = globalHistory[index + 1];
-            const endCycle = nextSnapshot.startCycle.toNumber() - 1;
-            totalStakeMark += (stake + '').padEnd((endCycle - startCycle + 1) * 3, ' ');
-        } else {
-            const endCycle = cycle;
-            totalStakeMark += (stake + '').padEnd((endCycle - startCycle + 1) * 3, ' ');
-        }
-    }
-    console.log(totalStakeMark);
-
-    const stakersHistory = {};
     for (let index = 0; index < stakers.length; index++) {
         const staker = stakers[index];
-        const lastStakerSnapshotIndex = await this.stakingContract.lastStakerSnapshotIndex(staker);
-        const totalSnapshots = lastStakerSnapshotIndex.toNumber() + 1;
-        const stakerHistory = [];
-        for (let sIndex = 0; sIndex < totalSnapshots; sIndex++) {
-            stakerHistory.push(await this.stakingContract.stakerHistories(staker, sIndex));
-        }
-        stakersHistory[staker] = stakerHistory;
-    }
-
-    for (let index = 0; index < stakers.length; index++) {
-        let stakerSnapshotGraph = `staker #${index + 1} snapshot${titlePartition}`.padStart(titleWidth, ' ') + ' '.repeat(titlePadding);
-        const nextClaim = await this.stakingContract.nextClaims(stakers[index]);
-        const lastStakerSnapshotIndex = await this.stakingContract.lastStakerSnapshotIndex(stakers[index]);
-        const totalSnapshots = lastStakerSnapshotIndex.toNumber() + 1;
-        const stakerHistory = [];
-        for (let sIndex = 0; sIndex < totalSnapshots; sIndex++) {
-            stakerHistory.push(await this.stakingContract.stakerHistories(stakers[index], sIndex));
-        }
-        for (let sIndex = 0; sIndex < totalSnapshots; sIndex++) {
-            const snapshot = stakerHistory[sIndex];
-            const startCycle = snapshot.startCycle.toNumber();
-            if (sIndex == 0) {
-                stakerSnapshotGraph += ' '.repeat((startCycle - 1) * 3);
-            }
-            if (sIndex < totalSnapshots - 1) {
-                const nextSnapshot = stakerHistory[sIndex + 1];
-                const endCycle = nextSnapshot.startCycle.toNumber() - 1;
-                stakerSnapshotGraph += `[${'.'.repeat(((endCycle - startCycle + 1) * 3) - 2)}]`;
-            } else {
-                const endCycle = cycle;
-                stakerSnapshotGraph += `[${'.'.repeat(((endCycle - startCycle + 1) * 3) - 1)}`;
-            }
-        }
-        console.log(stakerSnapshotGraph);
-        for (let sIndex = 0; sIndex < totalSnapshots; sIndex++) {
-            const snapshot = stakerHistory[sIndex];
-            const startCycle = snapshot.startCycle.toNumber();
-            if (sIndex == 0) {
-                stakerSnapshotGraph += ' '.repeat((startCycle - 1) * 3);
-            }
-            if (sIndex < totalSnapshots - 1) {
-                const nextSnapshot = stakerHistory[sIndex + 1];
-                const endCycle = nextSnapshot.startCycle.toNumber() - 1;
-                stakerSnapshotGraph += `[${'.'.repeat(((endCycle - startCycle + 1) * 3) - 2)}]`;
-            } else {
-                const endCycle = cycle;
-                stakerSnapshotGraph += `[${'.'.repeat(((endCycle - startCycle + 1) * 3) - 1)}`;
-            }
-        }
-        // const nextClaimableCycle = await this.stakingContract.nextClaim.nextClaimableCycle.toNumber();
-        // let stakerStakeMark = `staker #${index + 1} stake${titlePartition}`.padStart(titleWidth, ' ') + ' '.repeat(titlePadding);
-        // if ((stake > 0) && (nextClaimableCycle > 0)) {
-        //     stakerStakeMark += '   '.repeat(nextClaimableCycle - 1);
-        //     stakerStakeMark += stake;
-        //     stakerStakeMark += `  (cycle: ${nextClaimableCycle})`;
-        // }
-        // console.log(stakerStakeMark);
+        const stakerNo = index + 1;
+        const stakerHistory = await getStakerHistory.bind(this, staker)();
+        renderDivider();
+        renderHistoryMarks(cycle, stakerHistory);
+        renderHistoryGraph(cycle, `staker #${stakerNo}`, stakerHistory);
+        renderHistoryStakeMarks(cycle, `staker #${stakerNo}`, stakerHistory);
+        await renderStakerNextClaimMark.bind(this, staker, `staker #${stakerNo}`, stakerHistory, globalHistory)();
     }
 
     console.log();

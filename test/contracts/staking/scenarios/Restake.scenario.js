@@ -25,7 +25,7 @@ const restakeScenario = function (staker) {
     describe('Unstake first NFT, claim, unstake 2nd car, stake the 2nd car again period 3', function () {
         shouldWarpToTarget({ cycles: 0, periods: 1, targetCycle: 15, targetPeriod: 3 });
         shouldUnstakeNft({ staker, tokenId: TokenIds[3], cycle: 15 });
-        shouldClaimRewards({ staker, periodsToClaim: 99, firstClaimablePeriod: 1, computedPeriods: 2, claimableRewards: 37800000000000000000000000 });
+        shouldClaimRewards({ staker, periodsToClaim: 99, firstClaimablePeriod: 1, computedPeriods: 2, claimableRewards: "37800000000000000000000000" });
         shouldUnstakeNft({ staker, tokenId: TokenIds[0], cycle: 15 });
         shouldStakeNft({ staker, tokenId: TokenIds[0], cycle: 15 });
     });
@@ -33,7 +33,7 @@ const restakeScenario = function (staker) {
     describe('Unstake the 2nd NFT and claim all the periods at start of period 8', function () {
         shouldWarpToTarget({ cycles: 0, periods: 5, targetCycle: 50, targetPeriod: 8 });
         shouldUnstakeNft({ staker, tokenId: TokenIds[0], cycle: 50 });
-        shouldClaimRewards({ staker, periodsToClaim: 10, firstClaimablePeriod: 3, computedPeriods: 5, claimableRewards: 24500 });
+        shouldClaimRewards({ staker, periodsToClaim: 10, firstClaimablePeriod: 3, computedPeriods: 5, claimableRewards: "82950000000000000000000000" });
     });
 
     describe('Stake the 2nd NFT start of period 7', function () {
@@ -43,7 +43,7 @@ const restakeScenario = function (staker) {
 
     describe('Estimate start of period 9', function () {
         shouldWarpToTarget({ cycles: 0, periods: 2, targetCycle: 92, targetPeriod: 14 });
-        shouldEstimateRewards({ staker, periodsToClaim: 99, firstClaimablePeriod: 8, computedPeriods: 6, claimableRewards: 7000 });
+        shouldEstimateRewards({ staker, periodsToClaim: 99, firstClaimablePeriod: 8, computedPeriods: 6, claimableRewards: "25550000000000000000000000" });
     });
 }
 

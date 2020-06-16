@@ -60,29 +60,39 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     event Disabled();
 
-    // optimised for storage
+    /**
+     * Used to represent the current staking status of an NFT.
+     * @dev optimised for storage
+     */
     struct TokenInfo {
         address owner;
         uint64 weight;
         uint16 depositCycle;
     }
 
-    // This struct is used as a history record of stake
-    // Used for both global history and staker histories
-    // optimised for storage
+    /**
+     * Used as a historical record of change of stake.
+     * Stake represents an aggregation of staked token weights.
+     * @dev optimised for storage
+     */
     struct Snapshot {
-        uint128 stake; // an aggregate of staked tokens weights
+        uint128 stake;
         uint128 startCycle;
     }
 
-    // optimised for storage
+    /**
+     * Used to represent a staker's information about the next claim.
+     * @dev optimised for storage
+     */
     struct NextClaim {
         uint16 period;
         uint64 globalSnapshotIndex;
         uint64 stakerSnapshotIndex;
     }
 
-    // used as a container to hold result values from computing rewards.
+    /**
+     * Used as a container to hold result values from computing rewards.
+     */
     struct ComputedClaim {
         uint16 startPeriod;
         uint16 periods;

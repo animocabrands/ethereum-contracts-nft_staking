@@ -18,7 +18,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     using SafeMath for uint256;
     using SafeCast for uint256;
 
-    uint40 internal constant _DIVS_PRECISION = 10 ** 10; // used to preserve significant figures in floating point calculations
+    uint64 internal constant _DIVS_PRECISION = 10 ** 15; // used to preserve significant figures in floating point calculations
 
     event PayoutScheduled(
         uint256 startPeriod,
@@ -42,8 +42,9 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     event RewardsClaimed(
         address staker,
+        uint256 cycle,
         uint256 startPeriod,
-        uint256 periodsClaimed,
+        uint256 periods,
         uint256 amount
     );
 
@@ -54,32 +55,33 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint256 globalStake
     );
 
-    // optimised for usage in storage
+    // optimised for storage
     struct TokenInfo {
         address owner;
         uint64 weight;
         uint16 depositCycle;
     }
 
-    // optimised for usage in storage
+    // optimised for storage
+    // This struct is used as a history record of stake
+    // Used for both global history and staker histories
     struct Snapshot {
-        uint128 stake; // an aggregate of staked weights
+        uint128 stake; // an aggregate of staked tokens weights
         uint128 startCycle;
     }
 
-    // optimised for usage in storage
+    // optimised for storage
     struct NextClaim {
         uint16 period;
-        uint64 globalHistoryIndex;
-        uint64 stakerHistoryIndex;
+        uint64 globalSnapshotIndex;
+        uint64 stakerSnapshotIndex;
     }
 
     // used as a container to hold result values from computing claimable rewards.
-    struct ComputeRewardsResult {
-        uint256 claimableRewards;
-        NextClaim nextClaim;
-        uint16 firstClaimablePeriod;
-        uint16 computedPeriods;
+    struct ComputedClaim {
+        uint16 startPeriod;
+        uint16 periods;
+        uint256 amount;
     }
 
     bool public disabled = false;
@@ -286,19 +288,19 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     /**
      * Estimates the claimable rewards for the specified number of periods.
      * @param maxPeriods The maximum number of claimable periods to calculate for.
-     * @return firstClaimablePeriod The first period on which the computation starts.
-     * @return computedPeriods The number of periods computed for.
-     * @return claimableRewards The total claimable rewards.
+     * @return startPeriod The first period on which the computation starts.
+     * @return periods The number of periods computed for.
+     * @return amount The total claimable rewards.
      */
     function estimateRewards(uint16 maxPeriods) external view isEnabled hasStarted returns (
-        uint16 firstClaimablePeriod,
-        uint16 computedPeriods,
-        uint256 claimableRewards
+        uint16 startPeriod,
+        uint16 periods,
+        uint256 amount
     ) {
-        ComputeRewardsResult memory result = _computeRewards(msg.sender, maxPeriods);
-        firstClaimablePeriod = result.firstClaimablePeriod;
-        computedPeriods = result.computedPeriods;
-        claimableRewards = result.claimableRewards;
+        (ComputedClaim memory claim, ) = _computeRewards(msg.sender, maxPeriods);
+        startPeriod = claim.startPeriod;
+        periods = claim.periods;
+        amount = claim.amount;
     }
 
     /**
@@ -309,8 +311,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @param maxPeriods The maximum number of periods to claim for.
      */
     function claimRewards(uint16 maxPeriods) external isEnabled hasStarted {
-        ComputeRewardsResult memory result = _computeRewards(msg.sender, maxPeriods);
-        if (result.computedPeriods == 0) {
+        (ComputedClaim memory claim, NextClaim memory nextClaim) = _computeRewards(msg.sender, maxPeriods);
+        if (claim.periods == 0) {
             return;
         }
 
@@ -321,7 +323,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         Snapshot[] memory stakerHistory = stakerHistories[msg.sender];
         Snapshot memory lastStakerSnapshot = stakerHistory[stakerHistory.length - 1];
         // assumed safe because of manipulation of uint16 values into a uint256
-        uint256 lastClaimableCycle = (result.firstClaimablePeriod + result.computedPeriods - 1) * periodLengthInCycles;
+        uint256 lastClaimableCycle = (claim.startPeriod + claim.periods - 1) * periodLengthInCycles;
         if (
             lastClaimableCycle >= lastStakerSnapshot.startCycle && // the claim overlaps with the last staker snapshot
             lastStakerSnapshot.stake == 0                          // and nothing is staked in the last staker snapshot
@@ -329,20 +331,21 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             // re-init the next claim
             delete nextClaims[msg.sender];
         } else {
-            nextClaims[msg.sender] = result.nextClaim;
+            nextClaims[msg.sender] = nextClaim;
         }
 
-        if (result.claimableRewards != 0) {
+        if (claim.amount != 0) {
             require(
-                IERC20(rewardsToken).transfer(msg.sender, result.claimableRewards),
+                IERC20(rewardsToken).transfer(msg.sender, claim.amount),
                 "NftStaking: Failed to transfer claimed rewards");
         }
 
         emit RewardsClaimed(
             msg.sender,
-            result.firstClaimablePeriod,
-            result.computedPeriods,
-            result.claimableRewards);
+            _getCycle(now),
+            claim.startPeriod,
+            claim.periods,
+            claim.amount);
     }
 
 
@@ -431,68 +434,66 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @dev Processes until the specified maximum number of periods to claim is reached, or the last computable period is reached, whichever occurs first.
      * @param staker The staker for whom the rewards will be computed.
      * @param maxPeriods Maximum number of periods over which to compute the claimable rewards.
-     * @return CalculateRewardsResult result as follow:
-     *  ComputeRewardsResult {
-          uint256 claimableRewards;
-          NextClaim nextClaim;
-          uint16 firstClaimablePeriod;
-          uint16 computedPeriods;
-        }
+     * @return claim the result of computation
+     * @return nextClaim the next claim which can be used to update the staker's state
      */
     function _computeRewards(
         address staker,
         uint16 maxPeriods
-    ) internal view returns (ComputeRewardsResult memory)
+    ) internal view returns (
+        ComputedClaim memory claim,
+        NextClaim memory nextClaim
+    )
     {
-        ComputeRewardsResult memory result;
+        // ComputeRewardsResult memory result;
 
         // calculating for 0 periods
         if (maxPeriods == 0) {
-            return result;
+            return (claim, nextClaim);
         }
 
         // the history is empty
         if (globalHistory.length == 0) {
-            return result;
+            return (claim, nextClaim);
         }
 
-        result.nextClaim = nextClaims[staker];
-        result.firstClaimablePeriod = result.nextClaim.period;
+        nextClaim = nextClaims[staker];
+        claim.startPeriod = nextClaim.period;
 
         // nothing has been staked yet
-        if (result.firstClaimablePeriod == 0) {
-            return result;
+        if (claim.startPeriod == 0) {
+            return (claim, nextClaim);
         }
 
         uint16 periodLengthInCycles_ = periodLengthInCycles;
         uint16 currentPeriod = _getCurrentPeriod(periodLengthInCycles_);
 
         // current period is not claimable
-        if (result.nextClaim.period == currentPeriod) {
-            return result;
+        if (nextClaim.period == currentPeriod) {
+            return (claim, nextClaim);
         }
 
         Snapshot[] memory stakerHistory = stakerHistories[staker];
 
-        Snapshot memory globalSnapshot = globalHistory[result.nextClaim.globalHistoryIndex];
-        Snapshot memory stakerSnapshot = stakerHistory[result.nextClaim.stakerHistoryIndex];
+        Snapshot memory globalSnapshot = globalHistory[nextClaim.globalSnapshotIndex];
+        Snapshot memory stakerSnapshot = stakerHistory[nextClaim.stakerSnapshotIndex];
         Snapshot memory nextGlobalSnapshot;
         Snapshot memory nextStakerSnapshot;
 
-        if (result.nextClaim.globalHistoryIndex != globalHistory.length - 1) {
-            nextGlobalSnapshot = globalHistory[result.nextClaim.globalHistoryIndex + 1];
+        if (nextClaim.globalSnapshotIndex != globalHistory.length - 1) {
+            nextGlobalSnapshot = globalHistory[nextClaim.globalSnapshotIndex + 1];
         }
 
-        if (result.nextClaim.stakerHistoryIndex != stakerHistory.length - 1) {
-            nextStakerSnapshot = stakerHistory[result.nextClaim.stakerHistoryIndex + 1];
+        if (nextClaim.stakerSnapshotIndex != stakerHistory.length - 1) {
+            nextStakerSnapshot = stakerHistory[nextClaim.stakerSnapshotIndex + 1];
         }
 
         while (
-            (result.computedPeriods != maxPeriods) &&
-            (result.nextClaim.period != currentPeriod)
+            (claim.periods != maxPeriods) &&
+            (nextClaim.period != currentPeriod)
         ) {
-            uint16 nextPeriodStartCycle = result.nextClaim.period * periodLengthInCycles_ + 1;
-            uint256 periodPayoutSchedule = payoutSchedule[result.nextClaim.period];
+            uint16 nextPeriodStartCycle = nextClaim.period * periodLengthInCycles_ + 1;
+            uint256 rewardPerCycle = payoutSchedule[nextClaim.period];
             uint256 startCycle = nextPeriodStartCycle - periodLengthInCycles_;
             uint256 endCycle = 0;
 
@@ -524,51 +525,47 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                     endCycle = nextGlobalSnapshot.startCycle;
                 }
 
-                if (
-                    (nextStakerSnapshot.startCycle != 0) &&
-                    (nextStakerSnapshot.startCycle < endCycle)
-                ) {
-                    endCycle = nextStakerSnapshot.startCycle;
-                }
-
                 // only calculate and update the claimable rewards if there is
                 // something to calculate with
                 if (
                     (globalSnapshot.stake != 0) &&
                     (stakerSnapshot.stake != 0) &&
-                    (periodPayoutSchedule != 0)
+                    (rewardPerCycle != 0)
                 ) {
-                    uint256 snapshotReward = endCycle - startCycle;
-                    snapshotReward *= periodPayoutSchedule;
-                    snapshotReward *= stakerSnapshot.stake;
-                    snapshotReward *= _DIVS_PRECISION;
+                    uint256 snapshotReward =
+                        (endCycle - startCycle)
+                        .mul(rewardPerCycle)
+                        .mul(stakerSnapshot.stake)
+                        .mul(_DIVS_PRECISION);
                     snapshotReward /= globalSnapshot.stake;
                     snapshotReward /= _DIVS_PRECISION;
 
-                    result.claimableRewards = result.claimableRewards.add(snapshotReward);
+                    claim.amount = claim.amount.add(snapshotReward);
                 }
 
-                // advance the current global snapshot if we've finished
-                // processing its cycle range for the current period
+                // advance the current global snapshot to the next (if any)
+                // if its cycle range has been fully processed and if the next
+                // snapshot starts at most on next period first cycle
                 if (nextGlobalSnapshot.startCycle == endCycle) {
                     globalSnapshot = nextGlobalSnapshot;
-                    ++result.nextClaim.globalHistoryIndex;
+                    ++nextClaim.globalSnapshotIndex;
 
-                    if (result.nextClaim.globalHistoryIndex != globalHistory.length - 1) {
-                        nextGlobalSnapshot = globalHistory[result.nextClaim.globalHistoryIndex + 1];
+                    if (nextClaim.globalSnapshotIndex != globalHistory.length - 1) {
+                        nextGlobalSnapshot = globalHistory[nextClaim.globalSnapshotIndex + 1];
                     } else {
                         nextGlobalSnapshot = Snapshot(0, 0);
                     }
                 }
 
-                // advance the current staker snapshot if we've finished
-                // processing its cycle range for the current period
+                // advance the current staker snapshot to the next (if any)
+                // if its cycle range has been fully processed and if the next
+                // snapshot starts at most on next period first cycle
                 if (nextStakerSnapshot.startCycle == endCycle) {
                     stakerSnapshot = nextStakerSnapshot;
-                    ++result.nextClaim.stakerHistoryIndex;
+                    ++nextClaim.stakerSnapshotIndex;
 
-                    if (result.nextClaim.stakerHistoryIndex != stakerHistory.length - 1) {
-                        nextStakerSnapshot = stakerHistory[result.nextClaim.stakerHistoryIndex + 1];
+                    if (nextClaim.stakerSnapshotIndex != stakerHistory.length - 1) {
+                        nextStakerSnapshot = stakerHistory[nextClaim.stakerSnapshotIndex + 1];
                     } else {
                         nextStakerSnapshot = Snapshot(0, 0);
                     }
@@ -576,11 +573,11 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             }
 
             // advance the current period
-            ++result.computedPeriods;
-            ++result.nextClaim.period;
+            ++claim.periods;
+            ++nextClaim.period;
         }
 
-        return result;
+        return (claim, nextClaim);
     }
 
 
@@ -675,9 +672,9 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
         emit HistoryUpdated(
             staker,
-            newGlobalSnapshot.stake,
-            newGlobalSnapshot.stake,
-            currentCycle
+            currentCycle,
+            newStakerSnapshot.stake,
+            newGlobalSnapshot.stake
         );
     }
 

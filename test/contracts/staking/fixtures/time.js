@@ -6,23 +6,35 @@ const { RewardsTokenInitialBalance,
     DayInSeconds, CycleLengthInSeconds, PeriodLengthInSeconds, PeriodLengthInCycles,
     RarityWeights, TokenIds, DefaultRewardSchedule, RewardsPool } = require('../constants');
 
-async function shouldWarpToTarget(params) {
+async function shouldTimeWarpBy(input, expectedOutput = {}) {
 
-    it(`warps by ${params.periods} periods & ${params.cycles} cycles to target: cycle=${params.targetCycle} period=${params.targetPeriod}`, async function () {
-        const timeDelta =
-            params.periods * PeriodLengthInSeconds
-            +
-            params.cycles * CycleLengthInSeconds;
+    it(`warps by ${input.periods} periods & ${input.cycles} cycles to target: cycle=${input.cycle} period=${input.period}`, async function () {
+        let timeDelta = 0;
+        if (input.periods) {
+            timeDelta += input.periods * PeriodLengthInSeconds;
+        }
+        if (input.cycles) {
+            timeDelta += input.cycles * CycleLengthInSeconds;
+        }
 
         await time.increase(timeDelta);
 
         const currentCycle = await this.stakingContract.getCurrentCycle();
         const currentPeriod = await this.stakingContract.getCurrentPeriod();
-        currentCycle.toNumber().should.equal(params.targetCycle);
-        currentPeriod.toNumber().should.equal(params.targetPeriod);
+
+        if (expectedOutput.cycle) {
+            currentCycle.toNumber().should.equal(expectedOutput.cycle);
+        }
+
+        if (expectedOutput.period) {
+            currentPeriod.toNumber().should.equal(expectedOutput.period);
+        }
+
+        this.cycle = currentCycle;
+        this.period = currentPeriod;
     });
 }
 
 module.exports = {
-    shouldWarpToTarget
+    shouldTimeWarpBy
 }

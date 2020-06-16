@@ -5,9 +5,9 @@ const { shouldRevertAndNotStakeNft, shouldStakeNft, shouldUnstakeNft, shouldEsti
     shouldClaimRewards, shouldRevertAndNotUnstakeNft } = require('../fixtures/behavior');
 
 const { shouldHaveNextClaim, shouldHaveCurrentCycleAndPeriod, shouldHaveGlobalHistoryLength,
-    shouldHaveStakerHistoryLength, shouldHaveLastGlobalSnapshot, shouldHaveLastStakerSnapshot } = require('../fixtures/state');
+    shouldHaveStakerHistoryLength } = require('../fixtures/state');
 
-const { shouldWarpToTarget } = require('../fixtures/time');
+const { shouldTimeWarpBy } = require('../fixtures/time');
 
 const { RewardsTokenInitialBalance,
     DayInSeconds, CycleLengthInSeconds, PeriodLengthInSeconds, PeriodLengthInCycles,
@@ -40,9 +40,7 @@ const gasHeavyScenario = function (creator, staker, otherStaker, anotherStaker) 
         const numSnapshotsToCreate = 99; // excluding the initial one created by staker #1's stake
 
         describe(`when creating snapshot #1 - staker #1 stakes an NFT`, function () {
-            shouldStakeNft({staker, tokenId: TokenIds[0], cycle: 1});
-            shouldHaveLastGlobalSnapshot({ startCycle: 1, stake: 1, index: 0 });
-            shouldHaveLastStakerSnapshot({ staker, startCycle: 1, stake: 1, index: 0 });
+            shouldStakeNft({ staker, tokenId: TokenIds[0] });
         });
 
         describe('when creating interstitial snapshots', async function () {
@@ -52,46 +50,28 @@ const gasHeavyScenario = function (creator, staker, otherStaker, anotherStaker) 
                 switch (index % 4) {
                     case 0:
                         describe(`when creating snapshot #${cycleCounter} - timewarp 1 cycle and staker #2 stakes an NFT`, function () {
-                            before(async function () {
-                                await time.increase(CycleLengthInSeconds.toNumber());
-                            });
-
-                            shouldStakeNft({staker: otherStaker, tokenId: OtherTokenIds[0], cycle: cycleCounter});
-                            shouldHaveLastGlobalSnapshot({ startCycle: cycleCounter, stake: 2, index: cycleCounter - 1 });
-                            shouldHaveLastStakerSnapshot({ staker: otherStaker, startCycle: cycleCounter, stake: 1, index: Math.floor(cycleCounter / 2) - 1 });
+                            shouldTimeWarpBy({ cycles: 1 });
+                            shouldStakeNft({ staker: otherStaker, tokenId: OtherTokenIds[0] });
                         });
                         break;
                     case 1:
                         describe(`when creating snapshot #${cycleCounter} - timewarp 1 cycle and staker #3 stakes an NFT`, function () {
-                            before(async function () {
-                                await time.increase(CycleLengthInSeconds.toNumber());
-                            });
+                            shouldTimeWarpBy({ cycles: 1 });
 
-                            shouldStakeNft({staker: anotherStaker, tokenId: AnotherTokenIds[0], cycle: cycleCounter});
-                            shouldHaveLastGlobalSnapshot({ startCycle: cycleCounter, stake: 3, index: cycleCounter - 1 });
-                            shouldHaveLastStakerSnapshot({ staker: anotherStaker, startCycle: cycleCounter, stake: 1, index: Math.floor(cycleCounter / 2) - 1 });
+                            shouldStakeNft({ staker: anotherStaker, tokenId: AnotherTokenIds[0] });
                         });
                         break;
                     case 2:
                         describe(`when creating snapshot #${cycleCounter} - timewarp 1 cycle and staker #2 unclaims their NFT`, function () {
-                            before(async function () {
-                                await time.increase(CycleLengthInSeconds.toNumber());
-                            });
-                            shouldUnstakeNft({staker: otherStaker, tokenId: OtherTokenIds[0], cycle: cycleCounter });
-                            shouldHaveLastGlobalSnapshot({ startCycle: cycleCounter, stake: 2, index: cycleCounter - 1 });
-                            shouldHaveLastStakerSnapshot({ staker: otherStaker, startCycle: cycleCounter, stake: 0, index: Math.floor(cycleCounter / 2) - 1 });
+                            shouldTimeWarpBy({ cycles: 1 });
+                            shouldUnstakeNft({ staker: otherStaker, tokenId: OtherTokenIds[0] });
 
                         });
                         break;
                     case 3:
                         describe(`when creating snapshot #${cycleCounter} - timewarp 1 cycle and staker #3 unclaims their NFT`, function () {
-                            before(async function () {
-                                await time.increase(CycleLengthInSeconds.toNumber());
-                            });
-
-                            shouldUnstakeNft({staker: anotherStaker, tokenId: AnotherTokenIds[0], cycle: cycleCounter });
-                            shouldHaveLastGlobalSnapshot({ startCycle: cycleCounter, stake: 1, index: cycleCounter - 1 });
-                            shouldHaveLastStakerSnapshot({ staker: anotherStaker, startCycle: cycleCounter, stake: 0, index: Math.floor(cycleCounter / 2) - 1 });
+                            shouldTimeWarpBy({ cycles: 1 });
+                            shouldUnstakeNft({ staker: anotherStaker, tokenId: AnotherTokenIds[0] });
                         });
                         break;
                 }
@@ -106,9 +86,9 @@ const gasHeavyScenario = function (creator, staker, otherStaker, anotherStaker) 
 
             shouldHaveCurrentCycleAndPeriod(100, 15); // period = floor(cycleCounter / 7) + 1
 
-            shouldHaveNextClaim({ staker, period: 1, globalHistoryIndex: 0, stakerHistoryIndex: 0 });
+            shouldHaveNextClaim({ staker, period: 1, globalSnapshotIndex: 0, stakerSnapshotIndex: 0 });
 
-            shouldClaimRewards({staker, periodsToClaim: 99999999, firstClaimablePeriod: 1, computedPeriods: 14, claimableRewards: 24493});
+            shouldClaimRewards({ staker, periodsToClaim: 99999999, startPeriod: 1, periods: 14, amount: 24493 });
 
             // payout share for staker 1 for every 4 cycles (repeating) is 1, 1/2, 1/3, 1/2
             // for periods 1-4 (28 cycles w/ payout schedule of 1000 per-cycle)
@@ -119,7 +99,7 @@ const gasHeavyScenario = function (creator, staker, otherStaker, anotherStaker) 
             //      total payout += 0
             // total payout = 16331 + 8162 + 0 = 24493
 
-            shouldHaveNextClaim({ staker, period: 15, globalHistoryIndex: 98, stakerHistoryIndex: 0 });
+            shouldHaveNextClaim({ staker, period: 15, globalSnapshotIndex: 98, stakerSnapshotIndex: 0 });
         });
     });
 }

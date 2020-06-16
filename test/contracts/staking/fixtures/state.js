@@ -8,13 +8,13 @@ const shouldHaveNextClaim = function (params) {
         // const nextClaim = 
         this.nextClaim.period.toNumber().should.equal(params.period);
     });
-    it(`\tnextClaim.globalHistoryIndex=${params.globalHistoryIndex}`, async function () {
+    it(`\tnextClaim.globalSnapshotIndex=${params.globalSnapshotIndex}`, async function () {
         // const nextClaim = await this.stakingContract.nextClaims(params.staker);
-        this.nextClaim.globalHistoryIndex.toNumber().should.equal(params.globalHistoryIndex);
+        this.nextClaim.globalSnapshotIndex.toNumber().should.equal(params.globalSnapshotIndex);
     });
-    it(`\tnextClaim.stakerHistoryIndex=${params.stakerHistoryIndex}`, async function () {
+    it(`\tnextClaim.stakerSnapshotIndex=${params.stakerSnapshotIndex}`, async function () {
         // const nextClaim = await this.stakingContract.nextClaims(params.staker);
-        this.nextClaim.stakerHistoryIndex.toNumber().should.equal(params.stakerHistoryIndex);
+        this.nextClaim.stakerSnapshotIndex.toNumber().should.equal(params.stakerSnapshotIndex);
     });
 }
 

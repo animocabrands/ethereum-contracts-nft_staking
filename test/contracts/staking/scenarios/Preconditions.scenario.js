@@ -6,7 +6,7 @@ const { RewardsTokenInitialBalance,
     RarityWeights, TokenIds, DefaultRewardSchedule, RewardsPool } = require('../constants');
 
 const { shouldHaveNextClaim, shouldHaveCurrentCycleAndPeriod, shouldHaveGlobalHistoryLength,
-    shouldHaveStakerHistoryLength, shouldHaveLastGlobalSnapshot, shouldHaveLastStakerSnapshot } = require('../fixtures/state');
+    shouldHaveStakerHistoryLength } = require('../fixtures/state');
 
 const preconditionsScenario = function (staker) {
 
@@ -31,13 +31,18 @@ const preconditionsScenario = function (staker) {
             weight.should.be.bignumber.equal(new BN(10));
         });
 
-        it('should have assigned a weight of 100 for Apex cars', async function () {
-            const weight = await this.stakingContract.weightByTokenAttribute(TokenHelper.Rarity.Apex);
+        it('should have assigned a weight of 100 for Legendary cars', async function () {
+            const weight = await this.stakingContract.weightByTokenAttribute(TokenHelper.Rarity.Legendary);
             weight.should.be.bignumber.equal(new BN(100));
         });
 
+        it('should have assigned a weight of 500 for Apex cars', async function () {
+            const weight = await this.stakingContract.weightByTokenAttribute(TokenHelper.Rarity.Apex);
+            weight.should.be.bignumber.equal(new BN(500));
+        });
+
         shouldHaveCurrentCycleAndPeriod(1, 1);
-        shouldHaveNextClaim({ staker, period: 0, globalHistoryIndex: 0, stakerHistoryIndex: 0 });
+        shouldHaveNextClaim({ staker, period: 0, globalSnapshotIndex: 0, stakerSnapshotIndex: 0 });
         shouldHaveGlobalHistoryLength(0);
         shouldHaveStakerHistoryLength(staker, 0);
     });
@@ -50,7 +55,7 @@ const preconditionsScenario = function (staker) {
 
         it('should have minted 3 tokens in total for the staker', async function () {
             const balance = await this.nftContract.balanceOf(staker);
-            balance.should.be.bignumber.equal(new BN(3));
+            balance.should.be.bignumber.equal(new BN(4));
         });
 
         it('should have minted 3 car tokens for the staker', async function () {
@@ -77,6 +82,12 @@ const preconditionsScenario = function (staker) {
 
         it('should have minted an Apex car token for the staker', async function () {
             const tokenId = TokenIds[2];
+            const rarity = TokenHelper.getRarity(tokenId);
+            rarity.should.be.equal(TokenHelper.Rarity.Legendary);
+        });
+
+        it('should have minted an Apex car token for the staker', async function () {
+            const tokenId = TokenIds[3];
             const rarity = TokenHelper.getRarity(tokenId);
             rarity.should.be.equal(TokenHelper.Rarity.Apex);
         });

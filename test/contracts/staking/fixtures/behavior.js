@@ -1,6 +1,8 @@
 const { BN, expectRevert, expectEvent, time } = require('@openzeppelin/test-helpers');
 const { constants } = require('@animoca/ethereum-contracts-core_library');
 
+const {} = require('./state');
+
 const shouldRevertAndNotStakeNft = function(params) {
     it(`[STAKE \u274C] revert and not stake ${params.tokenId} by ${params.staker}`, async function () {
         const promise = this.nftContract.transferFrom(params.staker, this.stakingContract.address, params.tokenId, { from: params.staker });
@@ -26,10 +28,26 @@ const shouldRevertAndNotUnstakeNft = function(params) {
 }
 
 const shouldStakeNft = function(params) {
-    it(`[STAKE \u2705] ${params.tokenId} at cycle ${params.cycle} by ${params.staker}`, async function () {
-        const globalSnapshotBefore = await this.stakingContract.getLatestGlobalSnapshot();
-        const stakerSnapshotBefore = await this.stakingContract.getLatestStakerSnapshot(params.staker);
-        const tokenInfoBefore = await this.stakingContract.tokenInfos(params.tokenId);
+    it(`[STAKE \u2705] ${params.tokenId} by ${params.staker}`, async function () {
+
+        let stateBefore = {};
+        try {
+            stateBefore.lastGlobalSnapshotIndex = await this.stakingContract.lastGlobalSnapshotIndex();
+            stateBefore.lastGlobalSnapshot = await this.stakingContract.globalHistory(stateBefore.lastGlobalSnapshotIndex);
+        } catch(e) {
+            stateBefore.lastGlobalSnapshotIndex = new BN('-1');
+            stateBefore.lastGlobalSnapshot = {startCycle: new BN(0), stake: new BN(0)};
+        }
+
+        try {
+            stateBefore.lastStakerSnapshotIndex = await this.stakingContract.lastStakerSnapshotIndex(params.staker);
+            stateBefore.lastStakerSnapshot = await this.stakingContract.stakerHistories(params.staker, stateBefore.lastStakerSnapshotIndex);
+        } catch(e) {
+            stateBefore.lastStakerSnapshotIndex = new BN('-1');
+            stateBefore.lastStakerSnapshot = {startCycle: new BN(0), stake: new BN(0)};
+        }
+
+        stateBefore.tokenInfo = await this.stakingContract.tokenInfos(params.tokenId);
 
         const receipt = await this.nftContract.transferFrom(
             params.staker,
@@ -38,76 +56,121 @@ const shouldStakeNft = function(params) {
             { from: params.staker }
         );
 
-        const globalSnapshotAfter = await this.stakingContract.getLatestGlobalSnapshot();
-        const stakerSnapshotAfter = await this.stakingContract.getLatestStakerSnapshot(params.staker);
-        const tokenInfoAfter = await this.stakingContract.tokenInfos(params.tokenId);
-
-        globalSnapshotAfter.stake.sub(globalSnapshotBefore.stake).should.be.bignumber.equal(tokenInfoAfter.weight);
-        stakerSnapshotAfter.stake.sub(stakerSnapshotBefore.stake).should.be.bignumber.equal(tokenInfoAfter.weight);
-        tokenInfoBefore.owner.should.equal(constants.ZeroAddress);
-        tokenInfoAfter.owner.should.equal(params.staker);
-
-        await expectEvent.inTransaction(
-            receipt.tx,
-            this.stakingContract,
-            'NftStaked',
-            {
-                staker: params.staker,
-                tokenId: params.tokenId,
-                cycle: new BN(params.cycle)
-            });
+        await shouldUpdateHistory.bind(this, receipt, 'NftStaked', params, stateBefore);
     });
 }
 
 const shouldUnstakeNft = function(params) {
-    it(`[UNSTAKE \u2705] ${params.tokenId} at cycle ${params.cycle} by ${params.staker}`, async function () {
-        const globalSnapshotBefore = await this.stakingContract.getLatestGlobalSnapshot();
-        const stakerSnapshotBefore = await this.stakingContract.getLatestStakerSnapshot(params.staker);
-        const tokenInfoBefore = await this.stakingContract.tokenInfos(params.tokenId);
+    it(`[UNSTAKE \u2705] ${params.tokenId} by ${params.staker}`, async function () {
+        let stateBefore = {};
+        try {
+            stateBefore.lastGlobalSnapshotIndex = await this.stakingContract.lastGlobalSnapshotIndex();
+            stateBefore.lastGlobalSnapshot = await this.stakingContract.globalHistory(stateBefore.lastGlobalSnapshotIndex);
+        } catch(e) {
+            stateBefore.lastGlobalSnapshotIndex = new BN('-1');
+            stateBefore.lastGlobalSnapshot = {startCycle: new BN(0), stake: new BN(0)};
+        }
 
-        const receipt = await this.stakingContract.unstakeNft(params.tokenId, { from: params.staker });
+        try {
+            stateBefore.lastStakerSnapshotIndex = await this.stakingContract.lastStakerSnapshotIndex(params.staker);
+            stateBefore.lastStakerSnapshot = await this.stakingContract.stakerHistories(params.staker, stateBefore.lastStakerSnapshotIndex);
+        } catch(e) {
+            stateBefore.lastStakerSnapshotIndex = new BN('-1');
+            stateBefore.lastStakerSnapshot = {startCycle: new BN(0), stake: new BN(0)};
+        }
 
-        const globalSnapshotAfter = await this.stakingContract.getLatestGlobalSnapshot();
-        const stakerSnapshotAfter = await this.stakingContract.getLatestStakerSnapshot(params.staker);
-        const tokenInfoAfter = await this.stakingContract.tokenInfos(params.tokenId);
+        stateBefore.tokenInfo = await this.stakingContract.tokenInfos(params.tokenId);
 
-        globalSnapshotBefore.stake.sub(globalSnapshotAfter.stake).should.be.bignumber.equal(tokenInfoBefore.weight);
-        stakerSnapshotBefore.stake.sub(stakerSnapshotAfter.stake).should.be.bignumber.equal(tokenInfoBefore.weight);
-        tokenInfoBefore.owner.should.equal(params.staker);
-        tokenInfoAfter.owner.should.equal(constants.ZeroAddress);
+        const receipt = await this.stakingContract.unstakeNft(
+            params.tokenId,
+            { from: params.staker }
+        );
 
-        await expectEvent.inTransaction(
-            receipt.tx,
-            this.stakingContract,
-            'NftUnstaked',
-            {
-                staker: params.staker,
-                tokenId: params.tokenId,
-                cycle: new BN(params.cycle)
-            });
+        await shouldUpdateHistory.bind(this, receipt, 'NftUnstaked', params, stateBefore);
     });
 }
 
+const shouldUpdateHistory = async function(receipt, eventName, params, stateBefore) {
+
+    let stateAfter = {};
+    stateAfter.lastGlobalSnapshotIndex = await this.stakingContract.lastGlobalSnapshotIndex();
+    stateAfter.lastGlobalSnapshot = await this.stakingContract.globalHistory(lastGlobalSnapshotIndexAfter);
+    stateAfter.lastStakerSnapshotIndex = await this.stakingContract.lastStakerSnapshotIndex(params.staker);
+    stateAfter.lastStakerSnapshot = await this.stakingContract.stakerHistories(params.staker, lastStakerSnapshotIndexAfter);
+    stateAfter.tokenInfo = await this.stakingContract.tokenInfos(params.tokenId);
+
+    if (stateBefore.lastGlobalSnapshot.startCycle.eq(new BN(this.cycle))) {
+        stateAfter.lastGlobalSnapshotIndex.should.be.bignumber.equal(stateBefore.lastGlobalSnapshotIndex); // no new snapshot
+    } else {
+        stateAfter.lastGlobalSnapshotIndex.should.be.bignumber.equal(stateBefore.lastGlobalSnapshotIndex.add(new BN(1))); // new snapshot
+    }
+
+    if (stateBefore.lastStakerSnapshot.startCycle.eq(new BN(this.cycle))) {
+        stateAfter.lastStakerSnapshotIndex.should.be.bignumber.equal(stateBefore.lastStakerSnapshotIndex); // no new snapshot
+    } else {
+        stateAfter.lastStakerSnapshotIndex.should.be.bignumber.equal(stateBefore.lastStakerSnapshotIndex.add(new BN(1))); // new snapshot
+    }
+
+    let newGlobalStake;
+    let newStakerStake;
+    if (eventName == 'NftStaked') {
+        newGlobalStake = stateBefore.lastGlobalSnapshot.stake.add(stateAfter.tokenInfo.weight);
+        newStakerStake = stateBefore.lastStakerSnapshot.stake.add(stateAfter.tokenInfo.weight);
+    } else if ('NftUnstaked') {
+        newGlobalStake = stateBefore.lastGlobalSnapshot.stake.sub(stateAfter.tokenInfo.weight);
+        newStakerStake = stateBefore.lastStakerSnapshot.stake.sub(stateAfter.tokenInfo.weight);
+    }
+
+    stateAfter.lastGlobalSnapshot.stake.should.be.bignumber.equal(newGlobalStake);
+    stateAfter.lastStakerSnapshot.stake.should.be.bignumber.equal(newStakerStake);
+
+    stateBefore.tokenInfo.owner.should.equal(constants.ZeroAddress);
+    stateAfter.tokenInfo.owner.should.equal(params.staker);
+
+    await expectEvent.inTransaction(
+        receipt.tx,
+        this.stakingContract,
+        eventName,
+        {
+            staker: params.staker,
+            cycle: new BN(this.cycle),
+            tokenId: params.tokenId,
+            weight: stateAfter.tokenInfo.weight
+        });
+
+    await expectEvent.inTransaction(
+        receipt.tx,
+        this.stakingContract,
+        'HistoryUpdated',
+        {
+            staker: params.staker,
+            startCycle: new BN(this.cycle),
+            globalStake: newGlobalStake,
+            stakerStake: newStakerStake,
+        });
+}
+
+
 const shouldEstimateRewards = function(params) {
-    it(`[ESTIMATE \u2705] ${params.claimableRewards} tokens over ${params.computedPeriods} ` +`periods (max=${params.periodsToClaim}) starting at ${params.firstClaimablePeriod}, by ${params.staker}`, async function () {
+    it(`[ESTIMATE \u2705] ${params.amount} tokens over ${params.periods} ` +`periods (max=${params.periodsToClaim}) starting at ${params.startPeriod}, by ${params.staker}`, async function () {
         const result = await this.stakingContract.estimateRewards(params.periodsToClaim, { from: params.staker });
-        result.firstClaimablePeriod.should.be.bignumber.equal(new BN(params.firstClaimablePeriod));
-        result.computedPeriods.should.be.bignumber.equal(new BN(params.computedPeriods));
-        result.claimableRewards.should.be.bignumber.equal(new BN(params.claimableRewards));
+        result.startPeriod.should.be.bignumber.equal(new BN(params.startPeriod));
+        result.periods.should.be.bignumber.equal(new BN(params.periods));
+        result.amount.should.be.bignumber.equal(new BN(params.amount));
     });
 }
 
 const shouldClaimRewards = function(params) {
-    it(`[CLAIM \u2705] ${params.claimableRewards} tokens over ${params.computedPeriods} periods (max=${params.periodsToClaim}) starting at ${params.firstClaimablePeriod}, by ${params.staker}`, async function () {
+    it(`[CLAIM \u2705] ${params.amount} tokens over ${params.periods} periods (max=${params.periodsToClaim}) starting at ${params.startPeriod}, by ${params.staker}`, async function () {
         const stakerBalanceBefore = await this.rewardsToken.balanceOf(params.staker);
         const contractBalanceBefore = await this.rewardsToken.balanceOf(this.stakingContract.address);
         const nextClaimBefore = await this.stakingContract.nextClaims(params.staker);
-        nextClaimBefore.period.should.be.bignumber.equal(new BN(params.firstClaimablePeriod));
+        nextClaimBefore.period.should.be.bignumber.equal(new BN(params.startPeriod));
 
         const estimate = await this.stakingContract.estimateRewards(params.periodsToClaim, { from: params.staker });
-        estimate.firstClaimablePeriod.should.be.bignumber.equal(new BN(params.firstClaimablePeriod));
-        estimate.computedPeriods.should.be.bignumber.at.most(new BN(params.computedPeriods));
-        estimate.claimableRewards.should.be.bignumber.equal(new BN(params.claimableRewards));
+        estimate.startPeriod.should.be.bignumber.equal(new BN(params.startPeriod));
+        estimate.periods.should.be.bignumber.at.most(new BN(params.periods));
+        estimate.amount.should.be.bignumber.equal(new BN(params.amount));
 
         const receipt = await this.stakingContract.claimRewards(params.periodsToClaim, { from: params.staker });
 
@@ -115,22 +178,22 @@ const shouldClaimRewards = function(params) {
         const contractBalanceAfter = await this.rewardsToken.balanceOf(this.stakingContract.address);
         const nextClaimAfter = await this.stakingContract.nextClaims(params.staker);
 
-        stakerBalanceAfter.sub(stakerBalanceBefore).should.be.bignumber.equal(new BN(params.claimableRewards));
-        contractBalanceBefore.sub(contractBalanceAfter).should.be.bignumber.equal(new BN(params.claimableRewards));
+        stakerBalanceAfter.sub(stakerBalanceBefore).should.be.bignumber.equal(new BN(params.amount));
+        contractBalanceBefore.sub(contractBalanceAfter).should.be.bignumber.equal(new BN(params.amount));
         if (nextClaimAfter.period.toNumber() != 0) {
-            nextClaimBefore.period.add(estimate.computedPeriods).should.be.bignumber.equal(nextClaimAfter.period);
+            nextClaimBefore.period.add(estimate.periods).should.be.bignumber.equal(nextClaimAfter.period);
         }
 
-        if (estimate.computedPeriods > 0) {
+        if (estimate.periods > 0) {
             await expectEvent.inTransaction(
                 receipt.tx,
                 this.stakingContract,
                 'RewardsClaimed',
                 {
                     staker: params.staker,
-                    startPeriod: new BN(params.firstClaimablePeriod),
-                    periodsClaimed: new BN(params.computedPeriods),
-                    amount: new BN(params.claimableRewards)
+                    startPeriod: new BN(params.startPeriod),
+                    periods: new BN(params.periods),
+                    amount: new BN(params.amount)
                 });
         } else {
             await expectEvent.not.inTransaction(

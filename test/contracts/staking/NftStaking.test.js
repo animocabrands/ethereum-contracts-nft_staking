@@ -775,7 +775,7 @@ describe("NftStaking", function () {
             beforeEach(doFreshDeploy);
             beforeEach(start());
 
-            function testUnclaimedPayoutPeriodsAfterPayoutPeriodsClaimed(periodsElapsedBefore, periodsElapsedAfter, periodsToClaim) {
+            function testUnclaimedPayoutPeriodsAfterPayoutperiods(periodsElapsedBefore, periodsElapsedAfter, periodsToClaim) {
                 describe(`when ${periodsToClaim} periods are claimed`, function () {
                     const periods0 = periodsElapsedBefore + Math.min(periodsToClaim + 1, periodsElapsedAfter + 1);
                     const periods1 = periodsElapsedBefore + periodsElapsedAfter + 1 - periods0;
@@ -796,9 +796,9 @@ describe("NftStaking", function () {
                         await time.increase(PeriodLengthInSeconds * periodsElapsedAfter);
                     });
 
-                    testUnclaimedPayoutPeriodsAfterPayoutPeriodsClaimed(periodsElapsedBefore, periodsElapsedAfter, 0);
-                    testUnclaimedPayoutPeriodsAfterPayoutPeriodsClaimed(periodsElapsedBefore, periodsElapsedAfter, 1);
-                    testUnclaimedPayoutPeriodsAfterPayoutPeriodsClaimed(periodsElapsedBefore, periodsElapsedAfter, 2);
+                    testUnclaimedPayoutPeriodsAfterPayoutperiods(periodsElapsedBefore, periodsElapsedAfter, 0);
+                    testUnclaimedPayoutPeriodsAfterPayoutperiods(periodsElapsedBefore, periodsElapsedAfter, 1);
+                    testUnclaimedPayoutPeriodsAfterPayoutperiods(periodsElapsedBefore, periodsElapsedAfter, 2);
                 });
             }
 
@@ -1502,7 +1502,7 @@ describe("NftStaking", function () {
                 });
 
                 if (expectClaimed !== null) {
-                    estimationResult.claimableRewards.toNumber().should.be.equal(expectClaimed);
+                    estimationResult.amount.toNumber().should.be.equal(expectClaimed);
                 }
             } else {
                 should.equal(receipt.logs.find(e => e.event === RewardsClaimedEvent), undefined, "Didn't expect event " + RewardsClaimedEvent);
@@ -1558,7 +1558,7 @@ describe("NftStaking", function () {
                 // await debug_Cycles.call(this, staker);
                 // await debug_state.call(this, staker);
                 const estimation = await this.stakingContract.estimateRewards(count, { from: staker });
-                estimation.claimableRewards.toNumber().should.be.equal(amount);
+                estimation.amount.toNumber().should.be.equal(amount);
             });
         }
 

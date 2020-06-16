@@ -6,7 +6,7 @@ const { interfaces } = require('@animoca/ethereum-contracts-assets_inventory');
 
 const {RewardsTokenInitialBalance,
     DayInSeconds, CycleLengthInSeconds, PeriodLengthInSeconds, PeriodLengthInCycles,
-    RarityWeights, TokenIds, DefaultRewardSchedule, RewardsPool} = require('./constants');
+    RarityWeights, TokenIds, DefaultRewardSchedule, MigrationRewardSchedule, RewardsPool} = require('./constants');
 
 const { preconditionsScenario, simpleScenario, lateClaimScenario,
     periodLimitsScenario, multiStakersScenario, gasHeavyScenario,
@@ -62,6 +62,23 @@ describe.only('NftStaking', function () {
         }
 
         await this.stakingContract.start({ from: creator });
+        this.cycle = 1;
+        this.period = 1;
+    }
+
+    async function startMigrationLike(rewardSchedule = MigrationRewardSchedule) {
+        for (schedule of rewardSchedule) {
+            await this.stakingContract.setRewardsForPeriods(
+                schedule.startPeriod,
+                schedule.endPeriod,
+                schedule.rewardPerCycle,
+                { from: creator }
+            );
+        }
+
+        await this.stakingContract.start({ from: creator });
+        this.cycle = 1;
+        this.period = 1;
     }
 
     describe('Preconditions', function () {
@@ -106,9 +123,9 @@ describe.only('NftStaking', function () {
         gasHeavyScenario.bind(this, creator, staker, otherStaker, anotherStaker)();
     });
 
-    describe.only('Scenario: Restake', function () {
+    describe('Scenario: Restake', function () {
         before(doFreshDeploy);
-        before(start);
+        before(startMigrationLike);
 
         restakeScenario.bind(this, staker, otherStaker)();
     });

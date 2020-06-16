@@ -134,9 +134,23 @@ function renderCycleGraph(cycle, period) {
 function renderHistoryMarks(cycle, history) {
     let mark = getTitleString();
 
+    let deallocatedSnapshot = false;
+
     for (let index = 0; index < history.length; index++) {
         const snapshot = history[index];
         const startCycle = snapshot.startCycle.toNumber();
+
+        if (startCycle == 0) {
+            if (!deallocatedSnapshot) {
+                deallocatedSnapshot = true;
+            }
+            continue;
+        }
+
+        if (deallocatedSnapshot) {
+            deallocatedSnapshot = false;
+            mark += '   '.repeat(startCycle - 1);
+        }
 
         if (index == 0) {
             const offset = (startCycle - 1) * 3;
@@ -159,9 +173,23 @@ function renderHistoryMarks(cycle, history) {
 function renderHistoryGraph(cycle, label, history) {
     let graph = getTitleString(`${label} snapshot`);
 
+    let deallocatedSnapshot = false;
+
     for (let index = 0; index < history.length; index++) {
         const snapshot = history[index];
         const startCycle = snapshot.startCycle.toNumber();
+
+        if (startCycle == 0) {
+            if (!deallocatedSnapshot) {
+                deallocatedSnapshot = true;
+            }
+            continue;
+        }
+
+        if (deallocatedSnapshot) {
+            deallocatedSnapshot = false;
+            graph += '   '.repeat(startCycle - 1);
+        }
 
         if (index == 0) {
             graph += ' '.repeat((startCycle - 1) * 3);
@@ -181,15 +209,29 @@ function renderHistoryGraph(cycle, label, history) {
 }
 
 function renderHistoryStakeMarks(cycle, label, history) {
-    let totalStakeMark = getTitleString(`${label} stake`);
+    let mark = getTitleString(`${label} stake`);
+
+    let deallocatedSnapshot = false;
 
     for (let index = 0; index < history.length; index++) {
         const snapshot = history[index];
         const startCycle = snapshot.startCycle.toNumber();
 
+        if (startCycle == 0) {
+            if (!deallocatedSnapshot) {
+                deallocatedSnapshot = true;
+            }
+            continue;
+        }
+
+        if (deallocatedSnapshot) {
+            deallocatedSnapshot = false;
+            mark += '   '.repeat(startCycle - 1);
+        }
+
         if (index == 0) {
             const offset = (snapshot.startCycle.toNumber() - 1) * 3;
-            totalStakeMark += ' '.repeat(offset);
+            mark += ' '.repeat(offset);
         }
 
         const stake = snapshot.stake.toNumber();
@@ -197,14 +239,14 @@ function renderHistoryStakeMarks(cycle, label, history) {
         if (index < history.length - 1) {
             const nextSnapshot = history[index + 1];
             const endCycle = nextSnapshot.startCycle.toNumber() - 1;
-            totalStakeMark += (stake + '').padEnd((endCycle - startCycle + 1) * 3, ' ');
+            mark += (stake + '').padEnd((endCycle - startCycle + 1) * 3, ' ');
         } else {
             const endCycle = cycle;
-            totalStakeMark += (stake + '').padEnd((endCycle - startCycle + 1) * 3, ' ');
+            mark += (stake + '').padEnd((endCycle - startCycle + 1) * 3, ' ');
         }
     }
 
-    console.log(totalStakeMark);
+    console.log(mark);
 }
 
 async function renderStakerNextClaimMark(staker, label, stakerHistory, globalHistory) {

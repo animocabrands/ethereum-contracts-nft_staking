@@ -9,7 +9,8 @@ const {RewardsTokenInitialBalance,
     RarityWeights, TokenIds, DefaultRewardSchedule, RewardsPool} = require('./constants');
 
 const { preconditionsScenario, simpleScenario, lateClaimScenario,
-    periodLimitsScenario, multiStakersScenario, gasHeavyScenario } = require('./scenarios');
+    periodLimitsScenario, multiStakersScenario, gasHeavyScenario,
+    restakeScenario } = require('./scenarios');
 
 const AssetsInventory = contract.fromArtifact("AssetsInventoryMock");
 const ERC20WithOperators = contract.fromArtifact("ERC20WithOperatorsMock");
@@ -103,6 +104,13 @@ describe.only('NftStaking', function () {
         before(start);
 
         gasHeavyScenario.bind(this, creator, staker, otherStaker, anotherStaker)();
+    });
+
+    describe('Scenario: Restake', function () {
+        before(doFreshDeploy);
+        before(start);
+
+        restakeScenario.bind(this, staker, otherStaker)();
     });
 
     describe("Interface support", function () {

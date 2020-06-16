@@ -4,6 +4,7 @@ const { lateClaimScenario } = require('./LateClaim.scenario');
 const { periodLimitsScenario } = require('./PeriodLimits.scenario');
 const { multiStakersScenario } = require('./MultiStakers.scenario');
 const { gasHeavyScenario } = require('./GasHeavy.scenario');
+const { restakeScenario } = require('./Restake.scenario');
 
 module.exports = {
     preconditionsScenario,
@@ -11,5 +12,6 @@ module.exports = {
     lateClaimScenario,
     periodLimitsScenario,
     multiStakersScenario,
-    gasHeavyScenario
+    gasHeavyScenario,
+    restakeScenario
 }

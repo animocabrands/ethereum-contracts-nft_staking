@@ -1,12 +1,8 @@
-const { toWei } = require('web3-utils');
+const { fromWei, toWei } = require('web3-utils');
 const { BN, expectEvent } = require('@openzeppelin/test-helpers');
 
 const { debugCurrentState } = require('./debug.behavior');
 const { PeriodLengthInCycles } = require('../constants');
-
-const assert = require('assert');
-
-const AcceptedDeviationProportion = new BN('100000'); // 1/100,000th deviation => 0.0001%
 
 const retrieveClaimingState = async function (staker) {
     const state = {};
@@ -20,14 +16,14 @@ const shouldUpdateClaimingStateAndDistributeRewards = async function (receipt, s
     stateBefore.nextClaim.period.should.be.bignumber.equal(new BN(params.startPeriod));
 
     const stakerBalanceDelta = stateAfter.stakerBalance.sub(stateBefore.stakerBalance);
-    shouldBeEqualWithinDeviation(stakerBalanceDelta, new BN(params.amount));
+    shouldBeEqualWithETHDecimalPrecision(stakerBalanceDelta, new BN(params.amount));
     const contractBalanceDelta = stateBefore.contractBalance.sub(stateAfter.contractBalance);
-    shouldBeEqualWithinDeviation(contractBalanceDelta, new BN(params.amount));
+    shouldBeEqualWithETHDecimalPrecision(contractBalanceDelta, new BN(params.amount));
 
     if (estimate.periods.toNumber() > 0) {
         estimate.startPeriod.should.be.bignumber.equal(new BN(params.startPeriod));
         estimate.periods.should.be.bignumber.at.most(new BN(params.periods));
-        shouldBeEqualWithinDeviation(estimate.amount, new BN(params.amount));
+        shouldBeEqualWithETHDecimalPrecision(estimate.amount, new BN(params.amount));
 
         let lastStakerSnapshotIndex;
 
@@ -69,7 +65,7 @@ const shouldUpdateClaimingStateAndDistributeRewards = async function (receipt, s
             { fromBlock: 'latest', toBlock: 'latest' }
         );
         const claimEvent = events[0].args;
-        shouldBeEqualWithinDeviation(new BN(params.amount), claimEvent.amount);
+        shouldBeEqualWithETHDecimalPrecision(new BN(params.amount), claimEvent.amount);
 
     } else {
         await expectEvent.not.inTransaction(
@@ -82,15 +78,18 @@ const shouldUpdateClaimingStateAndDistributeRewards = async function (receipt, s
     }
 }
 
-function shouldBeEqualWithinDeviation(actual, expected, proportion = AcceptedDeviationProportion) {
-    if (expected.isZero()) {
-        actual.should.be.bignumber.equal(new BN(0), `${actual} should be zero`);
-    } else {
-        const deviation = expected.sub(actual).abs();
-        const divPrecision = (new BN(10)).pow(new BN(15));
-        const maxDeviation = expected.mul(divPrecision).div(proportion).div(divPrecision);
-        deviation.should.be.bignumber.lte(maxDeviation, `${actual} deviates too much from expected ${expected}`);
-    }
+/**
+ * Validates that `actual` equals `expected` with a precision of `decimalPrecision` ETH decimals.
+ * @param {BN} actual the actual value, in WEI.
+ * @param {BN} expected the expected value, in WEI.
+ * @param {Number} ethDecimals the number of ETH decimals to compare.
+ */
+function shouldBeEqualWithETHDecimalPrecision(actual, expected, ethDecimals = 4 /* 1/10,000 ETH */) {
+    const exponent = new BN(18 /* ETH-precision divisor */ - ethDecimals);
+
+    const precision = new BN(10).pow(exponent);
+    const delta = actual.sub(expected).abs();
+    delta.should.be.bignumber.lte(precision, `${fromWei(actual)} differs too much from expected ${fromWei(expected)}`);
 }
 
 const shouldEstimateRewards = function (staker, maxPeriods, params) {
@@ -99,7 +98,7 @@ const shouldEstimateRewards = function (staker, maxPeriods, params) {
         const result = await this.stakingContract.estimateRewards(maxPeriods, { from: staker });
         result.startPeriod.should.be.bignumber.equal(new BN(params.startPeriod));
         result.periods.should.be.bignumber.equal(new BN(params.periods));
-        shouldBeEqualWithinDeviation(result.amount, new BN(params.amount));
+        shouldBeEqualWithETHDecimalPrecision(result.amount, new BN(params.amount));
     });
 }
 

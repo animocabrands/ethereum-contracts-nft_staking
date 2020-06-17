@@ -14,9 +14,6 @@ const periodLimitsScenario = function (staker, other) {
     describe('Stake Common NFT at cycle 7', function () {
         shouldTimeWarpBy({ cycles: 6 }, { cycle: 7, period: 1 });
         shouldStakeNft(staker, TokenIds[0]);
-
-        // TODO move out
-        shouldRevertAndNotUnstakeNft(staker, TokenIds[0], 'NftStaking: token still frozen');
     })
 
     describe('Estimate after 5 periods', function () {
@@ -26,16 +23,6 @@ const periodLimitsScenario = function (staker, other) {
         shouldEstimateRewards(staker, 2, { startPeriod: 1, periods: 2, amount: 8000 }); // 1 cycle in period 1 + 7 cycles in period 2
 
         shouldClaimRewards(staker, 2, { startPeriod: 1, periods: 2, amount: 8000 }); // 1 cycle in period 1 + 7 cycles in period 2
-
-        // TODO move out of scenario
-        describe('when staking an already staked NFT', function () {
-            shouldRevertAndNotStakeNft(staker, TokenIds[0], 'ERC1155: transfer of a non-owned NFT');
-        });
-
-        // TODO move out of scenario
-        describe('when unstaking an NFT not owned by the caller', function () {
-            shouldRevertAndNotUnstakeNft(other, TokenIds[0], 'NftStaking: token not staked or incorrect token owner');
-        });
     });
 
     describe('Estimate after 3 more periods', function () {

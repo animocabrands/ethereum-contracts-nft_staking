@@ -8,6 +8,7 @@ const { nonWhitelistedNftContractScenario } = require('./NonWhitelistedNftContra
 const { batchStakeScenario } = require('./BatchStake.scenario');
 const { earlyUnstakeScenario } = require('./EarlyUnstake.scenario');
 const Claim = require('./Claim.scenario');
+const InvalidNftOwner = require('./InvalidNftOwner.scenario');
 
 module.exports = {
     preconditionsScenario,
@@ -19,5 +20,6 @@ module.exports = {
     nonWhitelistedNftContractScenario,
     batchStakeScenario,
     earlyUnstakeScenario,
-    ...Claim
+    ...Claim,
+    ...InvalidNftOwner
 }

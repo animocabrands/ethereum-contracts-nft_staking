@@ -85,11 +85,11 @@ const gasHeavyScenario = function (creator, staker, otherStaker, anotherStaker) 
 
             resumeDebugOutput.bind(this)();
 
-            shouldClaimRewards(staker, 99999999, { startPeriod: 1, periods: 14, amount: 48993 });
+            shouldClaimRewards(staker, 99999999, { startPeriod: 1, periods: 14, amount: '49000' });
 
             // payout share for staker 1 for every 4 cycles (repeating) is 1, 1/2, 1/3, 1/2
             // for periods 1-12 (54 cycles w/ payout schedule of 1000 per-cycle)
-            //      total payout = 21 * (1000 + 500 + 333 + 500) = 48993
+            //      total payout = 21 * (1000 + 500 + 333.3333333333 + 500) = 49000
 
         });
     });

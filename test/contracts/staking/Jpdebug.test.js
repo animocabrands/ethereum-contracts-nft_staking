@@ -34,98 +34,98 @@ describe.only('NftStaking', function () {
         preconditionsScenario(staker);
     });
 
-    describe('Scenario: Multi NFT Staking', function () {
+    describe('[[Scenario]] Multi NFT Staking', function () {
         before(deploy);
         before(start);
 
         multiNftStakingScenario(staker);
     });
 
-    describe('Scenario: Multi NFT Staking (single period)', function () {
+    describe('[[Scenario]] Multi NFT Staking (single period)', function () {
         before(deploy);
         before(start);
 
         multiNftStakingSinglePeriodScenario(staker);
     });
 
-    describe('Scenario: Multi NFT Staking (multi period)', function () {
+    describe('[[Scenario]] Multi NFT Staking (multi period)', function () {
         before(deploy);
         before(start);
 
         multiNftStakingMultiPeriodScenario(staker);
     });
 
-    describe('Scenario: Period Limits', function () {
+    describe('[[Scenario]] Period Limits', function () {
         before(deploy);
         before(start);
 
         periodLimitsScenario(staker, otherStaker);
     });
 
-    describe('Scenario: Multi Stakers', function () {
+    describe('[[Scenario]] Multi Stakers', function () {
         before(deploy);
         before(start);
 
         multiStakersScenario(creator, staker, otherStaker);
     });
 
-    describe('Scenario: Multi Stakers (single period)', function () {
+    describe('[[Scenario]] Multi Stakers (single period)', function () {
         before(deploy);
         before(start);
 
         multiStakersSinglePeriodScenario(creator, staker, otherStaker);
     });
 
-    describe('Scenario: Multi Stakers (multi period)', function () {
+    describe('[[Scenario]] Multi Stakers (multi period)', function () {
         before(deploy);
         before(start);
 
         multiStakersMultiPeriodScenario(creator, staker, otherStaker);
     });
 
-    describe('Scenario: Gas Heavy', function () {
+    describe('[[Scenario]] Gas Heavy', function () {
         before(deploy);
         before(function () { return start.bind(this)(FlatRewardSchedule) });
 
         gasHeavyScenario(creator, staker, otherStaker, anotherStaker);
     });
 
-    describe('Scenario: Restake', function () {
+    describe('[[Scenario]] Restake', function () {
         before(deploy);
         before(function () { return start.bind(this)(MigrationRewardSchedule) });
 
         restakeScenario(staker, otherStaker);
     });
 
-    describe('Scenario: Non-Whitelisted NFT Contract', function () {
+    describe('[[Scenario]] Non-Whitelisted NFT Contract', function () {
         before(deploy);
         before(start);
 
         nonWhitelistedNftContractScenario(creator, staker);
     });
 
-    describe('Scenario: Batch Stake', function () {
+    describe('[[Scenario]] Batch Stake', function () {
         before(deploy);
         before(start);
 
         batchStakeScenario(staker);
     });
 
-    describe('Scenario: Early Unstake', function () {
+    describe('[[Scenario]] Early Unstake', function () {
         before(deploy);
         before(start);
 
         earlyUnstakeScenario(staker);
     });
 
-    describe('Scenario: Claim', function () {
+    describe('[[Scenario]] Claim', function () {
         before(deploy);
         before(start);
 
         claimScenario(creator, staker, otherStaker, anotherStaker);
     });
 
-    describe('Scenario: Invalid NFT Owner', function () {
+    describe('[[Scenario]] Invalid NFT Owner', function () {
         before(deploy);
         before(start);
 

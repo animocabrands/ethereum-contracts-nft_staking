@@ -1,3 +1,4 @@
+const { toWei } = require('web3-utils');
 const { accounts, contract } = require('@openzeppelin/test-environment');
 
 const AssetsInventory = contract.fromArtifact("AssetsInventoryMock");
@@ -44,7 +45,7 @@ async function start(rewardSchedule = DefaultRewardSchedule) {
         await this.stakingContract.setRewardsForPeriods(
             schedule.startPeriod,
             schedule.endPeriod,
-            schedule.rewardPerCycle,
+            toWei(schedule.rewardPerCycle),
             { from: creator }
         );
     }

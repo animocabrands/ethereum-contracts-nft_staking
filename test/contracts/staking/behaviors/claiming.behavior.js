@@ -1,7 +1,12 @@
+const { toWei } = require('web3-utils');
 const { BN, expectEvent } = require('@openzeppelin/test-helpers');
 
 const { debugCurrentState } = require('./debug.behavior');
 const { PeriodLengthInCycles } = require('../constants');
+
+const assert = require('assert');
+
+const AcceptedDeviationProportion = new BN('100000'); // 1/100,000th deviation => 0.0001%
 
 const retrieveClaimingState = async function (staker) {
     const state = {};
@@ -14,13 +19,15 @@ const retrieveClaimingState = async function (staker) {
 const shouldUpdateClaimingStateAndDistributeRewards = async function (receipt, staker, params, stateBefore, estimate, stateAfter) {
     stateBefore.nextClaim.period.should.be.bignumber.equal(new BN(params.startPeriod));
 
-    stateAfter.stakerBalance.sub(stateBefore.stakerBalance).should.be.bignumber.equal(new BN(params.amount));
-    stateBefore.contractBalance.sub(stateAfter.contractBalance).should.be.bignumber.equal(new BN(params.amount));
+    const stakerBalanceDelta = stateAfter.stakerBalance.sub(stateBefore.stakerBalance);
+    shouldBeEqualWithinDeviation(stakerBalanceDelta, new BN(params.amount));
+    const contractBalanceDelta = stateBefore.contractBalance.sub(stateAfter.contractBalance);
+    shouldBeEqualWithinDeviation(contractBalanceDelta, new BN(params.amount));
 
     if (estimate.periods.toNumber() > 0) {
         estimate.startPeriod.should.be.bignumber.equal(new BN(params.startPeriod));
         estimate.periods.should.be.bignumber.at.most(new BN(params.periods));
-        estimate.amount.should.be.bignumber.equal(new BN(params.amount));
+        shouldBeEqualWithinDeviation(estimate.amount, new BN(params.amount));
 
         let lastStakerSnapshotIndex;
 
@@ -54,9 +61,16 @@ const shouldUpdateClaimingStateAndDistributeRewards = async function (receipt, s
                 staker: staker,
                 cycle: this.cycle,
                 startPeriod: new BN(params.startPeriod),
-                periods: new BN(params.periods),
-                amount: new BN(params.amount)
+                periods: new BN(params.periods)
             });
+
+        const events = await this.stakingContract.getPastEvents(
+            'RewardsClaimed',
+            { fromBlock: 0, toBlock: 'latest' }
+        );
+        const claimEvent = events[0].args;
+        shouldBeEqualWithinDeviation(new BN(params.amount), claimEvent.amount);
+
     } else {
         await expectEvent.not.inTransaction(
             receipt.tx,
@@ -68,22 +82,34 @@ const shouldUpdateClaimingStateAndDistributeRewards = async function (receipt, s
     }
 }
 
+function shouldBeEqualWithinDeviation(actual, expected, proportion = AcceptedDeviationProportion) {
+    if (expected.isZero()) {
+        actual.should.be.bignumber.equal(new BN(0), `${actual} should be zero`);
+    } else {
+        const deviation = expected.sub(actual).abs();
+        const divPrecision = (new BN(10)).pow(new BN(15));
+        const maxDeviation = expected.mul(divPrecision).div(proportion).div(divPrecision);
+        deviation.should.be.bignumber.lte(maxDeviation, `${actual} deviates too much from expected ${expected}`);
+    }
+}
+
 const shouldEstimateRewards = function (staker, maxPeriods, params) {
-    it(`[ESTIMATE] ${params.amount} tokens over ${params.periods} ` + `periods (max=${maxPeriods}) starting at ${params.startPeriod}, by ${staker}`, async function () {
+    it(`[estimateRewards] ${params.amount} tokens over ${params.periods} ` + `periods (max=${maxPeriods}) starting at ${params.startPeriod}, by ${staker}`, async function () {
+        params.amount = toWei(params.amount);
         const result = await this.stakingContract.estimateRewards(maxPeriods, { from: staker });
         result.startPeriod.should.be.bignumber.equal(new BN(params.startPeriod));
         result.periods.should.be.bignumber.equal(new BN(params.periods));
-        result.amount.should.be.bignumber.equal(new BN(params.amount));
+        shouldBeEqualWithinDeviation(result.amount, new BN(params.amount));
     });
 }
 
 const shouldClaimRewards = function (staker, maxPeriods, params) {
-    it(`[CLAIM] ${params.amount} tokens over ${params.periods} periods (max=${maxPeriods}) starting at ${params.startPeriod}, by ${staker}`, async function () {
-
+    it(`[claimRewards] ${params.amount} tokens over ${params.periods} periods (max=${maxPeriods}) starting at ${params.startPeriod}, by ${staker}`, async function () {
+        params.amount = toWei(params.amount);
         const stateBefore = await retrieveClaimingState.bind(this)(staker);
         const estimate = await this.stakingContract.estimateRewards(maxPeriods, { from: staker });
-        if (this.debug) await debugCurrentState.bind(this)();
         const receipt = await this.stakingContract.claimRewards(maxPeriods, { from: staker });
+        if (this.debug) await debugCurrentState.bind(this)();
         const stateAfter = await retrieveClaimingState.bind(this)(staker);
 
         await shouldUpdateClaimingStateAndDistributeRewards.bind(this)(receipt, staker, params, stateBefore, estimate, stateAfter)

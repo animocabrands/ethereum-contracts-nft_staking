@@ -104,7 +104,7 @@ const retrieveStakingState = async function (staker, tokenIds) {
 }
 
 const shouldRevertAndNotStakeNft = function (staker, tokenId, error) {
-    it(`[STAKE] revert and not stake ${tokenId} by ${staker}`, async function () {
+    it(`[stakeNft] revert and not stake ${tokenId} by ${staker}`, async function () {
         await expectRevert(
             this.nftContract.transferFrom(staker, this.stakingContract.address, tokenId, { from: staker }),
             error
@@ -113,7 +113,7 @@ const shouldRevertAndNotStakeNft = function (staker, tokenId, error) {
 }
 
 const shouldRevertAndNotUnstakeNft = function (staker, tokenId, error) {
-    it(`[UNSTAKE] revert and not unstake ${tokenId} by ${staker}`, async function () {
+    it(`[unstakeNft] revert and not unstake ${tokenId} by ${staker}`, async function () {
         await expectRevert(
             this.stakingContract.unstakeNft(tokenId, { from: staker }),
             error
@@ -122,7 +122,7 @@ const shouldRevertAndNotUnstakeNft = function (staker, tokenId, error) {
 }
 
 const shouldRevertAndNotBatchStakeNfts = function (staker, tokenIds, error) {
-    it(`[STAKE] revert and not stake ${JSON.stringify(tokenIds)} by ${staker}`, async function () {
+    it(`[stakeNft] revert and not stake ${JSON.stringify(tokenIds)} by ${staker}`, async function () {
         var data = constants.EmptyByte;
         var values = Array(tokenIds.length).fill(1);
 
@@ -134,7 +134,7 @@ const shouldRevertAndNotBatchStakeNfts = function (staker, tokenIds, error) {
 }
 
 const shouldStakeNft = function (staker, tokenId) {
-    it(`[STAKE] ${tokenId} by ${staker}`, async function () {
+    it(`[stakeNft] ${tokenId} by ${staker}`, async function () {
 
         const stateBefore = await retrieveStakingState.bind(this)(staker, [tokenId]);
         const receipt = await this.nftContract.transferFrom(staker, this.stakingContract.address, tokenId, { from: staker });
@@ -147,7 +147,7 @@ const shouldStakeNft = function (staker, tokenId) {
 }
 
 const shouldUnstakeNft = function (staker, tokenId) {
-    it(`[UNSTAKE] ${tokenId} by ${staker}`, async function () {
+    it(`[unstakeNft] ${tokenId} by ${staker}`, async function () {
 
         const stateBefore = await retrieveStakingState.bind(this)(staker, [tokenId]);
         const receipt = await this.stakingContract.unstakeNft(tokenId, { from: staker });
@@ -159,7 +159,7 @@ const shouldUnstakeNft = function (staker, tokenId) {
 }
 
 const shouldBatchStakeNfts = function (staker, tokenIds) {
-    it(`[STAKE] ${JSON.stringify(tokenIds)} by ${staker}`, async function () {
+    it(`[stakeNft] ${JSON.stringify(tokenIds)} by ${staker}`, async function () {
         var data = constants.EmptyByte;
         var values = Array(tokenIds.length).fill(1);
 

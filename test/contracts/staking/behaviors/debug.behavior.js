@@ -1,3 +1,4 @@
+const { fromWei } = require('web3-utils');
 const { PeriodLengthInCycles } = require('../constants');
 
 const TITLE_WIDTH = 25;
@@ -63,10 +64,10 @@ async function renderRewardsScheduleMarks(period) {
     }
 
     for (let index = 0; index < (period - 1); index++) {
-        marks += rewardsSchedule[index].toString().padEnd(21, ' ');
+        marks += fromWei(rewardsSchedule[index]).padEnd(21, ' ');
     }
 
-    marks += rewardsSchedule[period - 1];
+    marks += fromWei(rewardsSchedule[period - 1]);
 
     console.log(marks);
 }
@@ -309,21 +310,21 @@ const shouldDebugCurrentState = function (...stakers) {
 }
 
 // to be used in before() of a scenario
-const initialiseDebug = function(...stakers) {
+const initialiseDebug = function (...stakers) {
     this.stakers = stakers;
     this.debug = process.env['DEBUG'];
 }
 
 
-const suspendDebugOutput = function() {
-    it('suspends debug output', function() {
+const suspendDebugOutput = function () {
+    it('suspends debug output', function () {
         this.debugBackup = this.debug;
         this.debug = false;
     });
 }
 
-const resumeDebugOutput = function() {
-    it('suspends debug output', function() {
+const resumeDebugOutput = function () {
+    it('suspends debug output', function () {
         this.debug = this.debugBackup;
     });
 

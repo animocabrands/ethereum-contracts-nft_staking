@@ -20,7 +20,14 @@ const shouldUpdateClaimingStateAndDistributeRewards = async function (receipt, s
     stateAfter.stakerBalance.sub(stateBefore.stakerBalance).should.be.bignumber.equal(new BN(params.amount));
     stateBefore.contractBalance.sub(stateAfter.contractBalance).should.be.bignumber.equal(new BN(params.amount));
 
-    const lastStakerSnapshotIndex = await this.stakingContract.lastStakerSnapshotIndex(staker);
+    let lastStakerSnapshotIndex;
+
+    try {
+        lastStakerSnapshotIndex = await this.stakingContract.lastStakerSnapshotIndex(staker);
+    } catch (err) {
+        return;
+    }
+
     const lastStakerSnapshot = await this.stakingContract.stakerHistories(staker, lastStakerSnapshotIndex);
     const lastClaimedCycle = estimate.startPeriod.add(estimate.periods).sub(new BN(1)).mul(PeriodLengthInCycles);
 

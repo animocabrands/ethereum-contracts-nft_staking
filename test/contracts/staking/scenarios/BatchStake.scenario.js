@@ -1,10 +1,13 @@
-const {
-    shouldBatchStakeNfts, shouldTimeWarpBy, shouldEstimateRewards, shouldHaveNextClaim
-} = require('../behaviors');
+const { shouldBatchStakeNfts, shouldTimeWarpBy, shouldEstimateRewards, shouldHaveNextClaim,
+    initialiseDebug } = require('../behaviors');
 
 const { TokenIds } = require('../constants');
 
 const batchStakeScenario = function (staker) {
+
+    before(function () {
+        initialiseDebug.bind(this)(staker);
+    });;
 
     describe('when staking a batch of NFTs', function () {
         shouldHaveNextClaim(staker, { period: 0, stakerSnapshotIndex: 0, globalSnapshotIndex: 0 });

@@ -1,10 +1,13 @@
-const {
-    shouldRevertAndNotUnstakeNft, shouldStakeNft, shouldTimeWarpBy, shouldUnstakeNft
-} = require('../behaviors');
+const { shouldRevertAndNotUnstakeNft, shouldStakeNft, shouldTimeWarpBy, shouldUnstakeNft,
+    initialiseDebug } = require('../behaviors');
 
 const { TokenIds } = require('../constants');
 
 const earlyUnstakeScenario = function (staker) {
+
+    before(function () {
+        initialiseDebug.bind(this)(staker);
+    });;
 
     describe('when unstaking an NFT that hasn\'t been staked', function () {
         shouldRevertAndNotUnstakeNft(staker, TokenIds[0], 'NftStaking: token not staked or incorrect token owner.');

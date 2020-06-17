@@ -1,14 +1,14 @@
 const TokenHelper = require('../../../utils/tokenHelper');
 
-const {
-    shouldRevertAndNotStakeNft, shouldStakeNft, shouldUnstakeNft, shouldEstimateRewards,
-    shouldClaimRewards, shouldRevertAndNotUnstakeNft, shouldHaveNextClaim, shouldHaveGlobalHistoryLength,
-    shouldHaveStakerHistoryLength, shouldHaveCurrentCycleAndPeriod, shouldTimeWarpBy, shouldDebugCurrentState
-} = require('../behaviors');
+const {shouldStakeNft, shouldEstimateRewards, shouldTimeWarpBy, initialiseDebug} = require('../behaviors');
 
 const { TokenIds } = require('../constants');
 
 const multiStakersScenario = function (creator, staker, otherStaker) {
+
+    before(function () {
+        initialiseDebug.bind(this)(staker, otherStaker);
+    });;
 
     const OtherTokenIds = [
         TokenHelper.makeTokenId(TokenHelper.Rarity.Common, TokenHelper.Type.Car),

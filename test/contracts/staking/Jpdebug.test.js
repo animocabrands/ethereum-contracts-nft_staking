@@ -22,6 +22,11 @@ describe.only('NftStaking', function () {
         ...otherAccounts
     ] = accounts;
 
+    before(function() {
+        this.debug = true;
+        this.stakers = [];
+    });
+
     describe('Preconditions', function () {
         before(deploy);
         before(start);

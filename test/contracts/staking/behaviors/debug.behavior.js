@@ -265,6 +265,9 @@ async function renderStakerNextClaimMark(staker, label, stakerHistory, globalHis
 }
 
 async function debugCurrentState(...stakers) {
+    if (stakers.length == 0) {
+        stakers = this.stakers;
+    }
     console.log();
 
     const cycle = (await this.stakingContract.getCurrentCycle()).toNumber();
@@ -305,6 +308,31 @@ const shouldDebugCurrentState = function (...stakers) {
     });
 }
 
+// to be used in before() of a scenario
+const initialiseDebug = function(...stakers) {
+    this.stakers = stakers;
+    this.debug = process.env['DEBUG'];
+}
+
+
+const suspendDebugOutput = function() {
+    it('suspends debug output', function() {
+        this.debugBackup = this.debug;
+        this.debug = false;
+    });
+}
+
+const resumeDebugOutput = function() {
+    it('suspends debug output', function() {
+        this.debug = this.debugBackup;
+    });
+
+}
+
 module.exports = {
-    shouldDebugCurrentState
+    shouldDebugCurrentState,
+    debugCurrentState,
+    initialiseDebug,
+    suspendDebugOutput,
+    resumeDebugOutput
 }

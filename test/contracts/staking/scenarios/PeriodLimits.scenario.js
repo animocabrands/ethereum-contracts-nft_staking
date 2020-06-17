@@ -1,12 +1,15 @@
 const {
     shouldRevertAndNotStakeNft, shouldStakeNft, shouldUnstakeNft, shouldEstimateRewards,
-    shouldClaimRewards, shouldRevertAndNotUnstakeNft, shouldHaveNextClaim, shouldHaveGlobalHistoryLength,
-    shouldHaveStakerHistoryLength, shouldHaveCurrentCycleAndPeriod, shouldTimeWarpBy, shouldDebugCurrentState
+    shouldClaimRewards, shouldRevertAndNotUnstakeNft, shouldTimeWarpBy, initialiseDebug
 } = require('../behaviors');
 
 const { TokenIds } = require('../constants');
 
 const periodLimitsScenario = function (staker, other) {
+
+    before(function () {
+        initialiseDebug.bind(this)(staker);
+    });;
 
     describe('Stake Common NFT at cycle 7', function () {
         shouldTimeWarpBy({ cycles: 6 }, { cycle: 7, period: 1 });

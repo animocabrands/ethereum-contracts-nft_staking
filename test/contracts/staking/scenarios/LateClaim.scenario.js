@@ -1,12 +1,18 @@
-const {
-    shouldRevertAndNotStakeNft, shouldStakeNft, shouldUnstakeNft, shouldEstimateRewards,
-    shouldClaimRewards, shouldRevertAndNotUnstakeNft, shouldHaveNextClaim, shouldHaveGlobalHistoryLength,
-    shouldHaveStakerHistoryLength, shouldHaveCurrentCycleAndPeriod, shouldTimeWarpBy, shouldDebugCurrentState
-} = require('../behaviors');
+const { shouldStakeNft, shouldUnstakeNft, shouldClaimRewards,
+    shouldTimeWarpBy, initialiseDebug } = require('../behaviors');
 
 const { TokenIds } = require('../constants');
 
 const lateClaimScenario = function (staker) {
+
+    before(function () {
+        initialiseDebug.bind(this)(staker);
+    });;
+
+    before(function () {
+        this.stakers = [staker];
+    });
+
     describe('Stake a Common NFT', function () {
         shouldStakeNft(staker, TokenIds[0]);
     });

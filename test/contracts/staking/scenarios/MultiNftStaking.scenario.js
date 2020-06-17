@@ -1,10 +1,13 @@
-const {
-    shouldStakeNft, shouldEstimateRewards, shouldClaimRewards, shouldTimeWarpBy
-} = require('../behaviors');
+const { shouldStakeNft, shouldEstimateRewards, shouldClaimRewards,
+    shouldTimeWarpBy, initialiseDebug } = require('../behaviors');
 
 const { TokenIds } = require('../constants');
 
 const multiNftStakingScenario = function (staker) {
+
+    before(function () {
+        initialiseDebug.bind(this)(staker);
+    });;
 
     describe('Stake an NFT at start of period 1', function () {
         shouldStakeNft(staker, TokenIds[0]);
@@ -53,7 +56,7 @@ const multiNftStakingSinglePeriodScenario = function (staker) {
     });
 
     describe('Estimate rewards in period 2', function () {
-        shouldTimeWarpBy({ periods: 1}, { cycle: 14, period: 2 });
+        shouldTimeWarpBy({ periods: 1 }, { cycle: 14, period: 2 });
         shouldEstimateRewards(staker, 1, { startPeriod: 1, periods: 1, amount: 7000 });
     });
 

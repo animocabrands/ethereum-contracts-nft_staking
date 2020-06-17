@@ -1,17 +1,15 @@
 const { BN } = require('@openzeppelin/test-helpers');
 const TokenHelper = require('../../../utils/tokenHelper');
 
-const {
-    shouldRevertAndNotStakeNft, shouldStakeNft, shouldUnstakeNft, shouldEstimateRewards,
-    shouldClaimRewards, shouldRevertAndNotUnstakeNft, shouldHaveNextClaim, shouldHaveGlobalHistoryLength,
-    shouldHaveStakerHistoryLength, shouldHaveCurrentCycleAndPeriod, shouldTimeWarpBy, shouldDebugCurrentState
-} = require('../behaviors');
+const { shouldHaveNextClaim, shouldHaveGlobalHistoryLength, shouldHaveStakerHistoryLength,
+    shouldHaveCurrentCycleAndPeriod, shouldDebugCurrentState } = require('../behaviors');
 
 const { CycleLengthInSeconds, PeriodLengthInCycles, TokenIds } = require('../constants');
 
 const preconditionsScenario = function (staker) {
 
     context('Staking contract', function () {
+
         it('should have the correct cycle length', async function () {
             const cycleLength = await this.stakingContract.cycleLengthInSeconds();
             cycleLength.should.be.bignumber.equal(CycleLengthInSeconds);
@@ -46,6 +44,7 @@ const preconditionsScenario = function (staker) {
         shouldHaveGlobalHistoryLength(0);
         shouldHaveStakerHistoryLength(staker, 0);
         shouldHaveNextClaim(staker, { period: 0, stakerSnapshotIndex: 0, globalSnapshotIndex: 0 });
+        shouldDebugCurrentState();
     });
 
     context('NFT Assets Inventory contract', function () {

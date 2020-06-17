@@ -35,7 +35,7 @@ async function getStakerHistory(staker) {
     let lastSnapshotIndex;
 
     try {
-        lastSnapshotIndex = await this.stakingContract.lastStakerSnapshotIndex();
+        lastSnapshotIndex = await this.stakingContract.lastStakerSnapshotIndex(staker);
     } catch (err) {
         return history;
     }

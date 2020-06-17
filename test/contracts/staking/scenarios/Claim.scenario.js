@@ -1,7 +1,7 @@
 const TokenHelper = require('../../../utils/tokenHelper');
 
 const {
-    shouldStakeNft, shouldUnstakeNft, shouldClaimRewards, shouldTimeWarpBy
+    shouldStakeNft, shouldUnstakeNft, shouldClaimRewards, shouldTimeWarpBy, initialiseDebug
 } = require('../behaviors');
 
 const { TokenIds } = require('../constants');
@@ -21,6 +21,10 @@ const AnotherTokenIds = [
 ];
 
 const claimScenario = function (creator, staker, otherStaker, anotherStaker) {
+
+    before(function () {
+        initialiseDebug.bind(this)(staker, otherStaker, anotherStaker);
+    });;
 
     before(async function () {
         for (const tokenId of OtherTokenIds) {

@@ -266,7 +266,7 @@ async function renderStakerNextClaimMark(staker, label, stakerHistory, globalHis
 }
 
 async function debugCurrentState(...stakers) {
-    if (stakers.length == 0) {
+    if (stakers.length == 0 && this.stakers) {
         stakers = this.stakers;
     }
     console.log();

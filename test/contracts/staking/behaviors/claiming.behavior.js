@@ -66,7 +66,7 @@ const shouldUpdateClaimingStateAndDistributeRewards = async function (receipt, s
 
         const events = await this.stakingContract.getPastEvents(
             'RewardsClaimed',
-            { fromBlock: 0, toBlock: 'latest' }
+            { fromBlock: 'latest', toBlock: 'latest' }
         );
         const claimEvent = events[0].args;
         shouldBeEqualWithinDeviation(new BN(params.amount), claimEvent.amount);

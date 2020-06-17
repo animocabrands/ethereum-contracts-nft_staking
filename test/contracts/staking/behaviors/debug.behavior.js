@@ -315,7 +315,6 @@ const initialiseDebug = function (...stakers) {
     this.debug = process.env['DEBUG'];
 }
 
-
 const suspendDebugOutput = function () {
     it('suspends debug output', function () {
         this.debugBackup = this.debug;

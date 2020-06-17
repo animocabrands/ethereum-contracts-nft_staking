@@ -32,6 +32,10 @@ const multiNftStakingScenario = function (staker) {
 
 const multiNftStakingSinglePeriodScenario = function (staker) {
 
+    before(function () {
+        initialiseDebug.bind(this)(staker);
+    });;
+
     describe('Stake an NFT at cycle 1', function () {
         shouldStakeNft(staker, TokenIds[0]);
         shouldEstimateRewards(staker, 1, { startPeriod: 1, periods: 0, amount: 0 });
@@ -63,6 +67,10 @@ const multiNftStakingSinglePeriodScenario = function (staker) {
 };
 
 const multiNftStakingMultiPeriodScenario = function (staker) {
+
+    before(function () {
+        initialiseDebug.bind(this)(staker);
+    });;
 
     describe('Stake an NFT at the start of period 1', function () {
         shouldStakeNft(staker, TokenIds[0]);

@@ -1,21 +1,21 @@
 const TokenHelper = require('../../../utils/tokenHelper');
 
-const {shouldStakeNft, shouldEstimateRewards, shouldTimeWarpBy, initialiseDebug} = require('../behaviors');
+const { shouldStakeNft, shouldEstimateRewards, shouldTimeWarpBy, initialiseDebug } = require('../behaviors');
 
 const { TokenIds } = require('../constants');
+
+const OtherTokenIds = [
+    TokenHelper.makeTokenId(TokenHelper.Rarity.Common, TokenHelper.Type.Car),
+    TokenHelper.makeTokenId(TokenHelper.Rarity.Epic, TokenHelper.Type.Car),
+    TokenHelper.makeTokenId(TokenHelper.Rarity.Legendary, TokenHelper.Type.Car),
+    TokenHelper.makeTokenId(TokenHelper.Rarity.Apex, TokenHelper.Type.Car)
+];
 
 const multiStakersScenario = function (creator, staker, otherStaker) {
 
     before(function () {
         initialiseDebug.bind(this)(staker, otherStaker);
     });;
-
-    const OtherTokenIds = [
-        TokenHelper.makeTokenId(TokenHelper.Rarity.Common, TokenHelper.Type.Car),
-        TokenHelper.makeTokenId(TokenHelper.Rarity.Epic, TokenHelper.Type.Car),
-        TokenHelper.makeTokenId(TokenHelper.Rarity.Legendary, TokenHelper.Type.Car),
-        TokenHelper.makeTokenId(TokenHelper.Rarity.Apex, TokenHelper.Type.Car)
-    ];
 
     before(async function () {
         for (const tokenId of OtherTokenIds) {
@@ -68,12 +68,9 @@ const multiStakersScenario = function (creator, staker, otherStaker) {
 
 const multiStakersSinglePeriodScenario = function (creator, staker, otherStaker) {
 
-    const OtherTokenIds = [
-        TokenHelper.makeTokenId(TokenHelper.Rarity.Common, TokenHelper.Type.Car),
-        TokenHelper.makeTokenId(TokenHelper.Rarity.Epic, TokenHelper.Type.Car),
-        TokenHelper.makeTokenId(TokenHelper.Rarity.Legendary, TokenHelper.Type.Car),
-        TokenHelper.makeTokenId(TokenHelper.Rarity.Apex, TokenHelper.Type.Car)
-    ];
+    before(function () {
+        initialiseDebug.bind(this)(staker, otherStaker);
+    });;
 
     before(async function () {
         for (const tokenId of OtherTokenIds) {
@@ -111,12 +108,9 @@ const multiStakersSinglePeriodScenario = function (creator, staker, otherStaker)
 
 const multiStakersMultiPeriodScenario = function (creator, staker, otherStaker) {
 
-    const OtherTokenIds = [
-        TokenHelper.makeTokenId(TokenHelper.Rarity.Common, TokenHelper.Type.Car),
-        TokenHelper.makeTokenId(TokenHelper.Rarity.Epic, TokenHelper.Type.Car),
-        TokenHelper.makeTokenId(TokenHelper.Rarity.Legendary, TokenHelper.Type.Car),
-        TokenHelper.makeTokenId(TokenHelper.Rarity.Apex, TokenHelper.Type.Car)
-    ];
+    before(function () {
+        initialiseDebug.bind(this)(staker, otherStaker);
+    });;
 
     before(async function () {
         for (const tokenId of OtherTokenIds) {

@@ -6,18 +6,19 @@ const { shouldStakeNft, shouldUnstakeNft, shouldClaimRewards, shouldHaveGlobalHi
 
 const { TokenIds } = require('../constants');
 
-const gasHeavyScenario = function (creator, staker, otherStaker, anotherStaker) {
+const OtherTokenIds = [
+    TokenHelper.makeTokenId(TokenHelper.Rarity.Common, TokenHelper.Type.Car),
+    TokenHelper.makeTokenId(TokenHelper.Rarity.Epic, TokenHelper.Type.Car),
+    TokenHelper.makeTokenId(TokenHelper.Rarity.Apex, TokenHelper.Type.Car)
+];
 
-    const OtherTokenIds = [
-        TokenHelper.makeTokenId(TokenHelper.Rarity.Common, TokenHelper.Type.Car),
-        TokenHelper.makeTokenId(TokenHelper.Rarity.Epic, TokenHelper.Type.Car),
-        TokenHelper.makeTokenId(TokenHelper.Rarity.Apex, TokenHelper.Type.Car)
-    ];
-    const AnotherTokenIds = [
-        TokenHelper.makeTokenId(TokenHelper.Rarity.Common, TokenHelper.Type.Car),
-        TokenHelper.makeTokenId(TokenHelper.Rarity.Epic, TokenHelper.Type.Car),
-        TokenHelper.makeTokenId(TokenHelper.Rarity.Apex, TokenHelper.Type.Car)
-    ];
+const AnotherTokenIds = [
+    TokenHelper.makeTokenId(TokenHelper.Rarity.Common, TokenHelper.Type.Car),
+    TokenHelper.makeTokenId(TokenHelper.Rarity.Epic, TokenHelper.Type.Car),
+    TokenHelper.makeTokenId(TokenHelper.Rarity.Apex, TokenHelper.Type.Car)
+];
+
+const gasHeavyScenario = function (creator, staker, otherStaker, anotherStaker) {
 
     before(async function () {
         for (const tokenId of OtherTokenIds) {
@@ -91,10 +92,6 @@ const gasHeavyScenario = function (creator, staker, otherStaker, anotherStaker) 
             //      total payout = 21 * (1000 + 500 + 333 + 500) = 48993
 
         });
-
-        // afterEach(function () {
-        //     this.debug = this.debugBackup;
-        // });
     });
 }
 

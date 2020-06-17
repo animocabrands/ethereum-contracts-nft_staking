@@ -1,5 +1,7 @@
 const { fromWei, toWei } = require('web3-utils');
 const { BN, expectEvent } = require('@openzeppelin/test-helpers');
+const { shouldBeEqualWithETHDecimalPrecision, shouldBeEqualWithProportionalPrecision
+} = require('@animoca/ethereum-contracts-core_library').fixtures;
 
 const { debugCurrentState } = require('./debug.behavior');
 const { PeriodLengthInCycles } = require('../constants');
@@ -17,13 +19,16 @@ const shouldUpdateClaimingStateAndDistributeRewards = async function (receipt, s
 
     const stakerBalanceDelta = stateAfter.stakerBalance.sub(stateBefore.stakerBalance);
     shouldBeEqualWithETHDecimalPrecision(stakerBalanceDelta, new BN(params.amount));
+    shouldBeEqualWithProportionalPrecision(stakerBalanceDelta, new BN(params.amount));
     const contractBalanceDelta = stateBefore.contractBalance.sub(stateAfter.contractBalance);
     shouldBeEqualWithETHDecimalPrecision(contractBalanceDelta, new BN(params.amount));
+    shouldBeEqualWithProportionalPrecision(contractBalanceDelta, new BN(params.amount));
 
     if (estimate.periods.toNumber() > 0) {
         estimate.startPeriod.should.be.bignumber.equal(new BN(params.startPeriod));
         estimate.periods.should.be.bignumber.at.most(new BN(params.periods));
         shouldBeEqualWithETHDecimalPrecision(estimate.amount, new BN(params.amount));
+        shouldBeEqualWithProportionalPrecision(estimate.amount, new BN(params.amount));
 
         let lastStakerSnapshotIndex;
 
@@ -66,6 +71,7 @@ const shouldUpdateClaimingStateAndDistributeRewards = async function (receipt, s
         );
         const claimEvent = events[0].args;
         shouldBeEqualWithETHDecimalPrecision(new BN(params.amount), claimEvent.amount);
+        shouldBeEqualWithProportionalPrecision(new BN(params.amount), claimEvent.amount);
 
     } else {
         await expectEvent.not.inTransaction(
@@ -78,20 +84,6 @@ const shouldUpdateClaimingStateAndDistributeRewards = async function (receipt, s
     }
 }
 
-/**
- * Validates that `actual` equals `expected` with a precision of `decimalPrecision` ETH decimals.
- * @param {BN} actual the actual value, in WEI.
- * @param {BN} expected the expected value, in WEI.
- * @param {Number} ethDecimals the number of ETH decimals to compare.
- */
-function shouldBeEqualWithETHDecimalPrecision(actual, expected, ethDecimals = 4 /* 1/10,000 ETH */) {
-    const exponent = new BN(18 /* ETH-precision divisor */ - ethDecimals);
-
-    const precision = new BN(10).pow(exponent);
-    const delta = actual.sub(expected).abs();
-    delta.should.be.bignumber.lte(precision, `${fromWei(actual)} differs too much from expected ${fromWei(expected)}`);
-}
-
 const shouldEstimateRewards = function (staker, maxPeriods, params) {
     it(`[estimateRewards] ${params.amount} tokens over ${params.periods} ` + `periods (max=${maxPeriods}) starting at ${params.startPeriod}, by ${staker}`, async function () {
         params.amount = toWei(params.amount);
@@ -99,6 +91,7 @@ const shouldEstimateRewards = function (staker, maxPeriods, params) {
         result.startPeriod.should.be.bignumber.equal(new BN(params.startPeriod));
         result.periods.should.be.bignumber.equal(new BN(params.periods));
         shouldBeEqualWithETHDecimalPrecision(result.amount, new BN(params.amount));
+        shouldBeEqualWithProportionalPrecision(result.amount, new BN(params.amount));
     });
 }
 

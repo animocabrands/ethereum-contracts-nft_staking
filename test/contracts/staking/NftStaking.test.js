@@ -1,5 +1,5 @@
 const { accounts, contract } = require('@openzeppelin/test-environment');
-const { shouldSupportInterfaces } = require('@animoca/ethereum-contracts-core_library');
+const { shouldSupportInterfaces } = require('@animoca/ethereum-contracts-core_library').behaviors;
 const { interfaces } = require('@animoca/ethereum-contracts-assets_inventory');
 
 const { MigrationRewardSchedule, FlatRewardSchedule } = require('./constants');
@@ -21,11 +21,6 @@ describe('NftStaking', function () {
         anotherStaker,
         ...otherAccounts
     ] = accounts;
-
-    // before(function() {
-    //     this.debug = true;
-    //     this.stakers = [];
-    // });
 
     describe('Preconditions', function () {
         before(deploy);

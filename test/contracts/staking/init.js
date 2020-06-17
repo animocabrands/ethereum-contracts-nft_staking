@@ -29,10 +29,9 @@ async function deploy() {
         RarityWeights.map(x => x.weight),
         { from: creator }
     );
-    this.contract = this.stakingContract;
 
     // for 'interface support' tests
-    this.mock = this.stakingContract;
+    this.contract = this.stakingContract;
 
     await this.rewardsToken.approve(this.stakingContract.address, RewardsTokenInitialBalance, { from: creator });
 

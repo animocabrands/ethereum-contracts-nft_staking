@@ -8,7 +8,8 @@ const { deploy, start } = require('./setup');
 const {
     preconditionsScenario, multiNftStakingScenario, multiNftStakingSinglePeriodScenario,
     multiNftStakingMultiPeriodScenario, lateClaimScenario, periodLimitsScenario,
-    multiStakersScenario, gasHeavyScenario, restakeScenario, nonWhitelistedNftContractScenario,
+    multiStakersScenario, multiStakersSinglePeriodScenario, multiStakersMultiPeriodScenario,
+    gasHeavyScenario, restakeScenario, nonWhitelistedNftContractScenario,
     batchStakeScenario, earlyUnstakeScenario
 } = require('./scenarios');
 
@@ -68,6 +69,20 @@ describe.only('NftStaking', function () {
         before(start);
 
         multiStakersScenario(creator, staker, otherStaker);
+    });
+
+    describe('Scenario: Multi Stakers (single period)', function () {
+        before(deploy);
+        before(start);
+
+        multiStakersSinglePeriodScenario(creator, staker, otherStaker);
+    });
+
+    describe('Scenario: Multi Stakers (multi period)', function () {
+        before(deploy);
+        before(start);
+
+        multiStakersMultiPeriodScenario(creator, staker, otherStaker);
     });
 
     describe('Scenario: Gas Heavy', function () {

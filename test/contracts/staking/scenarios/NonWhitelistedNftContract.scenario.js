@@ -1,7 +1,7 @@
 const { contract } = require('@openzeppelin/test-environment');
+const { DefaultNFMaskLength } = require('@animoca/ethereum-contracts-assets_inventory').constants;
 
 const AssetsInventory = contract.fromArtifact("AssetsInventoryMock");
-const { NFCollectionMaskLength } = require('../../../../src').constants;
 
 const {
     shouldRevertAndNotStakeNft, shouldRevertAndNotBatchStakeNfts
@@ -11,7 +11,7 @@ const { TokenIds } = require('../constants');
 
 const nonWhitelistedNftContractScenario = function (creator, staker) {
     before (async function () {
-        this.nftContract = await AssetsInventory.new(NFCollectionMaskLength, { from: creator });
+        this.nftContract = await AssetsInventory.new(DefaultNFMaskLength, { from: creator });
 
         for (const tokenId of TokenIds) {
             await this.nftContract.mintNonFungible(staker, tokenId, { from: creator });

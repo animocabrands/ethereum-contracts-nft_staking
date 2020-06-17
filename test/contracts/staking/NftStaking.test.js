@@ -3,7 +3,7 @@ const { shouldSupportInterfaces } = require('@animoca/ethereum-contracts-core_li
 const { interfaces } = require('@animoca/ethereum-contracts-assets_inventory');
 
 const { MigrationRewardSchedule, FlatRewardSchedule } = require('./constants');
-const { deploy, start } = require('./setup');
+const { deploy, start } = require('./init');
 
 const {
     preconditionsScenario, multiNftStakingScenario, multiNftStakingSinglePeriodScenario,

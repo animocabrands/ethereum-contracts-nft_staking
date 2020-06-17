@@ -1,6 +1,6 @@
 const { BN } = require('@openzeppelin/test-helpers');
 const { inventoryIds } = require('@animoca/blockchain-inventory_metadata');
-const { NFCollectionMaskLength } = require('../../src').constants;
+const { DefaultNFMaskLength } = require('@animoca/ethereum-contracts-assets_inventory').constants;
 
 const Type = {
     None: 0,
@@ -32,7 +32,7 @@ function makeTokenId(rarity, type) {
     const tokenId = inventoryIds.makeNonFungibleTokenId(
         baseTokenId++,
         BaseCollectionId,
-        NFCollectionMaskLength);
+        DefaultNFMaskLength);
 
     return new BN(tokenId)
         .or(new BN(type).shln(BIT_LAYOUT_POSITION_TYPE))

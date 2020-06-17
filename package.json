@@ -18,7 +18,11 @@
   ],
   "author": "Animoca Brands",
   "license": "MIT",
-  "dependencies": {
-    "@animoca/ethereum-contracts-assets_inventory": "^2.0.0"
+  "dependencies": {},
+  "devDependencies": {
+    "@animoca/blockchain-inventory_metadata": "0.0.1",
+    "@animoca/ethereum-contracts-assets_inventory": "^3.0.0",
+    "@animoca/ethereum-contracts-core_library": "^3.0.0",
+    "@animoca/ethereum-contracts-erc20_base": "^3.0.0"
   }
 }

@@ -1,20 +1,17 @@
 # Changelog
 
-## 2.0.0 (Unreleased)
+## 2.0.0 (17/06/2020)
 
 ### Breaking changes
- * Updated the `@animoca/ethereum-contracts-assets_inventory` module dependency to ^3.0.0.
+ * Updated `@animoca/ethereum-contracts-core_library` to version 3 and downgraded it to be a dev dependency.
+ * Updated `@animoca/ethereum-contracts-erc20_base` to version 3 and downgraded it to be a dev dependency.
+ * Updated `@animoca/ethereum-contracts-assets_inventory` to version 3 and downgraded it to be a dev dependency.
  * Migrated compiler to `solc:0.6.8`.
-
-### Changes
- * `NftStaking.sol` defines its own `ERC1155_RECEIVED` and `ERC1155_BATCH_RECEIVED` constants for the ERC-1155 TokenReceiver callback functions, since being removed from the `IERC1155TokenReceiver.sol` contract of the Assets Inventory package.
+ * Design change to record staker histories with modification to public interfaces.
+ * Removed testable version of the contract.
 
 ### Improvements
  * Removed dependency on `@animoca/f1dt-core_metadata`.
- * Added `SnapshotCreated` and `SnapshotUpdated` events to be emitted whenever a dividend snapshot is created or updated, respectively.
-
-### New features
- * Introduction of an SPDX License identifier to all contract headers.
 
 ## 1.0.2 (04/05/2020)
 

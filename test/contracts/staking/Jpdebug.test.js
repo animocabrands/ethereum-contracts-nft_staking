@@ -7,10 +7,10 @@ const { deploy, start } = require('./setup');
 
 const {
     preconditionsScenario, multiNftStakingScenario, multiNftStakingSinglePeriodScenario,
-    multiNftStakingMultiPeriodScenario, lateClaimScenario, periodLimitsScenario,
+    multiNftStakingMultiPeriodScenario, periodLimitsScenario,
     multiStakersScenario, multiStakersSinglePeriodScenario, multiStakersMultiPeriodScenario,
     gasHeavyScenario, restakeScenario, nonWhitelistedNftContractScenario,
-    batchStakeScenario, earlyUnstakeScenario
+    batchStakeScenario, earlyUnstakeScenario, claimScenario
 } = require('./scenarios');
 
 describe.only('NftStaking', function () {
@@ -60,13 +60,6 @@ describe.only('NftStaking', function () {
         before(start);
 
         periodLimitsScenario(staker, otherStaker);
-    });
-
-    describe('Scenario: Late Claim', function () {
-        before(deploy);
-        before(start);
-
-        lateClaimScenario(staker);
     });
 
     describe('Scenario: Multi Stakers', function () {
@@ -123,6 +116,13 @@ describe.only('NftStaking', function () {
         before(start);
 
         earlyUnstakeScenario(staker);
+    });
+
+    describe('Scenario: Claim', function () {
+        before(deploy);
+        before(start);
+
+        claimScenario(creator, staker, otherStaker, anotherStaker);
     });
 
     describe("Interface support", function () {

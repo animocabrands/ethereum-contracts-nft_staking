@@ -1,6 +1,8 @@
 const { BN, expectRevert, expectEvent } = require('@openzeppelin/test-helpers');
 const { constants } = require('@animoca/ethereum-contracts-core_library');
 
+const { debugCurrentState } = require('./debug.behavior');
+
 const shouldSetNextClaimIfUnset = async function (staker, stateBefore, stateAfter) {
     if (stateBefore.lastGlobalSnapshotIndex.eq(new BN('-1'))) {
         const nextClaim = await this.stakingContract.nextClaims(staker);
@@ -136,6 +138,7 @@ const shouldStakeNft = function (staker, tokenId) {
 
         const stateBefore = await retrieveStakingState.bind(this)(staker, [tokenId]);
         const receipt = await this.nftContract.transferFrom(staker, this.stakingContract.address, tokenId, { from: staker });
+        if (this.debug) await debugCurrentState.bind(this)();
         const stateAfter = await retrieveStakingState.bind(this)(staker, [tokenId]);
 
         await shouldUpdateHistory.bind(this)(receipt, 'NftStaked', staker, [tokenId], stateBefore, stateAfter);
@@ -148,6 +151,7 @@ const shouldUnstakeNft = function (staker, tokenId) {
 
         const stateBefore = await retrieveStakingState.bind(this)(staker, [tokenId]);
         const receipt = await this.stakingContract.unstakeNft(tokenId, { from: staker });
+        if (this.debug) await debugCurrentState.bind(this)();
         const stateAfter = await retrieveStakingState.bind(this)(staker, [tokenId]);
 
         await shouldUpdateHistory.bind(this)(receipt, 'NftUnstaked', staker, [tokenId], stateBefore, stateAfter);
@@ -161,6 +165,7 @@ const shouldBatchStakeNfts = function (staker, tokenIds) {
 
         const stateBefore = await retrieveStakingState.bind(this)(staker, tokenIds);
         const receipt = await this.nftContract.safeBatchTransferFrom(staker, this.stakingContract.address, tokenIds, values, data, { from: staker });
+        if (this.debug) await debugCurrentState.bind(this)();
         const stateAfter = await retrieveStakingState.bind(this)(staker, tokenIds);
 
         await shouldUpdateHistory.bind(this)(receipt, 'NftStaked', staker, tokenIds, stateBefore, stateAfter);

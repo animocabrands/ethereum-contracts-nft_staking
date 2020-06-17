@@ -1,10 +1,8 @@
 const TokenHelper = require('../../../utils/tokenHelper');
 
-const {
-    shouldRevertAndNotStakeNft, shouldStakeNft, shouldUnstakeNft, shouldEstimateRewards,
-    shouldClaimRewards, shouldRevertAndNotUnstakeNft, shouldHaveNextClaim, shouldHaveGlobalHistoryLength,
-    shouldHaveStakerHistoryLength, shouldHaveCurrentCycleAndPeriod, shouldTimeWarpBy, shouldDebugCurrentState
-} = require('../behaviors');
+const { shouldStakeNft, shouldUnstakeNft, shouldClaimRewards, shouldHaveGlobalHistoryLength,
+    shouldHaveStakerHistoryLength, shouldHaveCurrentCycleAndPeriod, shouldTimeWarpBy,
+    initialiseDebug, suspendDebugOutput, resumeDebugOutput } = require('../behaviors');
 
 const { TokenIds } = require('../constants');
 
@@ -30,9 +28,15 @@ const gasHeavyScenario = function (creator, staker, otherStaker, anotherStaker) 
         }
     });
 
+    before(function () {
+        initialiseDebug.bind(this)(staker, otherStaker, anotherStaker);
+    });;
+
     describe('when creating 100 snapshots', function () {
         let cycleCounter = 1
         const numSnapshotsToCreate = 99; // excluding the initial one created by staker #1's stake
+
+        suspendDebugOutput.bind(this)();
 
         describe(`when creating snapshot #1 - staker #1 stakes an NFT`, function () {
             shouldStakeNft(staker, TokenIds[0]);
@@ -78,6 +82,8 @@ const gasHeavyScenario = function (creator, staker, otherStaker, anotherStaker) 
             shouldHaveStakerHistoryLength(otherStaker, 50); // ceil(cycleCounter / 2)
             shouldHaveStakerHistoryLength(anotherStaker, 49); // floor(cycleCounter / 2)
 
+            resumeDebugOutput.bind(this)();
+
             shouldClaimRewards(staker, 99999999, { startPeriod: 1, periods: 14, amount: 48993 });
 
             // payout share for staker 1 for every 4 cycles (repeating) is 1, 1/2, 1/3, 1/2
@@ -85,6 +91,10 @@ const gasHeavyScenario = function (creator, staker, otherStaker, anotherStaker) 
             //      total payout = 21 * (1000 + 500 + 333 + 500) = 48993
 
         });
+
+        // afterEach(function () {
+        //     this.debug = this.debugBackup;
+        // });
     });
 }
 

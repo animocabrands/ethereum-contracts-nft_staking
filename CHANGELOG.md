@@ -1,5 +1,7 @@
 # Changelog
 
+## 2.0.1 (UNRELEASED)
+
 ## 2.0.0 (17/06/2020)
 
 ### Breaking changes

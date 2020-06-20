@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.1 (20/06/2020)
+
+### New features
+* The module now exports a `constants` and a `utils` object.
+* Added a function to calculate a total rewards based on a rewards schedule.
+
+### Bugfixes
+* Fixed a wrong import in the migration and restructured the script
+
 ## 2.0.0 (17/06/2020)
 
 ### Breaking changes

@@ -7,7 +7,7 @@
 * Added a function to calculate a total rewards based on a rewards schedule.
 
 ### Improvements
-* The migration is now more generic.
+* Restructured the migration script.
 
 ### Bugfixes
 * Fixed a wrong import in the migration.

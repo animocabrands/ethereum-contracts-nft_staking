@@ -2,6 +2,16 @@
 
 ## 2.0.1 (UNRELEASED)
 
+### New features
+* The module now exports a `constants` and a `utils` object.
+* Added a function to calculate a total rewards based on a rewards schedule.
+
+### Improvements
+* The migration is now more generic.
+
+### Bugfixes
+* Fixed a wrong import in the migration.
+
 ## 2.0.0 (17/06/2020)
 
 ### Breaking changes

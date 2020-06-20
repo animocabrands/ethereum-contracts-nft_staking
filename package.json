@@ -8,6 +8,7 @@
     "coverage": "./node_modules/@animoca/ethereum-contracts-core_library/scripts/coverage.sh",
     "migrate": "./node_modules/@animoca/ethereum-contracts-core_library/scripts/migrate.sh"
   },
+  "main": "src/index.js",
   "repository": {
     "type": "git",
     "url": "git@github.com:animocabrands/ethereum-contracts-nft_staking.git"

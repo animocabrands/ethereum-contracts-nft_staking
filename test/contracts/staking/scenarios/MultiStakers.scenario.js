@@ -5,10 +5,10 @@ const { shouldStakeNft, shouldEstimateRewards, shouldTimeWarpBy, initialiseDebug
 const { TokenIds } = require('../constants');
 
 const OtherTokenIds = [
-    TokenHelper.makeTokenId(TokenHelper.Rarity.Common, TokenHelper.Type.Car),
-    TokenHelper.makeTokenId(TokenHelper.Rarity.Epic, TokenHelper.Type.Car),
-    TokenHelper.makeTokenId(TokenHelper.Rarity.Legendary, TokenHelper.Type.Car),
-    TokenHelper.makeTokenId(TokenHelper.Rarity.Apex, TokenHelper.Type.Car)
+    TokenHelper.makeTokenId(TokenHelper.Rarities.Common, TokenHelper.Types.Car),
+    TokenHelper.makeTokenId(TokenHelper.Rarities.Epic, TokenHelper.Types.Car),
+    TokenHelper.makeTokenId(TokenHelper.Rarities.Legendary, TokenHelper.Types.Car),
+    TokenHelper.makeTokenId(TokenHelper.Rarities.Apex, TokenHelper.Types.Car)
 ];
 
 const multiStakersScenario = function (creator, staker, otherStaker) {

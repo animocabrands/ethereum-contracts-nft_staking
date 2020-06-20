@@ -2,7 +2,7 @@ const { BN } = require('@openzeppelin/test-helpers');
 const { inventoryIds } = require('@animoca/blockchain-inventory_metadata');
 const { DefaultNFMaskLength } = require('@animoca/ethereum-contracts-assets_inventory').constants;
 
-const Type = {
+const Types = {
     None: 0,
     Car: 1,
     Driver: 2,
@@ -12,7 +12,7 @@ const Type = {
     Track: 6
 };
 
-const Rarity = {
+const Rarities = {
     Common: 1,
     Epic: 2,
     Legendary: 3,
@@ -55,9 +55,9 @@ function getRarity(tokenId) {
 }
 
 module.exports = {
-    Type: Type,
-    Rarity: Rarity,
-    makeTokenId: makeTokenId,
-    getType: getType,
-    getRarity: getRarity
+    Types,
+    Rarities,
+    makeTokenId,
+    getType,
+    getRarity
 };

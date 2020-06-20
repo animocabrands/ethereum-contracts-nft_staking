@@ -25,22 +25,22 @@ const preconditionsScenario = function (staker) {
         });
 
         it('should have assigned a weight of 1 for Common cars', async function () {
-            const weight = await this.stakingContract.weightByTokenAttribute(TokenHelper.Rarity.Common);
+            const weight = await this.stakingContract.weightByTokenAttribute(TokenHelper.Rarities.Common);
             weight.should.be.bignumber.equal(new BN(1));
         });
 
         it('should have assigned a weight of 10 for Epic cars', async function () {
-            const weight = await this.stakingContract.weightByTokenAttribute(TokenHelper.Rarity.Epic);
+            const weight = await this.stakingContract.weightByTokenAttribute(TokenHelper.Rarities.Epic);
             weight.should.be.bignumber.equal(new BN(10));
         });
 
         it('should have assigned a weight of 100 for Legendary cars', async function () {
-            const weight = await this.stakingContract.weightByTokenAttribute(TokenHelper.Rarity.Legendary);
+            const weight = await this.stakingContract.weightByTokenAttribute(TokenHelper.Rarities.Legendary);
             weight.should.be.bignumber.equal(new BN(100));
         });
 
         it('should have assigned a weight of 500 for Apex cars', async function () {
-            const weight = await this.stakingContract.weightByTokenAttribute(TokenHelper.Rarity.Apex);
+            const weight = await this.stakingContract.weightByTokenAttribute(TokenHelper.Rarities.Apex);
             weight.should.be.bignumber.equal(new BN(500));
         });
 
@@ -68,32 +68,32 @@ const preconditionsScenario = function (staker) {
                 balance.should.be.bignumber.equal(new BN(1));
 
                 const tokenType = TokenHelper.getType(tokenId)
-                tokenType.should.be.equal(TokenHelper.Type.Car);
+                tokenType.should.be.equal(TokenHelper.Types.Car);
             }
         });
 
         it('should have minted a Common car token for the staker', async function () {
             const tokenId = TokenIds[0];
             const rarity = TokenHelper.getRarity(tokenId);
-            rarity.should.be.equal(TokenHelper.Rarity.Common);
+            rarity.should.be.equal(TokenHelper.Rarities.Common);
         });
 
         it('should have minted an Epic car token for the staker', async function () {
             const tokenId = TokenIds[1];
             const rarity = TokenHelper.getRarity(tokenId);
-            rarity.should.be.equal(TokenHelper.Rarity.Epic);
+            rarity.should.be.equal(TokenHelper.Rarities.Epic);
         });
 
         it('should have minted an Apex car token for the staker', async function () {
             const tokenId = TokenIds[2];
             const rarity = TokenHelper.getRarity(tokenId);
-            rarity.should.be.equal(TokenHelper.Rarity.Legendary);
+            rarity.should.be.equal(TokenHelper.Rarities.Legendary);
         });
 
         it('should have minted an Apex car token for the staker', async function () {
             const tokenId = TokenIds[3];
             const rarity = TokenHelper.getRarity(tokenId);
-            rarity.should.be.equal(TokenHelper.Rarity.Apex);
+            rarity.should.be.equal(TokenHelper.Rarities.Apex);
         });
     });
 

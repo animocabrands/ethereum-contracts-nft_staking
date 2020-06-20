@@ -12,28 +12,28 @@ const PeriodLengthInSeconds = PeriodLengthInCycles.mul(CycleLengthInSeconds);
 
 const RarityWeights = [
     {
-        rarity: TokenHelper.Rarity.Common,
+        rarity: TokenHelper.Rarities.Common,
         weight: 1
     },
     {
-        rarity: TokenHelper.Rarity.Epic,
+        rarity: TokenHelper.Rarities.Epic,
         weight: 10
     },
     {
-        rarity: TokenHelper.Rarity.Legendary,
+        rarity: TokenHelper.Rarities.Legendary,
         weight: 100
     },
     {
-        rarity: TokenHelper.Rarity.Apex,
+        rarity: TokenHelper.Rarities.Apex,
         weight: 500
     }
 ];
 
 const TokenIds = [
-    TokenHelper.makeTokenId(TokenHelper.Rarity.Common, TokenHelper.Type.Car),
-    TokenHelper.makeTokenId(TokenHelper.Rarity.Epic, TokenHelper.Type.Car),
-    TokenHelper.makeTokenId(TokenHelper.Rarity.Legendary, TokenHelper.Type.Car),
-    TokenHelper.makeTokenId(TokenHelper.Rarity.Apex, TokenHelper.Type.Car)
+    TokenHelper.makeTokenId(TokenHelper.Rarities.Common, TokenHelper.Types.Car),
+    TokenHelper.makeTokenId(TokenHelper.Rarities.Epic, TokenHelper.Types.Car),
+    TokenHelper.makeTokenId(TokenHelper.Rarities.Legendary, TokenHelper.Types.Car),
+    TokenHelper.makeTokenId(TokenHelper.Rarities.Apex, TokenHelper.Types.Car)
 ];
 
 const DefaultRewardSchedule = [

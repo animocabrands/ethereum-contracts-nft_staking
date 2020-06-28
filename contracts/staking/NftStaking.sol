@@ -98,7 +98,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint256 amount;
     }
 
-    bool public disabled = false;
+    bool public enabled = true;
 
     uint256 public totalPrizePool = 0;
     uint256 public startTimestamp = 0;
@@ -124,7 +124,12 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     modifier isEnabled() {
-        require(!disabled, "NftStaking: contract disabled");
+        require(enabled, "NftStaking: contract is not enabled");
+        _;
+    }
+
+    modifier isNotEnabled() {
+        require(!enabled, "NftStaking: contract is enabled");
         _;
     }
 
@@ -216,15 +221,17 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * Permanently disables all staking and claiming.
      */
     function disable() public onlyOwner {
-        disabled = true;
+        enabled = false;
         emit Disabled();
     }
 
     /**
      * Withdraws a specified amount of rewards tokens from the contract.
+     * @dev Reverts if not called by the owner.
+     * @dev Reverts if the contract has not been disabled.
      * @param amount The amount to withdraw.
      */
-    function withdrawRewardsPool(uint256 amount) public onlyOwner {
+    function withdrawRewardsPool(uint256 amount) public onlyOwner isNotEnabled {
         require(
             rewardsTokenContract.transfer(msg.sender, amount),
             "NftStaking: failed to withdraw from the rewards pool"
@@ -280,7 +287,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
         uint16 currentCycle = _getCycle(now);
 
-        if (!disabled) {
+        if (enabled) {
             // ensure that at least an entire cycle has elapsed before unstaking the token to avoid
             // an exploit where a a fukll cycle would be claimable if staking just before the end
             // of a cycle and unstaking right after the start of the new cycle

@@ -30,16 +30,16 @@ const rewardsScheduleScenario = function (creator, notCreator) {
         context('when setting a consecutive reward schedule', function () {
             it('should have the correct total prize pool', async function () {
                 await this.stakingContract.setRewardsForPeriods(9, 10, reward, { from: creator });
-                const totalPrizePool = await this.stakingContract.totalPrizePool();
-                totalPrizePool.should.be.bignumber.equal(toWei('182000'));
+                const totalRewards = await this.stakingContract.getTotalRewards();
+                totalRewards.should.be.bignumber.equal(toWei('182000'));
             });
         });
 
         context('when setting an overlapping reward schedule', function () {
             it('should have the correct total prize pool', async function () {
                 await this.stakingContract.setRewardsForPeriods(4, 5, reward, { from: creator });
-                const totalPrizePool = await this.stakingContract.totalPrizePool();
-                totalPrizePool.should.be.bignumber.equal(toWei('311500'));
+                const totalRewards = await this.stakingContract.getTotalRewards();
+                totalRewards.should.be.bignumber.equal(toWei('311500'));
             });
         });
     });

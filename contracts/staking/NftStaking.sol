@@ -100,7 +100,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     bool public enabled = true;
 
-    uint256 public totalPrizePool = 0;
+    uint256 private _totalRewardPerCycles = 0;
+
     uint256 public startTimestamp = 0;
 
     IERC20 public immutable rewardsTokenContract;
@@ -176,29 +177,28 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     ) public onlyOwner {
         require(startPeriod != 0 && startPeriod <= endPeriod, "NftStaking: wrong period range");
 
-        uint256 unscheduledRewards = 0;
+        uint256 unscheduledRewardPerCycles = 0;
 
         for (uint16 period = startPeriod; period <= endPeriod; ++period) {
-            uint256 scheduledRewardsPerCycle = rewardsSchedule[period];
+            uint256 scheduledRewardPerCycle = rewardsSchedule[period];
 
-            if (scheduledRewardsPerCycle != 0) {
-                uint256 scheduledRewards =
-                    scheduledRewardsPerCycle.mul(periodLengthInCycles);
-
-                unscheduledRewards =
-                    unscheduledRewards.add(scheduledRewards);
+            if (scheduledRewardPerCycle != 0) {
+                unscheduledRewardPerCycles =
+                    unscheduledRewardPerCycles
+                    .add(scheduledRewardPerCycle);
             }
 
             rewardsSchedule[period] = rewardsPerCycle;
         }
 
-        uint256 scheduledRewards =
+        uint256 scheduledRewardPerCycles =
             rewardsPerCycle
-            .mul(periodLengthInCycles)
             .mul(endPeriod - startPeriod + 1);
 
-        totalPrizePool = totalPrizePool.add(scheduledRewards);
-        totalPrizePool = totalPrizePool.sub(unscheduledRewards);
+        _totalRewardPerCycles =
+            _totalRewardPerCycles
+            .add(scheduledRewardPerCycles)
+            .sub(unscheduledRewardPerCycles);
 
         emit RewardsScheduled(startPeriod, endPeriod, rewardsPerCycle);
     }
@@ -208,7 +208,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      */
     function start() public onlyOwner {
         require(
-            rewardsTokenContract.transferFrom(msg.sender, address(this), totalPrizePool),
+            rewardsTokenContract.transferFrom(msg.sender, address(this), getTotalRewards()),
             "NftStaking: failed to fund the reward pool"
         );
 
@@ -223,6 +223,15 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     function disable() public onlyOwner {
         enabled = false;
         emit Disabled();
+    }
+
+    /**
+     * Retrieves the total prize pool allocated for staking rewards, based on
+     * the current reward schedule.
+     * @return The current total prize pool.
+     */
+    function getTotalRewards() public view returns (uint256) {
+        return _totalRewardPerCycles.mul(periodLengthInCycles);
     }
 
     /**

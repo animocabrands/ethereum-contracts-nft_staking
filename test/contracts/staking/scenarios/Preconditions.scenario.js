@@ -103,9 +103,9 @@ const preconditionsScenario = function (staker) {
             rewardsToken.should.be.equal(this.rewardsToken.address);
         });
 
-        it(`should have a token balance equal to the total prize pool`, async function () {
+        it(`should have a token balance equal to the total rewards`, async function () {
             const balance = await this.rewardsToken.balanceOf(this.stakingContract.address);
-            balance.should.be.bignumber.equal(await this.stakingContract.totalPrizePool());
+            balance.should.be.bignumber.equal(await this.stakingContract.getTotalRewards());
         });
     });
 }

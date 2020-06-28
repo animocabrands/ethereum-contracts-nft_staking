@@ -283,13 +283,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             // attempting a non-safe transferFrom() of the token in the case
             // that the failure was caused by a ethereum client wallet
             // implementation that does not support safeTransferFrom()
-        } catch Error(string memory /*reason*/) {
-            // executed in case revert was called inside
-            // getData and a reason string was provided.
-            IERC721(whitelistedNftContract).transferFrom(address(this), msg.sender, tokenId);
-        } catch (bytes memory /*lowLevelData*/) {
-            // executed in case revert() was used or there was
-            // a failing assertion, division by zero, etc. inside getData.
+        } catch {
             IERC721(whitelistedNftContract).transferFrom(address(this), msg.sender, tokenId);
         }
 

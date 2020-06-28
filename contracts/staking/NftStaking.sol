@@ -168,8 +168,10 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     /**
      * Sets the rewards for a range of periods.
+     * @dev Reverts if not called by the owner.
      * @dev Reverts if the start or end periods are zero.
      * @dev Reverts if the end period is before the start period.
+     * @dev Reverts if attempting to set the reward schedule for a period earlier than the current, after staking has started.
      * @dev Emits the RewardSet event when the function is called successfully.
      * @param startPeriod The starting period (inclusive).
      * @param endPeriod The ending period (inclusive).
@@ -181,6 +183,12 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint256 rewardsPerCycle
     ) public onlyOwner {
         require(startPeriod != 0 && startPeriod <= endPeriod, "NftStaking: wrong period range");
+
+        if (startTimestamp != 0) {
+            require(
+                startPeriod >= _getCurrentPeriod(periodLengthInCycles),
+                "NftStaking: already committed reward schedule");
+        }
 
         uint256 unscheduledRewardPerCycles = 0;
 

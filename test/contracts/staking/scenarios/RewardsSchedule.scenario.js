@@ -1,6 +1,8 @@
 const { BN, expectRevert } = require('@openzeppelin/test-helpers');
 const { toWei } = require("web3-utils");
 
+const { shouldTimeWarpBy } = require('../behaviors');
+
 const reward = toWei('10000');
 
 const rewardsScheduleScenario = function (creator, notCreator) {
@@ -24,6 +26,17 @@ const rewardsScheduleScenario = function (creator, notCreator) {
             this.stakingContract.setRewardsForPeriods(10, 9, reward, { from: creator }),
             'NftStaking: wrong period range'
         );
+    });
+
+    describe('warping 2 periods', function () {
+        shouldTimeWarpBy({ periods: 2 }, { cycle: 15 });
+
+        it ('should revert if setting the reward schedule for a past period', async function () {
+            await expectRevert(
+                this.stakingContract.setRewardsForPeriods(1, 2, reward, { from: creator }),
+                'NftStaking: already committed reward schedule'
+            );
+        });
     });
 
     describe('when setting a valid period range', function () {

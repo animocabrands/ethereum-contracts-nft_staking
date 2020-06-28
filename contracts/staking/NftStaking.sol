@@ -124,6 +124,11 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         _;
     }
 
+    modifier hasNotStarted() {
+        require(startTimestamp == 0, "NftStaking: staking has started");
+        _;
+    }
+
     modifier isEnabled() {
         require(enabled, "NftStaking: contract is not enabled");
         _;
@@ -205,8 +210,11 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     /**
      * Transfers the total prize pool to the contract and starts the first cycle.
+     * @dev Reverts if not called by the owner.
+     * @dev Reverts if the staking has already started.
+     * @dev Reverts if the current total prize pool cannot be allocated to the contract.
      */
-    function start() public onlyOwner {
+    function start() public onlyOwner hasNotStarted {
         require(
             rewardsTokenContract.transferFrom(msg.sender, address(this), getTotalRewards()),
             "NftStaking: failed to fund the reward pool"

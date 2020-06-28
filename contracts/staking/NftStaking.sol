@@ -103,8 +103,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     uint256 public totalPrizePool = 0;
     uint256 public startTimestamp = 0;
 
-    address /* IERC20 */ public immutable rewardsTokenContract;
-    address /* IERC1155 */ public immutable whitelistedNftContract;
+    IERC20 public immutable rewardsTokenContract;
+    address /* IERC1155/IERC721 */ public immutable whitelistedNftContract;
 
     uint32 public immutable cycleLengthInSeconds;
     uint16 public immutable periodLengthInCycles;
@@ -141,7 +141,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint32 cycleLengthInSeconds_,
         uint16 periodLengthInCycles_,
         address whitelistedNftContract_,
-        address rewardsTokenContract_
+        IERC20 rewardsTokenContract_
     ) internal {
         require(cycleLengthInSeconds_ >= 1 minutes, "NftStaking: invalid cycle length");
         require(periodLengthInCycles_ >= 2, "NftStaking: invalid period length");
@@ -190,7 +190,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      */
     function start() public onlyOwner {
         require(
-            IERC20(rewardsTokenContract).transferFrom(msg.sender, address(this), totalPrizePool),
+            rewardsTokenContract.transferFrom(msg.sender, address(this), totalPrizePool),
             "NftStaking: failed to fund the reward pool"
         );
 
@@ -213,7 +213,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      */
     function withdrawRewardsPool(uint256 amount) public onlyOwner {
         require(
-            IERC20(rewardsTokenContract).transfer(msg.sender, amount),
+            rewardsTokenContract.transfer(msg.sender, amount),
             "NftStaking: failed to withdraw from the rewards pool"
         );
     }
@@ -350,7 +350,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
         if (claim.amount != 0) {
             require(
-                IERC20(rewardsTokenContract).transfer(msg.sender, claim.amount),
+                rewardsTokenContract.transfer(msg.sender, claim.amount),
                 "NftStaking: failed to transfer rewards");
         }
 

@@ -171,7 +171,19 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     ) public onlyOwner {
         require(startPeriod != 0 && startPeriod <= endPeriod, "NftStaking: wrong period range");
 
+        uint256 unscheduledRewards = 0;
+
         for (uint16 period = startPeriod; period <= endPeriod; ++period) {
+            uint256 scheduledRewardsPerCycle = rewardsSchedule[period];
+
+            if (scheduledRewardsPerCycle != 0) {
+                uint256 scheduledRewards =
+                    scheduledRewardsPerCycle.mul(periodLengthInCycles);
+
+                unscheduledRewards =
+                    unscheduledRewards.add(scheduledRewards);
+            }
+
             rewardsSchedule[period] = rewardsPerCycle;
         }
 
@@ -181,6 +193,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             .mul(endPeriod - startPeriod + 1);
 
         totalPrizePool = totalPrizePool.add(scheduledRewards);
+        totalPrizePool = totalPrizePool.sub(unscheduledRewards);
 
         emit RewardsScheduled(startPeriod, endPeriod, rewardsPerCycle);
     }

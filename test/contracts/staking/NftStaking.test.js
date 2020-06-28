@@ -10,7 +10,8 @@ const {
     multiNftStakingMultiPeriodScenario, periodLimitsScenario,
     multiStakersScenario, multiStakersSinglePeriodScenario, multiStakersMultiPeriodScenario,
     gasHeavyScenario, restakeScenario, nonWhitelistedNftContractScenario,
-    batchStakeScenario, earlyUnstakeScenario, claimScenario, invalidNftOwnerScenario
+    batchStakeScenario, earlyUnstakeScenario, claimScenario, invalidNftOwnerScenario,
+    rewardsScheduleScenario
 } = require('./scenarios');
 
 describe('NftStaking', function () {
@@ -125,6 +126,13 @@ describe('NftStaking', function () {
         before(start);
 
         invalidNftOwnerScenario(staker, otherStaker);
+    });
+
+    describe('[[Scenario]] Rewards Schedule', function () {
+        before(deploy);
+        before(start);
+
+        rewardsScheduleScenario(creator, staker);
     });
 
     describe("Interface support", function () {

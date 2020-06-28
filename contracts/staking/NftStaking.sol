@@ -644,14 +644,14 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      */
     function _updateHistories(address staker, int128 stakeDelta, uint16 currentCycle) internal
     {
-        Snapshot memory stakerSnapshot = _updateHistory(stakerHistories[staker], stakeDelta, currentCycle);
-        Snapshot memory globalSnapshot = _updateHistory(globalHistory, stakeDelta, currentCycle);
+        uint256 stakerSnapshotIndex = _updateHistory(stakerHistories[staker], stakeDelta, currentCycle);
+        uint256 globalSnapshotIndex = _updateHistory(globalHistory, stakeDelta, currentCycle);
 
         emit HistoriesUpdated(
             staker,
             currentCycle,
-            stakerSnapshot.stake,
-            globalSnapshot.stake
+            stakerHistories[staker][stakerSnapshotIndex].stake,
+            globalHistory[globalSnapshotIndex].stake
         );
     }
 
@@ -661,17 +661,21 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @param history The history to update.
      * @param stakeDelta The difference to apply to the current stake.
      * @param currentCycle The current cycle.
+     * @return snapshotIndex Index of the snapshot that was updated or created (i.e. the latest snapshot index).
      */
     function _updateHistory(
         Snapshot[] storage history,
         int128 stakeDelta,
         uint16 currentCycle
-    ) internal returns (Snapshot memory snapshot)
+    ) internal returns (uint256 snapshotIndex)
     {
+        Snapshot memory snapshot;
         uint256 historyLength = history.length;
+
         if (historyLength != 0) {
-            // there is an existing staker snapshot
-            snapshot = history[historyLength - 1];
+            // there is an existing snapshot
+            snapshotIndex = historyLength - 1;
+            snapshot = history[snapshotIndex];
         }
 
         snapshot.stake = uint256(
@@ -681,11 +685,18 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         if (snapshot.startCycle == currentCycle) {
             // can only happen if there was a previous snapshot as currentCycle cannot be zero!
             // replace the existing snapshot if it starts on the current cycle
-            history[historyLength - 1] = snapshot;
+            history[snapshotIndex] = snapshot;
         } else {
             // add a new snapshot in the history
             snapshot.startCycle = currentCycle;
             history.push(snapshot);
+
+            // only update the snapshot index (to indicate a snapshot was added)
+            // to the history if there was an existing snapshot, otherwise the
+            // snapshot index is already initialized to the correct value 0
+            if (historyLength != 0) {
+                snapshotIndex += 1;
+            }
         }
     }
 

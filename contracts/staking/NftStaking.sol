@@ -438,8 +438,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @return The last staker snapshot index, or throws if there are no staker history.
      */
     function lastStakerSnapshotIndex(address staker) external view returns (uint256) {
-        Snapshot[] memory stakerHistory = stakerHistories[staker];
-        uint256 length = stakerHistory.length;
+        uint256 length = stakerHistories[staker].length;
         require(length != 0, "NftStaking: empty staker history");
         return length - 1;
     }

@@ -314,7 +314,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
         if (enabled) {
             // ensure that at least an entire cycle has elapsed before unstaking the token to avoid
-            // an exploit where a a fukll cycle would be claimable if staking just before the end
+            // an exploit where a a full cycle would be claimable if staking just before the end
             // of a cycle and unstaking right after the start of the new cycle
             require(currentCycle - tokenInfo.depositCycle >= 2, "NftStaking: token still frozen");
 

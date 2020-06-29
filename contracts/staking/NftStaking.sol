@@ -429,7 +429,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      */
     function lastGlobalSnapshotIndex() external view returns (uint256) {
         uint256 length = globalHistory.length;
-        require(length > 0, "NftStaking: empty global history");
+        require(length != 0, "NftStaking: empty global history");
         return length - 1;
     }
 
@@ -440,7 +440,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     function lastStakerSnapshotIndex(address staker) external view returns (uint256) {
         Snapshot[] memory stakerHistory = stakerHistories[staker];
         uint256 length = stakerHistory.length;
-        require(length > 0, "NftStaking: empty staker history");
+        require(length != 0, "NftStaking: empty staker history");
         return length - 1;
     }
 

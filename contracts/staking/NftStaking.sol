@@ -669,35 +669,42 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint16 currentCycle
     ) internal returns (uint256 snapshotIndex)
     {
-        Snapshot memory snapshot;
         uint256 historyLength = history.length;
+        uint128 snapshotStake;
 
         if (historyLength != 0) {
             // there is an existing snapshot
             snapshotIndex = historyLength - 1;
-            snapshot = history[snapshotIndex];
-        }
+            Snapshot storage snapshot = history[snapshotIndex];
+            snapshotStake = uint256(int256(snapshot.stake).add(stakeDelta)).toUint128();
 
-        snapshot.stake = uint256(
-            int256(snapshot.stake).add(stakeDelta)
-        ).toUint128();
-
-        if (snapshot.startCycle == currentCycle) {
-            // can only happen if there was a previous snapshot as currentCycle cannot be zero!
-            // replace the existing snapshot if it starts on the current cycle
-            history[snapshotIndex] = snapshot;
-        } else {
-            // add a new snapshot in the history
-            snapshot.startCycle = currentCycle;
-            history.push(snapshot);
-
-            // only update the snapshot index (to indicate a snapshot was added)
-            // to the history if there was an existing snapshot, otherwise the
-            // snapshot index is already initialized to the correct value 0
-            if (historyLength != 0) {
-                snapshotIndex += 1;
+            if (snapshot.startCycle == currentCycle) {
+                // update the snapshot if it starts on the current cycle
+                snapshot.stake = snapshotStake;
+                return snapshotIndex;
             }
+
+            // update the snapshot index (as a reflection that a new latest
+            // snapshot will be added to the history), if there was already an
+            // existing snapshot
+            snapshotIndex += 1;
+        } else {
+            // the snapshot index (as a reflection that a new latest snapshot
+            // will be added to the history) should already be initialized
+            // correctly to the default value 0
+
+            // the stake delta will not be negative, if we have no history, as
+            // that would indicate that we are unstaking without having staked
+            // anything first
+            snapshotStake = uint256(stakeDelta).toUint128();
         }
+
+        Snapshot memory snapshot;
+        snapshot.stake = snapshotStake;
+        snapshot.startCycle = currentCycle;
+
+        // add a new snapshot in the history
+        history.push(snapshot);
     }
 
 

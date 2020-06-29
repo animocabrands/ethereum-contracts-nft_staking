@@ -524,10 +524,10 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         }
 
         uint16 periodLengthInCycles_ = periodLengthInCycles;
-        uint16 currentPeriod = _getCurrentPeriod(periodLengthInCycles_);
+        uint16 endClaimPeriod = _getCurrentPeriod(periodLengthInCycles_);
 
         // current period is not claimable
-        if (nextClaim.period == currentPeriod) {
+        if (nextClaim.period == endClaimPeriod) {
             return (claim, nextClaim);
         }
 
@@ -546,11 +546,20 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             nextStakerSnapshot = stakerHistory[nextClaim.stakerSnapshotIndex + 1];
         }
 
+        // excludes the current period
+        claim.periods = endClaimPeriod - nextClaim.period;
+
+        if (maxPeriods < claim.periods) {
+            claim.periods = maxPeriods;
+        }
+
+        // re-calibrate the end claim period based on the actual number of
+        // periods to claim. nextClaim.period will be updated to this value
+        // after exiting the loop
+        endClaimPeriod = nextClaim.period + claim.periods;
+
         // iterate over periods
-        while (
-            (claim.periods != maxPeriods) &&
-            (nextClaim.period != currentPeriod)
-        ) {
+        while (nextClaim.period != endClaimPeriod) {
             uint16 nextPeriodStartCycle = nextClaim.period * periodLengthInCycles_ + 1;
             uint256 rewardPerCycle = rewardsSchedule[nextClaim.period];
             uint256 startCycle = nextPeriodStartCycle - periodLengthInCycles_;
@@ -629,7 +638,6 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                 }
             }
 
-            ++claim.periods;
             ++nextClaim.period;
         }
 

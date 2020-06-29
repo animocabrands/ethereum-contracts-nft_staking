@@ -116,9 +116,6 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     mapping(uint256 /* tokenId */ => TokenInfo) public tokenInfos;
     mapping(uint256 /* period */ => uint256 /* rewardsPerCycle */) public rewardsSchedule;
 
-    // used to preserve significant figures in floating point calculations
-    uint64 internal constant _DIVS_PRECISION = 10 ** 15;
-
     modifier hasStarted() {
         require(startTimestamp != 0, "NftStaking: staking not started");
         _;
@@ -601,10 +598,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                     uint256 snapshotReward =
                         (endCycle - startCycle)
                         .mul(rewardPerCycle)
-                        .mul(stakerSnapshot.stake)
-                        .mul(_DIVS_PRECISION);
+                        .mul(stakerSnapshot.stake);
                     snapshotReward /= globalSnapshot.stake;
-                    snapshotReward /= _DIVS_PRECISION;
 
                     claim.amount = claim.amount.add(snapshotReward);
                 }

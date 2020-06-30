@@ -7,8 +7,6 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/math/SignedSafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@animoca/ethereum-contracts-erc20_base/contracts/token/ERC20/IERC20.sol";
-import "@animoca/ethereum-contracts-assets_inventory/contracts/token/ERC721/IERC721.sol";
-import "@animoca/ethereum-contracts-assets_inventory/contracts/token/ERC1155/IERC1155.sol";
 import "@animoca/ethereum-contracts-assets_inventory/contracts/token/ERC1155/ERC1155TokenReceiver.sol";
 
 /**
@@ -105,7 +103,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     uint256 public startTimestamp = 0;
 
     IERC20 public immutable rewardsTokenContract;
-    address /* IERC1155/IERC721 */ public immutable whitelistedNftContract;
+    IWhitelistedNftContract public immutable whitelistedNftContract;
 
     uint32 public immutable cycleLengthInSeconds;
     uint16 public immutable periodLengthInCycles;
@@ -142,13 +140,13 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @dev Reverts if the cycle length value is zero.
      * @param cycleLengthInSeconds_ The length of a cycle, in seconds.
      * @param periodLengthInCycles_ The length of a period, in cycles.
-     * @param whitelistedNftContract_ The ERC1155-compliant contract from which staking is accepted.
+     * @param whitelistedNftContract_ The ERC1155-compliant (optional ERC721-compliance) contract from which staking is accepted.
      * @param rewardsTokenContract_ The ERC20-based token used as staking rewards.
      */
     constructor(
         uint32 cycleLengthInSeconds_,
         uint16 periodLengthInCycles_,
-        address whitelistedNftContract_,
+        IWhitelistedNftContract whitelistedNftContract_,
         IERC20 rewardsTokenContract_
     ) internal {
         require(cycleLengthInSeconds_ >= 1 minutes, "NftStaking: invalid cycle length");
@@ -321,12 +319,12 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             tokenInfos[tokenId].owner = address(0);
         }
 
-        try IERC1155(whitelistedNftContract).safeTransferFrom(address(this), msg.sender, tokenId, 1, "") {
+        try whitelistedNftContract.safeTransferFrom(address(this), msg.sender, tokenId, 1, "") {
+        } catch {
             // attempting a non-safe transferFrom() of the token in the case
             // that the failure was caused by a ethereum client wallet
             // implementation that does not support safeTransferFrom()
-        } catch {
-            IERC721(whitelistedNftContract).transferFrom(address(this), msg.sender, tokenId);
+            whitelistedNftContract.transferFrom(address(this), msg.sender, tokenId);
         }
 
         emit NftUnstaked(msg.sender, currentCycle, tokenId, tokenInfo.weight);
@@ -459,7 +457,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint256 tokenId,
         address tokenOwner
     ) internal isEnabled hasStarted {
-        require(whitelistedNftContract == msg.sender, "NftStaking: contract not whitelisted");
+        require(address(whitelistedNftContract) == msg.sender, "NftStaking: contract not whitelisted");
 
         uint64 weight = _validateAndGetNftWeight(tokenId);
 
@@ -755,5 +753,38 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @return uint64 the weight of the NFT.
      */
     function _validateAndGetNftWeight(uint256 tokenId) internal virtual view returns (uint64);
+
+}
+
+/**
+ * @dev Interface for the NftStaking whitelisted NFT contract.
+ */
+interface IWhitelistedNftContract {
+
+    /**
+     * @notice Transfers `value` amount of an `id` from  `from` to `to` (with safety call).
+     * @dev Caller must be approved to manage the tokens being transferred out of the `from` account (see "Approval" section of the standard).
+     * MUST revert if `to` is the zero address.
+     * MUST revert if balance of holder for token `id` is lower than the `value` sent.
+     * MUST revert on any other error.
+     * MUST emit the `TransferSingle` event to reflect the balance change (see "Safe Transfer Rules" section of the standard).
+     * After the above conditions are met, this function MUST check if `to` is a smart contract (e.g. code size > 0). If so, it MUST call `onERC1155Received` on `to` and act appropriately (see "Safe Transfer Rules" section of the standard).
+     * @param from Source address
+     * @param to Target address
+     * @param id ID of the token type
+     * @param value Transfer amount
+     * @param data Additional data with no specified format, MUST be sent unaltered in call to `onERC1155Received` on `to`
+     */
+    function safeTransferFrom(address from, address to, uint256 id, uint256 value, bytes calldata data) external;
+
+    /**
+     * @dev Transfers the ownership of a given token ID to another address.
+     * Usage of this method is discouraged, use `safeTransferFrom` whenever possible.
+     * Requires the msg sender to be the owner, approved, or operator.
+     * @param from current owner of the token.
+     * @param to address to receive the ownership of the given token ID.
+     * @param tokenId uint256 ID of the token to be transferred.
+     */
+    function transferFrom(address from, address to, uint256 tokenId) external;
 
 }

@@ -12,7 +12,7 @@ contract NftStakingMock is NftStaking {
     constructor(
         uint32 cycleLengthInSeconds_,
         uint16 periodLengthInCycles_,
-        address whitelistedNftContract_,
+        IWhitelistedNftContract whitelistedNftContract_,
         IERC20 rewardsTokenContract_,
         uint256[] memory tokenAttribute,
         uint64[] memory weights

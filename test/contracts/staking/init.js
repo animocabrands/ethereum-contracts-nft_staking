@@ -42,7 +42,7 @@ async function deploy() {
 
 async function start(rewardSchedule = DefaultRewardSchedule) {
     for (schedule of rewardSchedule) {
-        await this.stakingContract.setRewardsForPeriods(
+        await this.stakingContract.addRewardsForPeriods(
             schedule.startPeriod,
             schedule.endPeriod,
             toWei(schedule.rewardPerCycle),

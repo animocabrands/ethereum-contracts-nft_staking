@@ -128,11 +128,17 @@ describe('NftStaking', function () {
         invalidNftOwnerScenario(staker, otherStaker);
     });
 
-    describe('[[Scenario]] Rewards Schedule', function () {
+    describe('[[Scenario]] RewardsSchedule (pre-start)', function () {
+        before(deploy);
+
+        rewardsScheduleScenario(creator, staker, false);
+    })
+
+    describe('[[Scenario]] Rewards Schedule (post-start)', function () {
         before(deploy);
         before(start);
 
-        rewardsScheduleScenario(creator, staker);
+        rewardsScheduleScenario(creator, staker, true);
     });
 
     describe("Interface support", function () {

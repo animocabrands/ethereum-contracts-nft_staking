@@ -163,6 +163,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     /**
      * Adds `rewardsPerCycle` reward amount for the period range from `startPeriod` to `endPeriod`, inclusive, to the rewards schedule.
+     * The necessary amount of rewards token is transferred to the contract. Cannot be used for past periods if the staking is already started.
      * @dev Reverts if not called by the owner.
      * @dev Reverts if the start or end periods are zero.
      * @dev Reverts if the end period is before the start period.
@@ -210,10 +211,9 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * Transfers the total prize pool to the contract and starts the first cycle.
+     * Starts the first cycle of staking, enabling users to stake NFTs.
      * @dev Reverts if not called by the owner.
      * @dev Reverts if the staking has already started.
-     * @dev Reverts if the current total prize pool cannot be allocated to the contract.
      */
     function start() public onlyOwner hasNotStarted {
         startTimestamp = now;
@@ -221,7 +221,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * Permanently disables all staking and claiming.
+     * Permanently disables all staking and claiming. This is an emergency
+     * recovery feature which is NOT part of the normal contract operation.
      */
     function disable() public onlyOwner {
         enabled = false;
@@ -229,7 +230,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * Withdraws a specified amount of rewards tokens from the contract.
+     * Withdraws a specified amount of rewards tokens from the contract after the
+     * staking has been disabled.
      * @dev Reverts if not called by the owner.
      * @dev Reverts if the contract has not been disabled.
      * @param amount The amount to withdraw.
@@ -274,7 +276,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 //////////////////////////////////// Staking Public Functions /////////////////////////////////////
 
     /**
-     * Unstakes a deposited NFT from the contract.
+     * Unstakes a deposited NFT from the contract and updates the histories accordingly.
+     * When an NFT is unstaked, its weight will not count for the current cycle.
      * @dev Reverts if the caller is not the original owner of the NFT.
      * @dev While the contract is enabled, reverts if there are outstanding rewards to be claimed.
      * @dev While the contract is enabled, reverts if NFT is being unstaked before the staking freeze duration has elapsed.
@@ -314,7 +317,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * Estimates the claimable rewards for the specified number of periods.
+     * Estimates the claimable rewards for the specified maximum number of periods, starting at
+     * the next claimable period. The rewards for the current period cannot be estimated.
      * @param maxPeriods The maximum number of periods to calculate for.
      * @return startPeriod The first period on which the computation starts.
      * @return periods The number of periods computed for.
@@ -332,7 +336,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * Claims the rewards for the specified number of periods.
+     * Claims the claimable rewards for the specified maximum number of periods, starting at
+     * the next claimable period. The rewards for the current period cannot be claimed.
      * @dev Creates any missing snapshots, up-to the current cycle.
      * @dev Emits the RewardsClaimed event when the function is called successfully.
      * @dev May emit the HistoriesUpdated event if any snapshots are created or modified to ensure that snapshots exist, up-to the current cycle.

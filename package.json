@@ -1,6 +1,6 @@
 {
   "name": "@animoca/ethereum-contracts-nft_staking",
-  "version": "2.0.1",
+  "version": "3.0.0",
   "description": "Contracts for staking of ERC1155 NFTs vs claimable ERC20",
   "scripts": {
     "compile": "./node_modules/@animoca/ethereum-contracts-core_library/scripts/oz-compile.sh",

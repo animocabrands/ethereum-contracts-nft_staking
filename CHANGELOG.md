@@ -1,5 +1,18 @@
 # Changelog
 
+## 3.0.0 (02/07/2020)
+
+### New features
+ * Added `addRewardsForPeriods()` function, which initializes or adds reward amounts for the specified period range. This will perform a transfer operation to fund the contract with the added rewards amount when called.
+ * Added contract interface `IWhitelistedNftContract` to define the API for the whitelisted contract used for NFT transfer operations when unstaking.
+
+### Breaking changes
+ * Removed `setRewardsForPeriods()` function.
+ * Funding the contract rewards no longer occurs when calling the `start()` function. Instead, this happens whenever `addRewardsForPeriods()` is called.
+ * Removed `disabled` state variable, for representing the contract enabled state, and replaced with `enabled`.
+ * Renamed `RewardsScheduled` event to `RewardsAdded`.
+ * Renamed `totalPrizePool` state variable to `totalRewardsPool`.
+
 ## 2.0.1 (20/06/2020)
 
 ### New features

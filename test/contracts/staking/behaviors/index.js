@@ -3,11 +3,13 @@ const claiming = require('./claiming.behavior');
 const staking = require('./staking.behavior');
 const time = require('./time.behavior');
 const state = require('./state.behavior');
+const rewards = require('./rewards.behavior');
 
 module.exports = {
     ...debug,
     ...claiming,
     ...staking,
     ...time,
-    ...state
+    ...state,
+    ...rewards
 }

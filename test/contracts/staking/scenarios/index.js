@@ -9,6 +9,7 @@ const { batchStakeScenario } = require('./BatchStake.scenario');
 const { earlyUnstakeScenario } = require('./EarlyUnstake.scenario');
 const Claim = require('./Claim.scenario');
 const InvalidNftOwner = require('./InvalidNftOwner.scenario');
+const RewardsScheduleScenario = require('./RewardsSchedule.scenario');
 
 module.exports = {
     preconditionsScenario,
@@ -21,5 +22,6 @@ module.exports = {
     batchStakeScenario,
     earlyUnstakeScenario,
     ...Claim,
-    ...InvalidNftOwner
+    ...InvalidNftOwner,
+    ...RewardsScheduleScenario
 }

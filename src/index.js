@@ -3,5 +3,5 @@ const constants = require('./constants');
 
 module.exports = {
     utils,
-    constants
+    constants,
 };

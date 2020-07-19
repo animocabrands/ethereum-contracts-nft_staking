@@ -1,5 +1,5 @@
-const { fromWei } = require('web3-utils');
-const { PeriodLengthInCycles } = require('../constants');
+const {fromWei} = require('web3-utils');
+const {PeriodLengthInCycles} = require('../constants');
 
 const TITLE_WIDTH = 25;
 const TITLE_PARTITION = '|';
@@ -63,7 +63,7 @@ async function renderRewardsScheduleMarks(period) {
         rewardsSchedule.push(await this.stakingContract.rewardsSchedule(count));
     }
 
-    for (let index = 0; index < (period - 1); index++) {
+    for (let index = 0; index < period - 1; index++) {
         marks += fromWei(rewardsSchedule[index]).padEnd(21, ' ');
     }
 
@@ -93,7 +93,7 @@ function renderPeriodGraph(cycle, period) {
         graph += `[${'`'.repeat(19)}]`.repeat(period - 1);
     }
 
-    graph += trailingCycles == 0 ? '' : '[' + '`'.repeat((trailingCycles * 3) - 2);
+    graph += trailingCycles == 0 ? '' : '[' + '`'.repeat(trailingCycles * 3 - 2);
 
     console.log(graph);
 }
@@ -102,10 +102,10 @@ function renderCycleMarks(period) {
     let marks = getTitleString();
 
     for (let count = 1; count < period; count++) {
-        marks += (((count - 1) * PeriodLengthInCycles) + 1).toString().padEnd(21, ' ');
+        marks += ((count - 1) * PeriodLengthInCycles + 1).toString().padEnd(21, ' ');
     }
 
-    marks += (((period - 1) * PeriodLengthInCycles) + 1).toString();
+    marks += ((period - 1) * PeriodLengthInCycles + 1).toString();
 
     console.log(marks);
 }
@@ -120,7 +120,7 @@ function renderCycleGraph(cycle, period) {
     }
 
     if (trailingCycles > 0) {
-        graph += '|-'
+        graph += '|-';
 
         if (trailingCycles > 1) {
             graph += '-*-'.repeat(trailingCycles - 1);
@@ -199,10 +199,10 @@ function renderHistoryGraph(cycle, label, history) {
         if (index < history.length - 1) {
             const nextSnapshot = history[index + 1];
             const endCycle = nextSnapshot.startCycle.toNumber() - 1;
-            graph += `[${'.'.repeat(((endCycle - startCycle + 1) * 3) - 2)}]`;
+            graph += `[${'.'.repeat((endCycle - startCycle + 1) * 3 - 2)}]`;
         } else {
             const endCycle = cycle;
-            graph += `[${'.'.repeat(((endCycle - startCycle + 1) * 3) - 2)}`;
+            graph += `[${'.'.repeat((endCycle - startCycle + 1) * 3 - 2)}`;
         }
     }
 
@@ -307,32 +307,31 @@ const shouldDebugCurrentState = function (...stakers) {
         await debugCurrentState.bind(this, ...stakers)();
         true.should.be.true;
     });
-}
+};
 
 // to be used in before() of a scenario
 const initialiseDebug = function (...stakers) {
     this.stakers = stakers;
     this.debug = process.env['DEBUG'];
-}
+};
 
 const suspendDebugOutput = function () {
     it('suspends debug output', function () {
         this.debugBackup = this.debug;
         this.debug = false;
     });
-}
+};
 
 const resumeDebugOutput = function () {
     it('suspends debug output', function () {
         this.debug = this.debugBackup;
     });
-
-}
+};
 
 module.exports = {
     shouldDebugCurrentState,
     debugCurrentState,
     initialiseDebug,
     suspendDebugOutput,
-    resumeDebugOutput
-}
+    resumeDebugOutput,
+};

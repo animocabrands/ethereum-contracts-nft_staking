@@ -98,9 +98,9 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     bool public enabled = true;
 
-    uint256 public totalRewardsPool = 0;
+    uint256 public totalRewardsPool;
 
-    uint256 public startTimestamp = 0;
+    uint256 public startTimestamp;
 
     IERC20 public immutable rewardsTokenContract;
     IWhitelistedNftContract public immutable whitelistedNftContract;
@@ -163,7 +163,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     /**
      * Adds `rewardsPerCycle` reward amount for the period range from `startPeriod` to `endPeriod`, inclusive, to the rewards schedule.
-     * The necessary amount of rewards token is transferred to the contract. Cannot be used for past periods if the staking is already started.
+     * The necessary amount of rewards token is transferred to the contract. Cannot be used for past periods. Can only be used to add
+     * rewards and not to remove them.
      * @dev Reverts if not called by the owner.
      * @dev Reverts if the start or end periods are zero.
      * @dev Reverts if the end period is before the start period.
@@ -190,7 +191,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                 "NftStaking: already committed reward schedule");
         }
 
-        for (uint16 period = startPeriod; period <= endPeriod; ++period) {
+        for (uint256 period = startPeriod; period <= endPeriod; ++period) {
             rewardsSchedule[period] = rewardsSchedule[period].add(rewardsPerCycle);
         }
 
@@ -463,11 +464,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         }
 
         // set the staked token's info
-        TokenInfo memory tokenInfo;
-        tokenInfo.depositCycle = currentCycle;
-        tokenInfo.owner = tokenOwner;
-        tokenInfo.weight = weight;
-        tokenInfos[tokenId] = tokenInfo;
+        tokenInfos[tokenId] = TokenInfo(tokenOwner, weight, currentCycle);
 
         emit NftStaked(tokenOwner, currentCycle, tokenId, weight);
     }
@@ -684,7 +681,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             // the stake delta will not be negative, if we have no history, as
             // that would indicate that we are unstaking without having staked
             // anything first
-            snapshotStake = uint256(stakeDelta).toUint128();
+            snapshotStake = uint128(stakeDelta);
         }
 
         Snapshot memory snapshot;

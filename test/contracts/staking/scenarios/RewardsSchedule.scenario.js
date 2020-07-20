@@ -1,10 +1,7 @@
-const { BN, expectRevert } = require('@openzeppelin/test-helpers');
-const { toWei } = require("web3-utils");
+const {BN, expectRevert} = require('@openzeppelin/test-helpers');
+const {toWei} = require('web3-utils');
 
-const {
-    shouldAddRewardsForPeriods, shouldRevertAndNotAddRewardsForPeriods,
-    shouldTimeWarpBy
-} = require('../behaviors');
+const {shouldAddRewardsForPeriods, shouldRevertAndNotAddRewardsForPeriods, shouldTimeWarpBy} = require('../behaviors');
 
 const reward = toWei('10000');
 
@@ -22,11 +19,17 @@ const rewardsScheduleScenario = function (creator, notCreator, started) {
     });
 
     describe('warping 2 periods', function () {
-        shouldTimeWarpBy({ periods: 2 });
+        shouldTimeWarpBy({periods: 2});
 
         context('when adding rewards to a past period', function () {
             if (started) {
-                shouldRevertAndNotAddRewardsForPeriods(creator, 1, 2, reward, 'NftStaking: already committed reward schedule');
+                shouldRevertAndNotAddRewardsForPeriods(
+                    creator,
+                    1,
+                    2,
+                    reward,
+                    'NftStaking: already committed reward schedule'
+                );
             } else {
                 shouldAddRewardsForPeriods(creator, 1, 2, reward);
             }
@@ -46,8 +49,8 @@ const rewardsScheduleScenario = function (creator, notCreator, started) {
             });
         });
     });
-}
+};
 
 module.exports = {
-    rewardsScheduleScenario
-}
+    rewardsScheduleScenario,
+};

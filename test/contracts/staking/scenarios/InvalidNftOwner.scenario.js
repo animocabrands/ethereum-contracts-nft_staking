@@ -1,11 +1,8 @@
-const {
-    shouldStakeNft, shouldRevertAndNotStakeNft, shouldRevertAndNotUnstakeNft
-} = require('../behaviors');
+const {shouldStakeNft, shouldRevertAndNotStakeNft, shouldRevertAndNotUnstakeNft} = require('../behaviors');
 
-const { TokenIds } = require('../constants');
+const {TokenIds} = require('../constants');
 
 const invalidNftOwnerScenario = function (staker, otherStaker) {
-
     describe('when staking an NFT', function () {
         shouldStakeNft(staker, TokenIds[0]);
 
@@ -14,12 +11,15 @@ const invalidNftOwnerScenario = function (staker, otherStaker) {
         });
 
         describe('when unstaking an NFT not owned by the caller', function () {
-            shouldRevertAndNotUnstakeNft(otherStaker, TokenIds[0], 'NftStaking: token not staked or incorrect token owner');
+            shouldRevertAndNotUnstakeNft(
+                otherStaker,
+                TokenIds[0],
+                'NftStaking: token not staked or incorrect token owner'
+            );
         });
     });
-
-}
+};
 
 module.exports = {
-    invalidNftOwnerScenario
-}
+    invalidNftOwnerScenario,
+};

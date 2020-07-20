@@ -29,9 +29,9 @@ contract NftStakingMock is NftStaking {
     }
 
     function _validateAndGetNftWeight(uint256 nftId) internal virtual override view returns (uint64) {
-        uint256 tokenType = (nftId & (0xFF << 240)) >> 240;
+        uint256 tokenType = nftId >> 240 & 0xFF;
         require(tokenType == 1, "NftStakingMock: Wrong NFT type");
-        uint256 attributeValue = (nftId & (0xFF << 176)) >> 176;
+        uint256 attributeValue = nftId >> 176 & 0xFF;
         return weightByTokenAttribute[attributeValue];
     }
 }

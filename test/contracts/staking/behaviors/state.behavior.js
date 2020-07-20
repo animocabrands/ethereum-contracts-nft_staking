@@ -1,4 +1,4 @@
-const { BN, expectRevert } = require('@openzeppelin/test-helpers');
+const {BN, expectRevert} = require('@openzeppelin/test-helpers');
 
 const shouldHaveNextClaim = function (staker, params) {
     it(`nextClaim for staker [${staker}] should have period=${params.period}, globalSnapshotIndex=${params.globalSnapshotIndex} and stakerSnapshotIndex=${params.stakerSnapshotIndex}`, async function () {
@@ -7,35 +7,32 @@ const shouldHaveNextClaim = function (staker, params) {
         this.nextClaim.globalSnapshotIndex.toNumber().should.equal(params.globalSnapshotIndex);
         this.nextClaim.stakerSnapshotIndex.toNumber().should.equal(params.stakerSnapshotIndex);
     });
-}
+};
 
 const shouldHaveGlobalHistoryLength = function (count) {
     it(`should have global history length: ${count}`, async function () {
         if (count == 0) {
-            await expectRevert(
-                this.stakingContract.lastGlobalSnapshotIndex(),
-                "NftStaking: empty global history"
-            );
+            await expectRevert(this.stakingContract.lastGlobalSnapshotIndex(), 'NftStaking: empty global history');
         } else {
             const historyLength = (await this.stakingContract.lastGlobalSnapshotIndex()).add(new BN('1'));
             historyLength.toNumber().should.equal(count);
         }
     });
-}
+};
 
 const shouldHaveStakerHistoryLength = function (staker, count) {
     it(`should have staker history length: ${count}`, async function () {
         if (count == 0) {
             await expectRevert(
                 this.stakingContract.lastStakerSnapshotIndex(staker),
-                "NftStaking: empty staker history"
+                'NftStaking: empty staker history'
             );
         } else {
             const historyLength = (await this.stakingContract.lastStakerSnapshotIndex(staker)).add(new BN('1'));
             historyLength.toNumber().should.equal(count);
         }
     });
-}
+};
 
 const shouldHaveLastGlobalSnapshot = function (params) {
     it(`lastGlobalSnapshot at index=${params.index}`, async function () {
@@ -50,11 +47,13 @@ const shouldHaveLastGlobalSnapshot = function (params) {
     it(`\tstake=${params.stake}`, async function () {
         this.lastGlobalSnapshot.stake.should.be.bignumber.equal(new BN(params.stake));
     });
-}
+};
 
 const shouldHaveLastStakerSnapshot = function (params) {
     it(`lastStakerSnapshot at index=${params.index}`, async function () {
-        (await this.stakingContract.lastStakerSnapshotIndex(params.staker)).should.be.bignumber.equal(new BN(params.index));
+        (await this.stakingContract.lastStakerSnapshotIndex(params.staker)).should.be.bignumber.equal(
+            new BN(params.index)
+        );
         this.lastStakerSnapshot = await this.stakingContract.stakerHistories(params.staker, params.index);
     });
 
@@ -65,7 +64,7 @@ const shouldHaveLastStakerSnapshot = function (params) {
     it(`\tstake=${params.stake}`, async function () {
         this.lastStakerSnapshot.stake.should.be.bignumber.equal(new BN(params.stake));
     });
-}
+};
 
 module.exports = {
     shouldHaveNextClaim,
@@ -73,4 +72,4 @@ module.exports = {
     shouldHaveStakerHistoryLength,
     shouldHaveLastGlobalSnapshot,
     shouldHaveLastStakerSnapshot,
-}
+};

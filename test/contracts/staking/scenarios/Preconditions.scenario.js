@@ -1,19 +1,23 @@
-const { BN } = require('@openzeppelin/test-helpers');
+const {BN} = require('@openzeppelin/test-helpers');
 const TokenHelper = require('../../../utils/tokenHelper');
 
-const { shouldHaveNextClaim, shouldHaveGlobalHistoryLength, shouldHaveStakerHistoryLength,
-    shouldHaveCurrentCycleAndPeriod, initialiseDebug, debugCurrentState } = require('../behaviors');
+const {
+    shouldHaveNextClaim,
+    shouldHaveGlobalHistoryLength,
+    shouldHaveStakerHistoryLength,
+    shouldHaveCurrentCycleAndPeriod,
+    initialiseDebug,
+    debugCurrentState,
+} = require('../behaviors');
 
-const { CycleLengthInSeconds, PeriodLengthInCycles, TokenIds } = require('../constants');
+const {CycleLengthInSeconds, PeriodLengthInCycles, TokenIds} = require('../constants');
 
 const preconditionsScenario = function (staker) {
-
     before(function () {
         initialiseDebug.bind(this)();
-    });;
+    });
 
     context('Staking contract', async function () {
-
         it('should have the correct cycle length', async function () {
             const cycleLength = await this.stakingContract.cycleLengthInSeconds();
             cycleLength.should.be.bignumber.equal(CycleLengthInSeconds);
@@ -47,7 +51,7 @@ const preconditionsScenario = function (staker) {
         shouldHaveCurrentCycleAndPeriod(1, 1);
         shouldHaveGlobalHistoryLength(0);
         shouldHaveStakerHistoryLength(staker, 0);
-        shouldHaveNextClaim(staker, { period: 0, stakerSnapshotIndex: 0, globalSnapshotIndex: 0 });
+        shouldHaveNextClaim(staker, {period: 0, stakerSnapshotIndex: 0, globalSnapshotIndex: 0});
         if (this.debug) await debugCurrentState.bind(this)();
     });
 
@@ -67,7 +71,7 @@ const preconditionsScenario = function (staker) {
                 const balance = await this.nftContract.balanceOf(staker, tokenId);
                 balance.should.be.bignumber.equal(new BN(1));
 
-                const tokenType = TokenHelper.getType(tokenId)
+                const tokenType = TokenHelper.getType(tokenId);
                 tokenType.should.be.equal(TokenHelper.Types.Car);
             }
         });
@@ -108,8 +112,8 @@ const preconditionsScenario = function (staker) {
             balance.should.be.bignumber.equal(await this.stakingContract.totalRewardsPool());
         });
     });
-}
+};
 
 module.exports = {
-    preconditionsScenario
-}
+    preconditionsScenario,
+};

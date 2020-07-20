@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.0.1 (02/07/2020)
+
+### Improvements
+ * Gas optimisations, minor comments improvements.
+ * Linting configuration.
+ * Migrated to `yarn`.
+
 ## 3.0.0 (02/07/2020)
 
 ### New features

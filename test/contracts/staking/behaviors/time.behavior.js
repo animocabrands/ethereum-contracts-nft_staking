@@ -1,5 +1,5 @@
-const { BN, time } = require('@openzeppelin/test-helpers');
-const { CycleLengthInSeconds, PeriodLengthInSeconds } = require('../constants');
+const {BN, time} = require('@openzeppelin/test-helpers');
+const {CycleLengthInSeconds, PeriodLengthInSeconds} = require('../constants');
 
 const shouldHaveCurrentCycleAndPeriod = function (cycle, period) {
     it(`should currently be at: cycle=${cycle}, period=${period}`, async function () {
@@ -10,11 +10,10 @@ const shouldHaveCurrentCycleAndPeriod = function (cycle, period) {
 
         this.cycle = currentCycle;
         this.period = currentPeriod;
-    })
-}
+    });
+};
 
 const shouldTimeWarpBy = async function (warp, expectedTime = {}) {
-
     warp.cycles = warp.cycles ? warp.cycles : 0;
     warp.periods = warp.periods ? warp.periods : 0;
 
@@ -42,9 +41,9 @@ const shouldTimeWarpBy = async function (warp, expectedTime = {}) {
         this.cycle = cycleAfter;
         this.period = periodAfter;
     });
-}
+};
 
 module.exports = {
     shouldHaveCurrentCycleAndPeriod,
-    shouldTimeWarpBy
-}
+    shouldTimeWarpBy,
+};

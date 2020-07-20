@@ -1,8 +1,12 @@
 {
   "name": "@animoca/ethereum-contracts-nft_staking",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Contracts for staking of ERC1155 NFTs vs claimable ERC20",
   "scripts": {
+    "npm-test": "echo $npm_package_config_path",
+    "prettier:solidity": "prettier --write contracts/**/*.sol",
+    "prettier:js": "prettier --write src migrations test",
+    "prettier": "run-s prettier:js prettier:solidity",
     "compile": "./node_modules/@animoca/ethereum-contracts-core_library/scripts/oz-compile.sh",
     "test": "./node_modules/@animoca/ethereum-contracts-core_library/scripts/oz-test.sh",
     "coverage": "./node_modules/@animoca/ethereum-contracts-core_library/scripts/coverage.sh",
@@ -24,6 +28,15 @@
     "@animoca/blockchain-inventory_metadata": "0.0.1",
     "@animoca/ethereum-contracts-assets_inventory": "^3.0.0",
     "@animoca/ethereum-contracts-core_library": "^3.0.0",
-    "@animoca/ethereum-contracts-erc20_base": "^3.0.0"
+    "@animoca/ethereum-contracts-erc20_base": "^3.0.0",
+    "eslint-config-mocha": "^0.0.0",
+    "eslint-config-prettier": "^6.11.0",
+    "eslint-plugin-mocha": "^7.0.1",
+    "eslint-plugin-prettier": "^3.1.4",
+    "npm-run-all": "^4.1.5",
+    "prettier": "^2.0.5",
+    "prettier-plugin-solidity": "^1.0.0-alpha.54",
+    "solhint": "^3.0.0",
+    "solhint-plugin-prettier": "^0.0.4"
   }
 }

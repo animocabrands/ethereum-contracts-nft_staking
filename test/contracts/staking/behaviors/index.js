@@ -11,5 +11,5 @@ module.exports = {
     ...staking,
     ...time,
     ...state,
-    ...rewards
-}
+    ...rewards,
+};

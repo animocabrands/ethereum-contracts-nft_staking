@@ -39,6 +39,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         address owner;
         uint64 weight;
         uint16 depositCycle;
+        uint16 withdrawCycle;
     }
 
     /**
@@ -268,7 +269,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
         if (enabled) {
             // ensure that at least an entire cycle has elapsed before unstaking the token to avoid
-            // an exploit where a a full cycle would be claimable if staking just before the end
+            // an exploit where a full cycle would be claimable if staking just before the end
             // of a cycle and unstaking right after the start of the new cycle
             require(currentCycle - tokenInfo.depositCycle >= 2, "NftStaking: token still frozen");
 
@@ -276,6 +277,9 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
             // clear the token owner to ensure it cannot be unstaked again without being re-staked
             tokenInfos[tokenId].owner = address(0);
+
+            // set the withdrawal cycle to ensure it cannot be re-staked until after a cooldown period
+            tokenInfos[tokenId].withdrawCycle = currentCycle;
         }
 
         try whitelistedNftContract.safeTransferFrom(address(this), msg.sender, tokenId, 1, "")  {} catch {
@@ -427,8 +431,18 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             nextClaims[tokenOwner] = NextClaim(currentPeriod, uint64(globalHistory.length - 1), 0);
         }
 
+        uint16 withdrawCycle = tokenInfos[tokenId].withdrawCycle;
+
+        if (withdrawCycle != 0) {
+            // ensure that at least an entire cycle has elapsed before re-staking a previously
+            // staked token to avoid an exploit where a token could be unstaked for an alternate
+            // use and restaked in the same cycle to be able to still claim the rewards for that
+            // cycle
+            require((currentCycle - withdrawCycle) >= 2, "NftStaking: unstaked token cooldown");
+        }
+
         // set the staked token's info
-        tokenInfos[tokenId] = TokenInfo(tokenOwner, weight, currentCycle);
+        tokenInfos[tokenId] = TokenInfo(tokenOwner, weight, currentCycle, 0);
 
         emit NftStaked(tokenOwner, currentCycle, tokenId, weight);
     }

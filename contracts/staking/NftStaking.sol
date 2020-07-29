@@ -434,9 +434,9 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint16 withdrawCycle = tokenInfos[tokenId].withdrawCycle;
 
         if (withdrawCycle != 0) {
-            // ensure that at least an entire cycle has elapsed before re-staking a previously
-            // staked token to avoid an exploit where a token could be unstaked for an alternate
-            // use and restaked in the same cycle to be able to still claim the rewards for that
+            // ensure that at least an entire cycle has elapsed before re-staking the token
+            // to avoid an exploit where a token could be unstaked for an alternate purpose
+            // and re-staked in the same cycle to be able to still claim the rewards for that
             // cycle
             require((currentCycle - withdrawCycle) >= 2, "NftStaking: unstaked token cooldown");
         }

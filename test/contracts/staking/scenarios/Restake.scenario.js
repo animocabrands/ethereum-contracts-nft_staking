@@ -29,28 +29,31 @@ const restakeScenario = function (staker) {
         shouldUnstakeNft(staker, TokenIds[3]);
         shouldClaimRewards(staker, 99, {startPeriod: 1, periods: 2, amount: '37800000'});
         shouldUnstakeNft(staker, TokenIds[0]);
+        shouldTimeWarpBy({cycles: 2}); // unstake cooldown
         shouldStakeNft(staker, TokenIds[0]);
     });
 
     describe('unstake and stake and claim common car within period 4', function () {
-        shouldTimeWarpBy({cycles: 2}, {cycle: 17, period: 3});
+        shouldTimeWarpBy({cycles: 2}, {cycle: 19, period: 3});
         shouldUnstakeNft(staker, TokenIds[0]);
 
-        shouldTimeWarpBy({cycles: 1}, {cycle: 18, period: 3});
+        shouldTimeWarpBy({cycles: 2}, {cycle: 21, period: 3});
         shouldStakeNft(staker, TokenIds[0]);
 
-        shouldTimeWarpBy({cycles: 2}, {cycle: 20, period: 3});
+        shouldTimeWarpBy({cycles: 2}, {cycle: 23, period: 4});
         shouldUnstakeNft(staker, TokenIds[0]);
 
-        shouldClaimRewards(staker, 10, {startPeriod: 3, periods: 5, amount: '0'});
+        shouldTimeWarpBy({cycles: 2}); // unstake cooldown
+
+        shouldClaimRewards(staker, 10, {startPeriod: 3, periods: 1, amount: '8100000'});
         shouldStakeNft(staker, TokenIds[0]);
 
-        shouldTimeWarpBy({cycles: 2}, {cycle: 22, period: 4});
+        shouldTimeWarpBy({cycles: 2}, {cycle: 27, period: 4});
     });
 
     describe('claim period 5', function () {
-        shouldTimeWarpBy({periods: 1}, {cycle: 29, period: 5});
-        shouldClaimRewards(staker, 10, {startPeriod: 3, periods: 2, amount: '35100000'});
+        shouldTimeWarpBy({periods: 1}, {cycle: 34, period: 5});
+        shouldClaimRewards(staker, 10, {startPeriod: 4, periods: 1, amount: '13500000'});
     });
 
     describe('Unstake the 2nd NFT and claim all the periods at start of period 8', function () {
@@ -66,7 +69,7 @@ const restakeScenario = function (staker) {
 
     describe('Estimate start of period 14', function () {
         shouldTimeWarpBy({periods: 2}, {period: 14});
-        shouldEstimateRewards(staker, 99, {startPeriod: 8, periods: 6, amount: '25550000'});
+        shouldEstimateRewards(staker, 99, {startPeriod: 8, periods: 6, amount: '26550000'});
     });
 };
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.0.2 (UNRELEASED)
+
+### Bugfixes
+ * Fixed an exploit that allowed the claiming of rewards for the cycle in which a token was unstaked.
+
 ## 3.0.1 (02/07/2020)
 
 ### Improvements
@@ -23,11 +28,11 @@
 ## 2.0.1 (20/06/2020)
 
 ### New features
-* The module now exports a `constants` and a `utils` object.
-* Added a function to calculate a total rewards based on a rewards schedule.
+ * The module now exports a `constants` and a `utils` object.
+ * Added a function to calculate a total rewards based on a rewards schedule.
 
 ### Bugfixes
-* Fixed a wrong import in the migration and restructured the script
+ * Fixed a wrong import in the migration and restructured the script
 
 ## 2.0.0 (17/06/2020)
 

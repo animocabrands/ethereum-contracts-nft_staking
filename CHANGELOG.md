@@ -1,9 +1,15 @@
 # Changelog
 
+## 3.0.3 (04/08/2020)
+
+### Improvements
+ * Calibrated the re-stake exploit fix to only apply during the same cycle after unstaking.
+ * Improved the comments.
+
 ## 3.0.2 (03/08/2020)
 
 ### Bugfixes
- * Fixed an exploit that allowed the claiming of rewards for the cycle in which a token was unstaked.
+ * Fixed an exploit that allowed the re-staking of a token during the same cycle.
 
 ## 3.0.1 (02/07/2020)
 

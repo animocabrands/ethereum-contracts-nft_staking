@@ -28,11 +28,6 @@ const earlyRestakeScenario = function (staker) {
 
     describe('when waiting 1 cycle before trying to re-stake', function () {
         shouldTimeWarpBy({cycles: 1}, {cycle: 4});
-        shouldRevertAndNotStakeNft(staker, TokenIds[0], 'NftStaking: unstaked token cooldown');
-    });
-
-    describe('when waiting another cycle before trying to re-stake', function () {
-        shouldTimeWarpBy({cycles: 1}, {cycle: 5});
         shouldStakeNft(staker, TokenIds[0]);
     });
 };

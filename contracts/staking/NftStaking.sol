@@ -11,6 +11,8 @@ import "@animoca/ethereum-contracts-assets_inventory/contracts/token/ERC1155/ERC
 
 /**
  * @title NFT Staking
+ * Distribute ERC20 rewards over discrete-time schedules for the staking of NFTs.
+ * This contract is designed on a self-service model, where users will stake NFTs, unstake NFTs and claim rewards through their own transactions only.
  */
 abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     using SafeCast for uint256;
@@ -33,7 +35,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     /**
      * Used to represent the current staking status of an NFT.
-     * @dev optimised for storage
+     * Optimised for use in storage.
      */
     struct TokenInfo {
         address owner;
@@ -45,7 +47,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     /**
      * Used as a historical record of change of stake.
      * Stake represents an aggregation of staked token weights.
-     * @dev optimised for storage
+     * Optimised for use in storage.
      */
     struct Snapshot {
         uint128 stake;
@@ -54,7 +56,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     /**
      * Used to represent a staker's information about the next claim.
-     * @dev optimised for storage
+     * Optimised for use in storage.
      */
     struct NextClaim {
         uint16 period;
@@ -121,6 +123,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * Constructor.
      * @dev Reverts if the period length value is zero.
      * @dev Reverts if the cycle length value is zero.
+     * @dev Warning: cycles and periods need to be calibrated carefully. Small values will increase computation load while estimating and claiming rewards. Big values will increase the time to wait before a new period becomes claimable.
      * @param cycleLengthInSeconds_ The length of a cycle, in seconds.
      * @param periodLengthInCycles_ The length of a period, in cycles.
      * @param whitelistedNftContract_ The ERC1155-compliant (optional ERC721-compliance) contract from which staking is accepted.
@@ -145,13 +148,15 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     /**
      * Adds `rewardsPerCycle` reward amount for the period range from `startPeriod` to `endPeriod`, inclusive, to the rewards schedule.
-     * The necessary amount of rewards token is transferred to the contract. Cannot be used for past periods. Can only be used to add
-     * rewards and not to remove them.
+     * The necessary amount of reward tokens is transferred to the contract. Cannot be used for past periods.
+     * Can only be used to add rewards and not to remove them.
      * @dev Reverts if not called by the owner.
-     * @dev Reverts if the start or end periods are zero.
-     * @dev Reverts if the end period is before the start period.
+     * @dev Reverts if the start period is zero.
+     * @dev Reverts if the end period precedes the start period.
      * @dev Reverts if attempting to add rewards for a period earlier than the current, after staking has started.
-     * @dev Emits the RewardsAdded event.
+     * @dev Reverts if the reward tokens transfer fails.
+     * @dev The rewards token contract emits an ERC20 Transfer event for the reward tokens transfer.
+     * @dev Emits a RewardsAdded event.
      * @param startPeriod The starting period (inclusive).
      * @param endPeriod The ending period (inclusive).
      * @param rewardsPerCycle The reward amount to add for each cycle within range.
@@ -192,6 +197,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * Starts the first cycle of staking, enabling users to stake NFTs.
      * @dev Reverts if not called by the owner.
      * @dev Reverts if the staking has already started.
+     * @dev Emits a Started event.
      */
     function start() public onlyOwner hasNotStarted {
         startTimestamp = now;
@@ -199,8 +205,10 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * Permanently disables all staking and claiming. This is an emergency
-     * recovery feature which is NOT part of the normal contract operation.
+     * Permanently disables all staking and claiming.
+     * This is an emergency recovery feature which is NOT part of the normal contract operation.
+     * @dev Reverts if not called by the owner.
+     * @dev Emits a Disabled event.
      */
     function disable() public onlyOwner {
         enabled = false;
@@ -208,10 +216,11 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * Withdraws a specified amount of rewards tokens from the contract after the
-     * staking has been disabled.
+     * Withdraws a specified amount of reward tokens from the contract it has been disabled.
      * @dev Reverts if not called by the owner.
      * @dev Reverts if the contract has not been disabled.
+     * @dev Reverts if the reward tokens transfer fails.
+     * @dev The rewards token contract emits an ERC20 Transfer event for the reward tokens transfer.
      * @param amount The amount to withdraw.
      */
     function withdrawRewardsPool(uint256 amount) public onlyOwner isNotEnabled {
@@ -251,13 +260,14 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     /**
      * Unstakes a deposited NFT from the contract and updates the histories accordingly.
-     * When an NFT is unstaked, its weight will not count for the current cycle.
+     * The NFT's weight will not count for the current cycle.
      * @dev Reverts if the caller is not the original owner of the NFT.
-     * @dev While the contract is enabled, reverts if there are outstanding rewards to be claimed.
-     * @dev While the contract is enabled, reverts if NFT is being unstaked before the staking freeze duration has elapsed.
-     * @dev While the contract is enabled, creates any missing snapshots, up-to the current cycle.
-     * @dev Emits the NftUnstaked event when the function is called successfully.
-     * @dev May emit the SnapshotUpdated event if any snapshots are created or modified to ensure that snapshots exist, up-to the current cycle.
+     * @dev While the contract is enabled, reverts if the NFT is still frozen.
+     * @dev Reverts if the NFT transfer back to the original owner fails.
+     * @dev If ERC1155 safe transfers are supported by the receiver wallet, the whitelisted NFT contract emits an ERC1155 TransferSingle event for the NFT transfer back to the staker.
+     * @dev If ERC1155 safe transfers are not supported by the receiver wallet, the whitelisted NFT contract emits an ERC721 Transfer event for the NFT transfer back to the staker.
+     * @dev While the contract is enabled, emits a HistoriesUpdated event.
+     * @dev Emits a NftUnstaked event.
      * @param tokenId The token identifier, referencing the NFT being unstaked.
      */
     function unstakeNft(uint256 tokenId) external virtual {
@@ -283,9 +293,9 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         }
 
         try whitelistedNftContract.safeTransferFrom(address(this), msg.sender, tokenId, 1, "")  {} catch {
-            // attempting a non-safe transferFrom() of the token in the case
-            // that the failure was caused by a ethereum client wallet
-            // implementation that does not support safeTransferFrom()
+            // the above call to the ERC1155 safeTransferFrom() function may fail if the recipient
+            // is a contract wallet not implementing the ERC1155TokenReceiver interface
+            // if this happens, the transfer falls back to a call to the ERC721 (non-safe) transferFrom function.
             whitelistedNftContract.transferFrom(address(this), msg.sender, tokenId);
         }
 
@@ -293,8 +303,9 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * Estimates the claimable rewards for the specified maximum number of periods, starting at
-     * the next claimable period. The rewards for the current period cannot be estimated.
+     * Estimates the claimable rewards for the specified maximum number of past periods, starting at the next claimable period.
+     * Estimations can be done only for periods which have already ended.
+     * The maximum number of periods to claim can be calibrated to chunk down claims in several transactions to accomodate gas constraints.
      * @param maxPeriods The maximum number of periods to calculate for.
      * @return startPeriod The first period on which the computation starts.
      * @return periods The number of periods computed for.
@@ -318,11 +329,12 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     }
 
     /**
-     * Claims the claimable rewards for the specified maximum number of periods, starting at
-     * the next claimable period. The rewards for the current period cannot be claimed.
-     * @dev Creates any missing snapshots, up-to the current cycle.
-     * @dev Emits the RewardsClaimed event when the function is called successfully.
-     * @dev May emit the HistoriesUpdated event if any snapshots are created or modified to ensure that snapshots exist, up-to the current cycle.
+     * Claims the claimable rewards for the specified maximum number of past periods, starting at the next claimable period.
+     * Claims can be done only for periods which have already ended.
+     * The maximum number of periods to claim can be calibrated to chunk down claims in several transactions to accomodate gas constraints.
+     * @dev Reverts if the reward tokens transfer fails.
+     * @dev The rewards token contract emits an ERC20 Transfer event for the reward tokens transfer.
+     * @dev Emits a RewardsClaimed event.
      * @param maxPeriods The maximum number of periods to claim for.
      */
     function claimRewards(uint16 maxPeriods) external isEnabled hasStarted {
@@ -384,7 +396,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     /**
      * Retrieves the last global snapshot index, if any.
-     * @return The last global snapshot index, or throws if there are no global history.
+     * @dev Reverts if the global history is empty.
+     * @return The last global snapshot index.
      */
     function lastGlobalSnapshotIndex() external view returns (uint256) {
         uint256 length = globalHistory.length;
@@ -394,7 +407,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     /**
      * Retrieves the last staker snapshot index, if any.
-     * @return The last staker snapshot index, or throws if there are no staker history.
+     * @dev Reverts if the staker history is empty.
+     * @return The last staker snapshot index.
      */
     function lastStakerSnapshotIndex(address staker) external view returns (uint256) {
         uint256 length = stakerHistories[staker].length;
@@ -405,11 +419,10 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     /*                                            Staking Internal Functions                                            */
 
     /**
-     * Stakes the NFT received by the contract, referenced by its specified token identifier and owner.
+     * Stakes the NFT received by the contract for its owner. The NFT's weight will count for the current cycle.
      * @dev Reverts if the caller is not the whitelisted NFT contract.
-     * @dev Creates any missing snapshots, up-to the current cycle.
-     * @dev May emit the HistoriesUpdated event if any snapshots are created or modified to ensure that snapshots exist, up-to the current cycle.
-     * @dev Emits the NftStaked event when the function is called successfully.
+     * @dev Emits an HistoriesUpdated event.
+     * @dev Emits an NftStaked event.
      * @param tokenId Identifier of the staked NFT.
      * @param tokenOwner Owner of the staked NFT.
      */
@@ -432,14 +445,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         }
 
         uint16 withdrawCycle = tokenInfos[tokenId].withdrawCycle;
-
-        if (withdrawCycle != 0) {
-            // ensure that at least an entire cycle has elapsed before re-staking the token
-            // to avoid an exploit where a token could be unstaked for an alternate purpose
-            // and re-staked in the same cycle to be able to still claim the rewards for that
-            // cycle
-            require((currentCycle - withdrawCycle) >= 2, "NftStaking: unstaked token cooldown");
-        }
+        require(currentCycle != withdrawCycle, "NftStaking: unstaked token cooldown");
 
         // set the staked token's info
         tokenInfos[tokenId] = TokenInfo(tokenOwner, weight, currentCycle, 0);
@@ -588,6 +594,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     /**
      * Updates the global and staker histories at the current cycle with a new difference in stake.
+     * @dev Emits a HistoriesUpdated event.
      * @param staker The staker who is updating the history.
      * @param stakeDelta The difference to apply to the current stake.
      * @param currentCycle The current cycle.
@@ -696,8 +703,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     /*                                                Internal Hooks                                                */
 
     /**
-     * Abstract function which validates whether or not an NFT is accepted for staking and
-     * retrieves its associated weight.
+     * Abstract function which validates whether or not an NFT is accepted for staking and retrieves its associated weight.
      * @dev MUST throw if the token is invalid.
      * @param tokenId uint256 token identifier of the NFT.
      * @return uint64 the weight of the NFT.
@@ -706,17 +712,17 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 }
 
 /**
- * @dev Interface for the NftStaking whitelisted NFT contract.
+ * @notice Interface for the NftStaking whitelisted NFT contract.
  */
 interface IWhitelistedNftContract {
     /**
-     * @notice Transfers `value` amount of an `id` from  `from` to `to` (with safety call).
+     * ERC1155: Transfers `value` amount of an `id` from  `from` to `to` (with safety call). 
      * @dev Caller must be approved to manage the tokens being transferred out of the `from` account (see "Approval" section of the standard).
-     * MUST revert if `to` is the zero address.
-     * MUST revert if balance of holder for token `id` is lower than the `value` sent.
-     * MUST revert on any other error.
-     * MUST emit the `TransferSingle` event to reflect the balance change (see "Safe Transfer Rules" section of the standard).
-     * After the above conditions are met, this function MUST check if `to` is a smart contract (e.g. code size > 0). If so, it MUST call `onERC1155Received` on `to` and act appropriately (see "Safe Transfer Rules" section of the standard).
+     * @dev MUST revert if `to` is the zero address.
+     * @dev MUST revert if balance of holder for token `id` is lower than the `value` sent.
+     * @dev MUST revert on any other error.
+     * @dev MUST emit the `TransferSingle` event to reflect the balance change (see "Safe Transfer Rules" section of the standard).
+     * @dev After the above conditions are met, this function MUST check if `to` is a smart contract (e.g. code size > 0). If so, it MUST call `onERC1155Received` on `to` and act appropriately (see "Safe Transfer Rules" section of the standard).
      * @param from Source address
      * @param to Target address
      * @param id ID of the token type
@@ -732,7 +738,7 @@ interface IWhitelistedNftContract {
     ) external;
 
     /**
-     * @dev Transfers the ownership of a given token ID to another address.
+     * @notice ERC721: Transfers the ownership of a given token ID to another address.
      * Usage of this method is discouraged, use `safeTransferFrom` whenever possible.
      * Requires the msg sender to be the owner, approved, or operator.
      * @param from current owner of the token.

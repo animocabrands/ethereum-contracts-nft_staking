@@ -123,7 +123,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * Constructor.
      * @dev Reverts if the period length value is zero.
      * @dev Reverts if the cycle length value is zero.
-     * @dev Warning: cycles and periods need to be calibrated carefully. Small values will increase computation load while estimating and claiming rewards. Big values will hinder the stakers ability to withdraw on a regular basis.
+     * @dev Warning: cycles and periods need to be calibrated carefully. Small values will increase computation load while estimating and claiming rewards. Big values will increase the time to wait before a new period becomes claimable.
      * @param cycleLengthInSeconds_ The length of a cycle, in seconds.
      * @param periodLengthInCycles_ The length of a period, in cycles.
      * @param whitelistedNftContract_ The ERC1155-compliant (optional ERC721-compliance) contract from which staking is accepted.
@@ -152,7 +152,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * Can only be used to add rewards and not to remove them.
      * @dev Reverts if not called by the owner.
      * @dev Reverts if the start period is zero.
-     * @dev Reverts if the end period is precedes or is the same as the start period,.
+     * @dev Reverts if the end period precedes the start period.
      * @dev Reverts if attempting to add rewards for a period earlier than the current, after staking has started.
      * @dev Reverts if the reward tokens transfer fails.
      * @dev The rewards token contract emits an ERC20 Transfer event for the reward tokens transfer.

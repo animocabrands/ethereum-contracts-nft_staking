@@ -58,8 +58,6 @@ Please see the mock contracts used for the tests in `contracts/mocks/staking/` f
 
 _Staking_ is the mechanism by-which an ERC1155-NFT is transferred to the `NftStaking` staking contract, to be held for a period of time, in exchange for a claimable ERC20-based token payout (rewards). While staked, the staking contract maintains ownership of the NFT and unlocks claimable rewards over time. When the owner decides to withdraw, or _unstake_, the NFT from the staking contract, it will be transferred back to him, but will stop generating rewards.
 
-Upon the initial stake of an NFT to the staking contract, the NFT will be "frozen" for a fixed duration (at most 2 cycles) before being allowed to be unstaked from the staking contract. Except this restriction, NFTs can be staked and/or unstaked at any time.
-
 
 ### Cycles, Periods and Rewards Schedule
 
@@ -85,9 +83,14 @@ Snapshots have the following properties:
 - Are arranged consecutively in sequence without skipping over cycles (i.e. there will never be a cycle in between two snapshots).
 - Are removed from a staker's snapshot history as soon as a reward claim is made for the periods that cover the span of the snapshot.
 
+### Abuse prevention
+
+Upon the initial staking of an NFT to the contract, the NFT will be "frozen" for a duration of up to 2 cycles before being allowed to be unstaked. As well, an NFT cannot be staked again during the same cycle after unstaking.
+
 ### Contract disablement
 
 The administrator can disable the contract. By this action, staking is stopped and all remaining rewards become unclaimable by the stakers. The administrator can withrdaw the remaining rewards pool. Stakers can still unstake their NFTs. This feature is a "red button" to be used only in case of critical failure of the contract as it bypasses parts of the unstaking logic, potentially helping stakers to keep withdrawing if the contract is locked otherwise.
+
 
 ## Testing
 

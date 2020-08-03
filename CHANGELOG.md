@@ -1,6 +1,6 @@
 # Changelog
 
-## 3.0.2 (UNRELEASED)
+## 3.0.2 (03/08/2020)
 
 ### Bugfixes
  * Fixed an exploit that allowed the claiming of rewards for the cycle in which a token was unstaked.

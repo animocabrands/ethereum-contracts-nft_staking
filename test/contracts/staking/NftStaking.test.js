@@ -19,6 +19,7 @@ const {
     nonWhitelistedNftContractScenario,
     batchStakeScenario,
     earlyUnstakeScenario,
+    earlyRestakeScenario,
     claimScenario,
     invalidNftOwnerScenario,
     rewardsScheduleScenario,
@@ -120,6 +121,13 @@ describe('NftStaking', function () {
         before(start);
 
         earlyUnstakeScenario(staker);
+    });
+
+    describe('[[Scenario]] Early Re-stake', function () {
+        before(deploy);
+        before(start);
+
+        earlyRestakeScenario(staker);
     });
 
     describe('[[Scenario]] Claim', function () {

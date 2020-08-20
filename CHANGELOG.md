@@ -1,24 +1,29 @@
 # Changelog
 
-## 3.0.3 (04/08/2020)
+## 3.0.4
+
+### Improvements
+ * Optimised the assignment of `tokenInfos` in `_stakeNFT`.
+
+## 3.0.3
 
 ### Improvements
  * Calibrated the re-stake exploit fix to only apply during the same cycle after unstaking.
  * Improved the comments.
 
-## 3.0.2 (03/08/2020)
+## 3.0.2
 
 ### Bugfixes
  * Fixed an exploit that allowed the re-staking of a token during the same cycle.
 
-## 3.0.1 (02/07/2020)
+## 3.0.1
 
 ### Improvements
  * Gas optimisations, minor comments improvements.
  * Linting configuration.
  * Migrated to `yarn`.
 
-## 3.0.0 (02/07/2020)
+## 3.0.0
 
 ### New features
  * Added `addRewardsForPeriods()` function, which initializes or adds reward amounts for the specified period range. This will perform a transfer operation to fund the contract with the added rewards amount when called.
@@ -31,7 +36,7 @@
  * Renamed `RewardsScheduled` event to `RewardsAdded`.
  * Renamed `totalPrizePool` state variable to `totalRewardsPool`.
 
-## 2.0.1 (20/06/2020)
+## 2.0.1
 
 ### New features
  * The module now exports a `constants` and a `utils` object.
@@ -40,7 +45,7 @@
 ### Bugfixes
  * Fixed a wrong import in the migration and restructured the script
 
-## 2.0.0 (17/06/2020)
+## 2.0.0
 
 ### Breaking changes
  * Updated `@animoca/ethereum-contracts-core_library` to version 3 and downgraded it to be a dev dependency.
@@ -53,18 +58,18 @@
 ### Improvements
  * Removed dependency on `@animoca/f1dt-core_metadata`.
 
-## 1.0.2 (04/05/2020)
+## 1.0.2
 
 ### Improvements
  * Updated dependency on `@animoca/ethereum-contracts-assets_inventory` to `2.0.1`.
  * Change variables names in multiple files to be more generic.
 
-## 1.0.1 (04/05/2020)
+## 1.0.1
 
 ### Improvements
  * Added 1_NftStaking.js migration script.
 
-## 1.0.0 (03/05/2020)
+## 1.0.0
 
 ### Breaking changes
  * Migration to `@animoca/ethereum-contracts-core_library:1.0.0` with `solc:0.6.x` and `@openzeppelin/contracts:3.x`.
@@ -75,5 +80,5 @@
 ### Improvements
  * Better abstraction of core staking features.
 
-## 0.0.1 (15/04/2020)
+## 0.0.1
  * Initial commit.

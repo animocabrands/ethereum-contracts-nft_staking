@@ -1,6 +1,6 @@
 {
   "name": "@animoca/ethereum-contracts-nft_staking",
-  "version": "3.0.3",
+  "version": "3.0.4",
   "description": "Contracts for staking of ERC1155 NFTs vs claimable ERC20",
   "scripts": {
     "npm-test": "echo $npm_package_config_path",

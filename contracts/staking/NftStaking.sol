@@ -286,10 +286,12 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             _updateHistories(msg.sender, -int128(tokenInfo.weight), currentCycle);
 
             // clear the token owner to ensure it cannot be unstaked again without being re-staked
-            tokenInfos[tokenId].owner = address(0);
+            tokenInfo.owner = address(0);
 
-            // set the withdrawal cycle to ensure it cannot be re-staked until after a cooldown period
-            tokenInfos[tokenId].withdrawCycle = currentCycle;
+            // set the withdrawal cycle to ensure it cannot be re-staked during the same cycle
+            tokenInfo.withdrawCycle = currentCycle;
+
+            tokenInfos[tokenId] = tokenInfo;
         }
 
         try whitelistedNftContract.safeTransferFrom(address(this), msg.sender, tokenId, 1, "")  {} catch {

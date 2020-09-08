@@ -189,7 +189,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         totalRewardsPool = totalRewardsPool.add(addedRewards);
 
         require(
-            rewardsTokenContract.transferFrom(msg.sender, address(this), addedRewards),
+            rewardsTokenContract.transferFrom(_msgSender(), address(this), addedRewards),
             "NftStaking: failed to add funds to the reward pool"
         );
 
@@ -228,7 +228,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      */
     function withdrawRewardsPool(uint256 amount) public onlyOwner isNotEnabled {
         require(
-            rewardsTokenContract.transfer(msg.sender, amount),
+            rewardsTokenContract.transfer(_msgSender(), amount),
             "NftStaking: failed to withdraw from the rewards pool"
         );
     }
@@ -246,7 +246,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint256, /*value*/
         bytes calldata /*data*/
     ) external virtual override returns (bytes4) {
-        require(address(whitelistedNftContract) == msg.sender, "NftStaking: contract not whitelisted");
+        require(address(whitelistedNftContract) == _msgSender(), "NftStaking: contract not whitelisted");
         _stakeNft(id, from);
         return _ERC1155_RECEIVED;
     }
@@ -262,7 +262,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint256[] calldata, /*values*/
         bytes calldata /*data*/
     ) external virtual override returns (bytes4) {
-        require(address(whitelistedNftContract) == msg.sender, "NftStaking: contract not whitelisted");
+        require(address(whitelistedNftContract) == _msgSender(), "NftStaking: contract not whitelisted");
         _batchStakeNfts(ids, from);
         return _ERC1155_BATCH_RECEIVED;
     }
@@ -284,7 +284,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     function unstakeNft(uint256 tokenId) external virtual {
         TokenInfo memory tokenInfo = tokenInfos[tokenId];
 
-        require(tokenInfo.owner == msg.sender, "NftStaking: not staked for owner");
+        require(tokenInfo.owner == _msgSender(), "NftStaking: not staked for owner");
 
         uint16 currentCycle = _getCycle(now);
         uint64 weight = tokenInfo.weight;
@@ -295,7 +295,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             // of a cycle and unstaking right after the start of the new cycle
             require(currentCycle - tokenInfo.depositCycle >= 2, "NftStaking: token still frozen");
 
-            _updateHistories(msg.sender, -int128(weight), currentCycle);
+            _updateHistories(_msgSender(), -int128(weight), currentCycle);
 
             // clear the token owner to ensure it cannot be unstaked again without being re-staked
             tokenInfo.owner = address(0);
@@ -306,9 +306,9 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             tokenInfos[tokenId] = tokenInfo;
         }
 
-        whitelistedNftContract.safeTransferFromWithFallback(address(this), msg.sender, tokenId, 1, "");
-        emit NftUnstaked(msg.sender, currentCycle, tokenId, weight);
-        _onUnstake(msg.sender, tokenId, weight);
+        whitelistedNftContract.safeTransferFromWithFallback(address(this), _msgSender(), tokenId, 1, "");
+        emit NftUnstaked(_msgSender(), currentCycle, tokenId, weight);
+        _onUnstake(_msgSender(), tokenId, weight);
     }
 
     /**
@@ -335,7 +335,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
             TokenInfo memory tokenInfo = tokenInfos[tokenId];
 
-            require(tokenInfo.owner == msg.sender, "NftStaking: not staked for owner");
+            require(tokenInfo.owner == _msgSender(), "NftStaking: not staked for owner");
 
             if (enabled) {
                 // ensure that at least an entire cycle has elapsed before
@@ -360,12 +360,12 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         }
 
         if (enabled) {
-            _updateHistories(msg.sender, totalUnstakedWeight, currentCycle);
+            _updateHistories(_msgSender(), totalUnstakedWeight, currentCycle);
         }
 
-        whitelistedNftContract.safeBatchTransferFromWithFallback(address(this), msg.sender, tokenIds, values, "");
-        emit NftsBatchUnstaked(msg.sender, currentCycle, tokenIds, weights);
-        _onBatchUnstake(msg.sender, tokenIds, weights);
+        whitelistedNftContract.safeBatchTransferFromWithFallback(address(this), _msgSender(), tokenIds, values, "");
+        emit NftsBatchUnstaked(_msgSender(), currentCycle, tokenIds, weights);
+        _onBatchUnstake(_msgSender(), tokenIds, weights);
     }
 
     /**
@@ -388,7 +388,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             uint256 amount
         )
     {
-        (ComputedClaim memory claim, ) = _computeRewards(msg.sender, maxPeriods);
+        (ComputedClaim memory claim, ) = _computeRewards(_msgSender(), maxPeriods);
         startPeriod = claim.startPeriod;
         periods = claim.periods;
         amount = claim.amount;
@@ -404,12 +404,12 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @param maxPeriods The maximum number of periods to claim for.
      */
     function claimRewards(uint16 maxPeriods) external isEnabled hasStarted {
-        NextClaim memory nextClaim = nextClaims[msg.sender];
+        NextClaim memory nextClaim = nextClaims[_msgSender()];
 
-        (ComputedClaim memory claim, NextClaim memory newNextClaim) = _computeRewards(msg.sender, maxPeriods);
+        (ComputedClaim memory claim, NextClaim memory newNextClaim) = _computeRewards(_msgSender(), maxPeriods);
 
         // free up memory on already processed staker snapshots
-        Snapshot[] storage stakerHistory = stakerHistories[msg.sender];
+        Snapshot[] storage stakerHistory = stakerHistories[_msgSender()];
         while (nextClaim.stakerSnapshotIndex < newNextClaim.stakerSnapshotIndex) {
             delete stakerHistory[nextClaim.stakerSnapshotIndex++];
         }
@@ -418,7 +418,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             return;
         }
 
-        if (nextClaims[msg.sender].period == 0) {
+        if (nextClaims[_msgSender()].period == 0) {
             return;
         }
 
@@ -430,16 +430,16 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             lastStakerSnapshot.stake == 0 // and nothing is staked in the last staker snapshot
         ) {
             // re-init the next claim
-            delete nextClaims[msg.sender];
+            delete nextClaims[_msgSender()];
         } else {
-            nextClaims[msg.sender] = newNextClaim;
+            nextClaims[_msgSender()] = newNextClaim;
         }
 
         if (claim.amount != 0) {
-            require(rewardsTokenContract.transfer(msg.sender, claim.amount), "NftStaking: failed to transfer rewards");
+            require(rewardsTokenContract.transfer(_msgSender(), claim.amount), "NftStaking: failed to transfer rewards");
         }
 
-        emit RewardsClaimed(msg.sender, _getCycle(now), claim.startPeriod, claim.periods, claim.amount);
+        emit RewardsClaimed(_msgSender(), _getCycle(now), claim.startPeriod, claim.periods, claim.amount);
     }
 
     /*                                            Utility Public Functions                                            */
@@ -492,7 +492,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @param tokenOwner Owner of the staked NFT.
      */
     function _stakeNft(uint256 tokenId, address tokenOwner) internal isEnabled hasStarted {
-        require(address(whitelistedNftContract) == msg.sender, "NftStaking: contract not whitelisted");
+        require(address(whitelistedNftContract) == _msgSender(), "NftStaking: contract not whitelisted");
 
         uint64 weight = _validateAndGetNftWeight(tokenId);
 

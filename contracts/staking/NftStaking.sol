@@ -18,7 +18,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     using SafeCast for uint256;
     using SafeMath for uint256;
     using SignedSafeMath for int256;
-    using ERC1155721TransferFallback for IERC1155721Transferrable;
+    using ERC1155721SafeTransferFallback for IERC1155721Transferrable;
 
     event RewardsAdded(uint256 startPeriod, uint256 endPeriod, uint256 rewardsPerCycle);
 
@@ -287,6 +287,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         require(tokenInfo.owner == msg.sender, "NftStaking: not staked for owner");
 
         uint16 currentCycle = _getCycle(now);
+        uint64 weight = tokenInfo.weight;
 
         if (enabled) {
             // ensure that at least an entire cycle has elapsed before unstaking the token to avoid
@@ -294,7 +295,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             // of a cycle and unstaking right after the start of the new cycle
             require(currentCycle - tokenInfo.depositCycle >= 2, "NftStaking: token still frozen");
 
-            _updateHistories(msg.sender, -int128(tokenInfo.weight), currentCycle);
+            _updateHistories(msg.sender, -int128(weight), currentCycle);
 
             // clear the token owner to ensure it cannot be unstaked again without being re-staked
             tokenInfo.owner = address(0);
@@ -306,8 +307,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         }
 
         whitelistedNftContract.safeTransferFromWithFallback(address(this), msg.sender, tokenId, 1, "");
-
-        emit NftUnstaked(msg.sender, currentCycle, tokenId, tokenInfo.weight);
+        emit NftUnstaked(msg.sender, currentCycle, tokenId, weight);
+        _onUnstake(msg.sender, tokenId, weight);
     }
 
     /**
@@ -358,13 +359,13 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             values[index] = 1;
         }
 
-        emit NftsBatchUnstaked(msg.sender, currentCycle, tokenIds, weights);
-
         if (enabled) {
             _updateHistories(msg.sender, totalUnstakedWeight, currentCycle);
         }
 
         whitelistedNftContract.safeBatchTransferFromWithFallback(address(this), msg.sender, tokenIds, values, "");
+        emit NftsBatchUnstaked(msg.sender, currentCycle, tokenIds, weights);
+        _onBatchUnstake(msg.sender, tokenIds, weights);
     }
 
     /**
@@ -515,6 +516,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         tokenInfos[tokenId] = TokenInfo(tokenOwner, weight, currentCycle, 0);
 
         emit NftStaked(tokenOwner, currentCycle, tokenId, weight);
+        _onStake(tokenOwner, tokenId, weight);
     }
 
     /**
@@ -553,6 +555,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         }
 
         emit NftsBatchStaked(tokenOwner, currentCycle, tokenIds, weights);
+        _onBatchStake(tokenOwner, tokenIds, weights);
     }
 
     /**
@@ -811,10 +814,59 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @return uint64 the weight of the NFT.
      */
     function _validateAndGetNftWeight(uint256 tokenId) internal virtual view returns (uint64);
+
+    /**
+     * Hook called on single NFT staking.
+     * @param owner uint256 the NFT owner.
+     * @param tokenId uint256 token identifier of the staked NFT.
+     * @param weight uint64 the weight of the staked NFT.
+     */
+    function _onStake(
+        address owner,
+        uint256 tokenId,
+        uint256 weight
+    ) internal virtual {}
+
+    /**
+     * Hook called on batch NFT staking.
+     * @param owner uint256 the NFT owner.
+     * @param tokenIds uint256[] token identifiers of the staked NFTs.
+     * @param weights uint64[] the weights of the staked NFTs.
+     */
+    function _onBatchStake(
+        address owner,
+        uint256[] memory tokenIds,
+        uint256[] memory weights
+    ) internal virtual {}
+
+    /**
+     * Hook called on single NFT unstaking.
+     * @param owner uint256 the NFT owner.
+     * @param tokenId uint256 token identifier of the unstaked NFT.
+     * @param weight uint64 the weight of the unstaked NFT.
+     */
+    function _onUnstake(
+        address owner,
+        uint256 tokenId,
+        uint256 weight
+    ) internal virtual {}
+
+    /**
+     * Hook called on batch NFT unstaking.
+     * @param owner uint256 the NFT owner.
+     * @param tokenIds uint256[] token identifiers of the unstaked NFTs.
+     * @param weights uint64[] the weights of the unstaked NFTs.
+     */
+    function _onBatchUnstake(
+        address owner,
+        uint256[] memory tokenIds,
+        uint256[] memory weights
+    ) internal virtual {}
 }
 
 /**
- * @notice Interface for transferring 1155 and/or 721 NFTs.
+ * @title IERC1155721Transferrable
+ * Interface for transferring 1155 and/or 721 NFTs.
  */
 interface IERC1155721Transferrable {
     /**
@@ -842,7 +894,7 @@ interface IERC1155721Transferrable {
     ) external;
 
     /**
-     * ERC1155: Transfers `value` amount of an `id` from  `from` to `to` (with safety call). 
+     * ERC1155: Transfers `value` amount of an `id` from  `from` to `to` (with safety call).
      * @dev Caller must be approved to manage the tokens being transferred out of the `from` account (see "Approval" section of the standard).
      * @dev MUST revert if `to` is the zero address.
      * @dev MUST revert if balance of holder for token `id` is lower than the `value` sent.
@@ -878,15 +930,14 @@ interface IERC1155721Transferrable {
     ) external;
 }
 
-
 /**
- * @title ERC1155721TransferFallback
+ * @title ERC1155721SafeTransferFallback
  * Library used to fall back on ERC721 non-safe transfer(s)
  * in case of ERC1155 safe transfer failure. A failure can be
  * caused by a contract-based wallet not implementing the
  * ERC1155Receiver interface.
  */
-library ERC1155721TransferFallback {
+library ERC1155721SafeTransferFallback {
     function safeBatchTransferFromWithFallback(
         IERC1155721Transferrable self,
         address from,
@@ -895,8 +946,7 @@ library ERC1155721TransferFallback {
         uint256[] memory values,
         bytes memory data
     ) internal {
-        try self.safeBatchTransferFrom(from, to, ids, values, data) {
-        } catch {
+        try self.safeBatchTransferFrom(from, to, ids, values, data)  {} catch {
             uint256 length = ids.length;
             for (uint256 i = 0; i < length; ++i) {
                 self.transferFrom(from, to, ids[i]);

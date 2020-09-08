@@ -308,7 +308,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
         whitelistedNftContract.safeTransferFromWithFallback(address(this), _msgSender(), tokenId, 1, "");
         emit NftUnstaked(_msgSender(), currentCycle, tokenId, weight);
-        _onUnstake(_msgSender(), tokenId, weight);
+        _onUnstake(_msgSender(), weight);
     }
 
     /**
@@ -352,7 +352,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
                 // weight that a staker can unstake must fit within uint128
                 // (i.e. the staker snapshot stake limit)
                 uint64 weight = tokenInfo.weight;
-                totalUnstakedWeight -= weight; // this is safe
+                totalUnstakedWeight += weight; // this is safe
                 weights[index] = weight;
             }
 
@@ -360,12 +360,12 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         }
 
         if (enabled) {
-            _updateHistories(_msgSender(), totalUnstakedWeight, currentCycle);
+            _updateHistories(_msgSender(), -totalUnstakedWeight, currentCycle);
         }
 
         whitelistedNftContract.safeBatchTransferFromWithFallback(address(this), _msgSender(), tokenIds, values, "");
         emit NftsBatchUnstaked(_msgSender(), currentCycle, tokenIds, weights);
-        _onBatchUnstake(_msgSender(), tokenIds, weights);
+        _onUnstake(_msgSender(), uint256(totalUnstakedWeight));
     }
 
     /**
@@ -516,7 +516,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         tokenInfos[tokenId] = TokenInfo(tokenOwner, weight, currentCycle, 0);
 
         emit NftStaked(tokenOwner, currentCycle, tokenId, weight);
-        _onStake(tokenOwner, tokenId, weight);
+        _onStake(tokenOwner, weight);
     }
 
     /**
@@ -555,7 +555,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         }
 
         emit NftsBatchStaked(tokenOwner, currentCycle, tokenIds, weights);
-        _onBatchStake(tokenOwner, tokenIds, weights);
+        _onStake(tokenOwner, totalStakedWeight);
     }
 
     /**
@@ -816,51 +816,23 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     function _validateAndGetNftWeight(uint256 tokenId) internal virtual view returns (uint64);
 
     /**
-     * Hook called on single NFT staking.
-     * @param owner uint256 the NFT owner.
-     * @param tokenId uint256 token identifier of the staked NFT.
-     * @param weight uint64 the weight of the staked NFT.
+     * Hook called on NFT(s) staking.
+     * @param owner uint256 the NFT(s) owner.
+     * @param totalWeight uint256 the total weight of the staked NFT(s).
      */
     function _onStake(
         address owner,
-        uint256 tokenId,
-        uint256 weight
+        uint256 totalWeight
     ) internal virtual {}
 
     /**
-     * Hook called on batch NFT staking.
-     * @param owner uint256 the NFT owner.
-     * @param tokenIds uint256[] token identifiers of the staked NFTs.
-     * @param weights uint64[] the weights of the staked NFTs.
-     */
-    function _onBatchStake(
-        address owner,
-        uint256[] memory tokenIds,
-        uint256[] memory weights
-    ) internal virtual {}
-
-    /**
-     * Hook called on single NFT unstaking.
-     * @param owner uint256 the NFT owner.
-     * @param tokenId uint256 token identifier of the unstaked NFT.
-     * @param weight uint64 the weight of the unstaked NFT.
+     * Hook called on NFT(s) unstaking.
+     * @param owner uint256 the NFT(s) owner.
+     * @param totalWeight uint256 the total weight of the unstaked NFT(s).
      */
     function _onUnstake(
         address owner,
-        uint256 tokenId,
-        uint256 weight
-    ) internal virtual {}
-
-    /**
-     * Hook called on batch NFT unstaking.
-     * @param owner uint256 the NFT owner.
-     * @param tokenIds uint256[] token identifiers of the unstaked NFTs.
-     * @param weights uint64[] the weights of the unstaked NFTs.
-     */
-    function _onBatchUnstake(
-        address owner,
-        uint256[] memory tokenIds,
-        uint256[] memory weights
+        uint256 totalWeight
     ) internal virtual {}
 }
 

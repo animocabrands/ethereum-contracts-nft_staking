@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.0.0 (02/07/2020)
+
+### New features
+ * Added `batchUnstakeNfts()` function to be able to perform batch unstaking of NFTs.
+ * New events `NftsBatchStaked` and `NftsBatchUnstaked`.
+ * Batch functions throw on an empty tokens list.
+
+### Breaking changes
+
+
 ## 3.0.4
 
 ### Improvements

@@ -1,3 +1,5 @@
+const {accounts} = require('@openzeppelin/test-environment');
+
 const {
     shouldRevertAndNotStakeNft,
     shouldStakeNft,
@@ -9,16 +11,16 @@ const {
     initialiseDebug,
 } = require('../behaviors');
 
-const {TokenIds} = require('../constants');
+const [creator, staker] = accounts;
 
-const periodLimitsScenario = function (staker, other) {
+const periodLimitsScenario = function () {
     before(function () {
         initialiseDebug.bind(this)(staker);
     });
 
     describe('Stake Common NFT at cycle 7', function () {
         shouldTimeWarpBy({cycles: 6}, {cycle: 7, period: 1});
-        shouldStakeNft(staker, TokenIds[0]);
+        shouldStakeNft(staker, 0);
     });
 
     describe('Estimate after 5 periods', function () {
@@ -43,7 +45,7 @@ const periodLimitsScenario = function (staker, other) {
         shouldTimeWarpBy({periods: 2}, {cycle: 77, period: 11});
 
         shouldClaimRewards(staker, 2, {startPeriod: 9, periods: 2, amount: '0'});
-        shouldUnstakeNft(staker, TokenIds[0]);
+        shouldUnstakeNft(staker, 0);
     });
 };
 

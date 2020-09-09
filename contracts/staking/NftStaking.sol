@@ -486,48 +486,48 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     /**
      * Stakes the NFT received by the contract for its owner. The NFT's weight will count for the current cycle.
+     * @dev Reverts if `tokenId` is still on cooldown.
      * @dev Emits an HistoriesUpdated event.
      * @dev Emits an NftStaked event.
      * @param tokenId Identifier of the staked NFT.
-     * @param tokenOwner Owner of the staked NFT.
+     * @param owner Owner of the staked NFT.
      */
-    function _stakeNft(uint256 tokenId, address tokenOwner) internal isEnabled hasStarted {
-        require(address(whitelistedNftContract) == _msgSender(), "NftStaking: contract not whitelisted");
-
+    function _stakeNft(uint256 tokenId, address owner) internal isEnabled hasStarted {
         uint64 weight = _validateAndGetNftWeight(tokenId);
 
         uint16 periodLengthInCycles_ = periodLengthInCycles;
         uint16 currentCycle = _getCycle(now);
 
-        _updateHistories(tokenOwner, int128(weight), currentCycle);
+        _updateHistories(owner, int128(weight), currentCycle);
 
         // initialise the next claim if it was the first stake for this staker or if
         // the next claim was re-initialised (ie. rewards were claimed until the last
         // staker snapshot and the last staker snapshot has no stake)
-        if (nextClaims[tokenOwner].period == 0) {
+        if (nextClaims[owner].period == 0) {
             uint16 currentPeriod = _getPeriod(currentCycle, periodLengthInCycles_);
-            nextClaims[tokenOwner] = NextClaim(currentPeriod, uint64(globalHistory.length - 1), 0);
+            nextClaims[owner] = NextClaim(currentPeriod, uint64(globalHistory.length - 1), 0);
         }
 
         uint16 withdrawCycle = tokenInfos[tokenId].withdrawCycle;
         require(currentCycle != withdrawCycle, "NftStaking: unstaked token cooldown");
 
         // set the staked token's info
-        tokenInfos[tokenId] = TokenInfo(tokenOwner, weight, currentCycle, 0);
+        tokenInfos[tokenId] = TokenInfo(owner, weight, currentCycle, 0);
 
-        emit NftStaked(tokenOwner, currentCycle, tokenId, weight);
-        _onStake(tokenOwner, weight);
+        emit NftStaked(owner, currentCycle, tokenId, weight);
+        _onStake(owner, weight);
     }
 
     /**
      * Stakes the NFT received by the contract for its owner. The NFT's weight will count for the current cycle.
      * @dev Reverts if `tokenIds` is empty.
+     * @dev Reverts if one of `tokenIds` is still on cooldown.
      * @dev Emits an HistoriesUpdated event.
      * @dev Emits an NftStaked event.
      * @param tokenIds Identifiers of the staked NFTs.
-     * @param tokenOwner Owner of the staked NFTs.
+     * @param owner Owner of the staked NFTs.
      */
-    function _batchStakeNfts(uint256[] memory tokenIds, address tokenOwner) internal isEnabled hasStarted {
+    function _batchStakeNfts(uint256[] memory tokenIds, address owner) internal isEnabled hasStarted {
         uint256 numTokens = tokenIds.length;
         require(numTokens != 0, "NftStaking: no tokens");
 
@@ -541,21 +541,21 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             uint64 weight = _validateAndGetNftWeight(tokenId);
             totalStakedWeight += weight; // This is safe
             weights[index] = weight;
-            tokenInfos[tokenId] = TokenInfo(tokenOwner, weight, currentCycle, 0);
+            tokenInfos[tokenId] = TokenInfo(owner, weight, currentCycle, 0);
         }
 
-        _updateHistories(tokenOwner, int128(totalStakedWeight), currentCycle);
+        _updateHistories(owner, int128(totalStakedWeight), currentCycle);
 
         // initialise the next claim if it was the first stake for this staker or if
         // the next claim was re-initialised (ie. rewards were claimed until the last
         // staker snapshot and the last staker snapshot has no stake)
-        if (nextClaims[tokenOwner].period == 0) {
+        if (nextClaims[owner].period == 0) {
             uint16 currentPeriod = _getPeriod(currentCycle, periodLengthInCycles);
-            nextClaims[tokenOwner] = NextClaim(currentPeriod, uint64(globalHistory.length - 1), 0);
+            nextClaims[owner] = NextClaim(currentPeriod, uint64(globalHistory.length - 1), 0);
         }
 
-        emit NftsBatchStaked(tokenOwner, currentCycle, tokenIds, weights);
-        _onStake(tokenOwner, totalStakedWeight);
+        emit NftsBatchStaked(owner, currentCycle, tokenIds, weights);
+        _onStake(owner, totalStakedWeight);
     }
 
     /**

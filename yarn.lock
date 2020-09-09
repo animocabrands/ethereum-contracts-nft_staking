@@ -9,34 +9,34 @@
   dependencies:
     big-integer "^1.6.48"
 
-"@animoca/ethereum-contracts-assets_inventory@^3.0.0":
+"@animoca/ethereum-contracts-assets_inventory@=3.0.0":
   version "3.0.0"
   resolved "https://registry.yarnpkg.com/@animoca/ethereum-contracts-assets_inventory/-/ethereum-contracts-assets_inventory-3.0.0.tgz#e2277d88ee5f1eacf82a37aaaa31adf1e1b9ab2a"
   integrity sha512-3uaeoERANnHXNTiaanqdBXtNRNn7GRpU8vRB3WFRWoF6t9MAwaPgUVcuZj1zuNU4lRbtLDIriFmFXBTE7RqoMw==
 
-"@animoca/ethereum-contracts-core_library@^3.0.0":
-  version "3.1.1"
-  resolved "https://registry.yarnpkg.com/@animoca/ethereum-contracts-core_library/-/ethereum-contracts-core_library-3.1.1.tgz#61d3ef7570e59f9ee597e8262850b4c63661e730"
-  integrity sha512-NHqmEL2PcSIcVYnbLgiv6UFyTTbiYBX8XrrxSf+ZvfyTnfwyRKqQPqQZyoegjh7iJvEO1bi+YzveuQrwOVB97w==
+"@animoca/ethereum-contracts-core_library@=3.0.0":
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/@animoca/ethereum-contracts-core_library/-/ethereum-contracts-core_library-3.0.0.tgz#400f8b87f4865d6caab7a5130c6f2e6d68527d08"
+  integrity sha512-5zL4wFY+6b8ygHlTci62PgSCeAs4qUWgeiRentB5RWiySrq0SvtjKPBV1G0Rorn5dKxb6u48j40WLjAn3dUovg==
   dependencies:
     "@openzeppelin/cli" "^2.8.2"
-    "@openzeppelin/contracts" "^3.1.0"
+    "@openzeppelin/contracts" "^3.0.2"
     "@openzeppelin/test-environment" "^0.1.4"
     "@openzeppelin/test-helpers" "^0.5.6"
-    "@truffle/debug-utils" "^4.1.8"
+    "@truffle/debug-utils" "^4.1.6"
     async "^3.2.0"
     chai "^4.2.0"
     chai-as-promised "^7.1.1"
     chai-bignumber "^3.0.0"
     mocha "^8.0.1"
     solc "^0.6.10"
-    solidity-coverage "^0.7.9"
-    truffle "^5.1.33"
+    solidity-coverage "^0.7.7"
+    truffle "^5.1.30"
     truffle-plugin-verify "^0.3.11"
-    truffle-security "^1.7.3"
+    truffle-security "^1.7.1"
     web3-utils "^1.2.9"
 
-"@animoca/ethereum-contracts-erc20_base@^3.0.0":
+"@animoca/ethereum-contracts-erc20_base@=3.0.0":
   version "3.0.0"
   resolved "https://registry.yarnpkg.com/@animoca/ethereum-contracts-erc20_base/-/ethereum-contracts-erc20_base-3.0.0.tgz#37dbfe1939ed44f8f15565f38f2b0a210e09f7d4"
   integrity sha512-XgMFSOpwpKu9wHOTIocppDBnougwH00y7fU89hGolyfNBrHNI3w+HimbZIxCNC+JAQcetHlG9uYNQzmq+hGaTg==
@@ -638,9 +638,9 @@
   integrity sha512-VniCGPIgSGNEgOkh5phb3iKmSGIzcwrccy3IomMFRWPCMiCk2y98UQNJEoDs1yIHtZMstVjYWKYxnunIGzC5UQ==
 
 "@grpc/grpc-js@^1.0.0":
-  version "1.1.5"
-  resolved "https://registry.yarnpkg.com/@grpc/grpc-js/-/grpc-js-1.1.5.tgz#2d0b261cd54a529f6b78ac0de9d6fd91a9a3129c"
-  integrity sha512-2huf5z85TdZI4nLmJQ9Zdfd+6vmIyBDs7B4L71bTaHKA9pRsGKAH24XaktMk/xneKJIqAgeIZtg1cyivVZtvrg==
+  version "1.1.6"
+  resolved "https://registry.yarnpkg.com/@grpc/grpc-js/-/grpc-js-1.1.6.tgz#43ab7bcb1aec071e18d7b45f8920afc0c9fcfb8e"
+  integrity sha512-bUeaMN/dHTkt9AqU0Tc1xdHMB3jVLyPNfg8gZ5cMyhFyMeCwoJbFcJrNBgYqRCbvYhvtaEgzQwkw91NnY4Oktg==
   dependencies:
     "@grpc/proto-loader" "^0.6.0-pre14"
     "@types/node" "^12.12.47"
@@ -757,7 +757,7 @@
     fs-extra "^8.1.0"
     try-require "^1.2.1"
 
-"@openzeppelin/contracts@^3.1.0":
+"@openzeppelin/contracts@^3.0.2":
   version "3.1.0"
   resolved "https://registry.yarnpkg.com/@openzeppelin/contracts/-/contracts-3.1.0.tgz#bcea457ef89069fbe5a617f50b25b6a8272895d5"
   integrity sha512-dVXDnUKxrAKLzPdCRkz+N8qsVkK1XxJ6kk3zuI6zaQmcKxN7CkizoDP7lXxcs/Mi2I0mxceTRjJBqlzFffLJrQ==
@@ -1123,7 +1123,7 @@
     web3-eth-abi "1.2.1"
     web3-utils "1.2.1"
 
-"@truffle/debug-utils@^4.1.8", "@truffle/debug-utils@^4.2.7":
+"@truffle/debug-utils@^4.1.6", "@truffle/debug-utils@^4.2.7":
   version "4.2.7"
   resolved "https://registry.yarnpkg.com/@truffle/debug-utils/-/debug-utils-4.2.7.tgz#cd1fe82ffb29963f5a92a815e93e2c9acb2b57a7"
   integrity sha512-BMV6JWyttKowDpxVlPMGMUIcz+j4K1/vE6A03xwuIAah1T8JY03/NHSWddcajwyL5GcCsiLpW1CnREw7uUVqmA==
@@ -1354,19 +1354,19 @@
   integrity sha512-Wk7nG1JSaMfMpoMJDKUsWYugliB2Vy55pdjLpmLixeyMi7HizW2I/9QoxsPCkXl3dO+ZOVqPumKaDUv5zJu2uQ==
 
 "@types/node@^10.12.18", "@types/node@^10.3.2":
-  version "10.17.29"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-10.17.29.tgz#263b7013f9f4afa53585b199f9a4255d9613b178"
-  integrity sha512-zLo9rjUeQ5+QVhOufDwrb3XKyso31fJBJnk9wUUQIBDExF/O4LryvpOfozfUaxgqifTnlt7FyqsAPXUq5yFZSA==
+  version "10.17.30"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-10.17.30.tgz#20556a0d7f62b83e163973a6cd640af636d3dd3b"
+  integrity sha512-euU8QLX0ipj+5mOYa4ZqZoTv+53BY7yTg9I2ZIhDXgiI3M+0n4mdAt9TQCuvxVAgU179g8OsRLaBt0qEi0T6xA==
 
 "@types/node@^12.12.47", "@types/node@^12.12.6", "@types/node@^12.6.1":
-  version "12.12.55"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-12.12.55.tgz#0aa266441cb9e1fd3e415a8f619cb7d776667cdd"
-  integrity sha512-Vd6xQUVvPCTm7Nx1N7XHcpX6t047ltm7TgcsOr4gFHjeYgwZevo+V7I1lfzHnj5BT5frztZ42+RTG4MwYw63dw==
+  version "12.12.56"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-12.12.56.tgz#83591a89723d8ec3eaf722137e1784a7351edb6c"
+  integrity sha512-8OdIupOIZtmObR13fvGyTvpcuzKmMugkATeVcfNwCjGtHxhjEKmOvLqXwR8U9VOtNnZ4EXaSfNiLVsPinaCXkQ==
 
 "@types/node@^13.7.0":
-  version "13.13.16"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-13.13.16.tgz#66f2177047b61131eaac18c47eb25d6f1317070a"
-  integrity sha512-dJ9vXxJ8MEwzNn4GkoAGauejhXoKuJyYKegsA6Af25ZpEDXomeVXt5HUWUNVHk5UN7+U0f6ghC6otwt+7PdSDg==
+  version "13.13.17"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-13.13.17.tgz#fba8bdd9be9a61adbceac654450673c2f520b0f0"
+  integrity sha512-rGZftvdDpsYtG/rOlDOwny1f6Aq4FHJdGSVfPg5vC2DaR9Rt4W2OpsOF5GTU2bSqZmwTkfnsvJhhzpMWYxxlEA==
 
 "@types/node@^6.0.52":
   version "6.14.11"
@@ -4126,9 +4126,9 @@ ee-first@1.1.1:
   integrity sha1-WQxhFWsK4vTwJVcyoViyZrxWsh0=
 
 electron-to-chromium@^1.3.47:
-  version "1.3.563"
-  resolved "https://registry.yarnpkg.com/electron-to-chromium/-/electron-to-chromium-1.3.563.tgz#9da4e4f0d76c4b221784cc9ca81a8464e8180408"
-  integrity sha512-JkEjRFmuSegdTBCPG+RS1zw9csObHoN4el+X9EfEALO0UT7us8swxspJx7cRsrMkjd8bmmRTAd0xuUhvvb5DLg==
+  version "1.3.564"
+  resolved "https://registry.yarnpkg.com/electron-to-chromium/-/electron-to-chromium-1.3.564.tgz#e9c319ae437b3eb8bbf3e3bae4bead5a21945961"
+  integrity sha512-fNaYN3EtKQWLQsrKXui8mzcryJXuA0LbCLoizeX6oayG2emBaS5MauKjCPAvc29NEY4FpLHIUWiP+Y0Bfrs5dg==
 
 elliptic@6.3.3:
   version "6.3.3"
@@ -5772,9 +5772,9 @@ ganache-cli@6.9.0:
     yargs "13.2.4"
 
 ganache-core@^2.8.0:
-  version "2.11.2"
-  resolved "https://registry.yarnpkg.com/ganache-core/-/ganache-core-2.11.2.tgz#821a8e7beaa65b32e408ccae2e2ec49194c4e378"
-  integrity sha512-yZSMdR2xtqG2IdApeB6OywtMxwcHMp6Y5TUBwPyKe5/GripP8xnEpSKBluhxoyqEotg+Z2S8mjIXJyAm+NnMGw==
+  version "2.11.3"
+  resolved "https://registry.yarnpkg.com/ganache-core/-/ganache-core-2.11.3.tgz#c59e6c34b03279bffd32f4694ec8ed6f5f1d76a8"
+  integrity sha512-SsFJUnyiZI+jW3I43XluXi3TvJC3Ke6vZkvN6NjbWpXvi6dOrmafkyq9Rq07+Qrri6BLGKWoZcG8HfH6ietuqg==
   dependencies:
     abstract-leveldown "3.0.0"
     async "2.6.2"
@@ -10481,7 +10481,7 @@ solhint@^3.0.0:
   optionalDependencies:
     prettier "^1.14.3"
 
-solidity-coverage@^0.7.9:
+solidity-coverage@^0.7.7:
   version "0.7.10"
   resolved "https://registry.yarnpkg.com/solidity-coverage/-/solidity-coverage-0.7.10.tgz#ab183c11d0742478d3f4f7a025a8c813ded24ca9"
   integrity sha512-F98rYoD3bscB9qIJJrqkk+o93GbOWTT54VgfO97PrcWAenOFIC1EI5DzGJSrMvmFFfr8fsMPR89on6JR0Xf/Ig==
@@ -11258,7 +11258,7 @@ truffle-provider@^0.1.12:
     truffle-interface-adapter "^0.2.5"
     web3 "1.2.1"
 
-truffle-security@^1.7.3:
+truffle-security@^1.7.1:
   version "1.7.3"
   resolved "https://registry.yarnpkg.com/truffle-security/-/truffle-security-1.7.3.tgz#c9dd7a0e7f35adb36d40878fa6939cf9446d210d"
   integrity sha512-eruRvUBTBwO3anVW5o8qCWf/TGDVnNsKbM9cS6bxSI99MfXh5G0jw3Sy5m8Xeq6P9Y0QkqrmO/Sb+67vaX9bAw==
@@ -11291,7 +11291,7 @@ truffle-security@^1.7.3:
     tiny-async-pool "^1.0.4"
     uuid "^3.3.3"
 
-truffle@^5.1.33:
+truffle@^5.1.30:
   version "5.1.43"
   resolved "https://registry.yarnpkg.com/truffle/-/truffle-5.1.43.tgz#544e7b0955b6728a00761a86555c1eb259313266"
   integrity sha512-KXda/70RAG9TBdQta8JEwVQmL9r/AZzU++5aZkrF4/nDosund8SV1yM9CcDTib4xLWuMaB15YyOC5r163QdLAw==

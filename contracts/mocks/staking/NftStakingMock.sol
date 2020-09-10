@@ -12,7 +12,7 @@ contract NftStakingMock is NftStaking {
     constructor(
         uint32 cycleLengthInSeconds_,
         uint16 periodLengthInCycles_,
-        IWhitelistedNftContract whitelistedNftContract_,
+        IERC1155721Transferrable whitelistedNftContract_,
         IERC20 rewardsTokenContract_,
         uint256[] memory tokenAttribute,
         uint64[] memory weights
@@ -22,7 +22,7 @@ contract NftStakingMock is NftStaking {
         whitelistedNftContract_,
         rewardsTokenContract_
     ) public {
-        require(tokenAttribute.length == weights.length, "NftStakingMock: inconsistent array lenghts");
+        require(tokenAttribute.length == weights.length, "NftStakingMock: inconsistent array lengths");
         for (uint256 i = 0; i < tokenAttribute.length; ++i) {
             weightByTokenAttribute[tokenAttribute[i]] = weights[i];
         }

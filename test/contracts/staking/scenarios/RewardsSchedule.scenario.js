@@ -1,3 +1,6 @@
+const {accounts} = require('@openzeppelin/test-environment');
+const [creator, notCreator] = accounts;
+
 const {BN, expectRevert} = require('@openzeppelin/test-helpers');
 const {toWei} = require('web3-utils');
 
@@ -5,7 +8,7 @@ const {shouldAddRewardsForPeriods, shouldRevertAndNotAddRewardsForPeriods, shoul
 
 const reward = toWei('10000');
 
-const rewardsScheduleScenario = function (creator, notCreator, started) {
+const rewardsScheduleScenario = function (started) {
     describe('when not called by the owner', function () {
         shouldRevertAndNotAddRewardsForPeriods(notCreator, 9, 10, reward, 'Ownable: caller is not the owner');
     });

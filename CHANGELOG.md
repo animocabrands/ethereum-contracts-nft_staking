@@ -1,5 +1,15 @@
 # Changelog
 
+## 4.0.0
+
+### New features
+ * Added `batchUnstakeNfts()` function to be able to perform batch unstaking of NFTs.
+ * Internal hook functions `_onStake`, `_onBatchStake`, `_onUnstake`, `_onBatchUnstake`.
+
+### Breaking changes
+ * New events `NftsBatchStaked` and `NftsBatchUnstaked` emitted during batch operations instead of the single versions.
+ * Batch functions throw on an empty tokens list.
+
 ## 3.0.4
 
 ### Improvements

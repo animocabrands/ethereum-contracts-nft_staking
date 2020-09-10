@@ -13,10 +13,11 @@ const {
     PeriodLengthInSeconds,
     PeriodLengthInCycles,
     RarityWeights,
-    TokenIds,
     DefaultRewardSchedule,
     RewardsPool,
 } = require('./constants');
+
+const { mintStakerTokens } = require('./behaviors/staking.behavior');
 
 const [creator, staker] = accounts;
 
@@ -40,9 +41,7 @@ async function deploy() {
 
     await this.rewardsToken.approve(this.stakingContract.address, RewardsTokenInitialBalance, {from: creator});
 
-    for (const tokenId of TokenIds) {
-        await this.nftContract.mintNonFungible(staker, tokenId, {from: creator});
-    }
+    await mintStakerTokens.bind(this)(staker);
 }
 
 async function start(rewardSchedule = DefaultRewardSchedule) {

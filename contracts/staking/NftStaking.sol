@@ -18,14 +18,17 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     using SafeCast for uint256;
     using SafeMath for uint256;
     using SignedSafeMath for int256;
+    using ERC1155721SafeTransferFallback for IERC1155721Transferrable;
 
     event RewardsAdded(uint256 startPeriod, uint256 endPeriod, uint256 rewardsPerCycle);
 
     event Started();
 
     event NftStaked(address staker, uint256 cycle, uint256 tokenId, uint256 weight);
+    event NftsBatchStaked(address staker, uint256 cycle, uint256[] tokenIds, uint256[] weights);
 
     event NftUnstaked(address staker, uint256 cycle, uint256 tokenId, uint256 weight);
+    event NftsBatchUnstaked(address staker, uint256 cycle, uint256[] tokenIds, uint256[] weights);
 
     event RewardsClaimed(address staker, uint256 cycle, uint256 startPeriod, uint256 periods, uint256 amount);
 
@@ -80,7 +83,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     uint256 public startTimestamp;
 
     IERC20 public immutable rewardsTokenContract;
-    IWhitelistedNftContract public immutable whitelistedNftContract;
+    IERC1155721Transferrable public immutable whitelistedNftContract;
 
     uint32 public immutable cycleLengthInSeconds;
     uint16 public immutable periodLengthInCycles;
@@ -98,6 +101,9 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     /* period => rewardsPerCycle */
     mapping(uint256 => uint256) public rewardsSchedule;
+
+    /* lost cycle => withdrawn? */
+    mapping(uint256 => bool) public withdrawnLostCycles;
 
     modifier hasStarted() {
         require(startTimestamp != 0, "NftStaking: staking not started");
@@ -132,7 +138,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     constructor(
         uint32 cycleLengthInSeconds_,
         uint16 periodLengthInCycles_,
-        IWhitelistedNftContract whitelistedNftContract_,
+        IERC1155721Transferrable whitelistedNftContract_,
         IERC20 rewardsTokenContract_
     ) internal {
         require(cycleLengthInSeconds_ >= 1 minutes, "NftStaking: invalid cycle length");
@@ -186,7 +192,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         totalRewardsPool = totalRewardsPool.add(addedRewards);
 
         require(
-            rewardsTokenContract.transferFrom(msg.sender, address(this), addedRewards),
+            rewardsTokenContract.transferFrom(_msgSender(), address(this), addedRewards),
             "NftStaking: failed to add funds to the reward pool"
         );
 
@@ -225,13 +231,69 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      */
     function withdrawRewardsPool(uint256 amount) public onlyOwner isNotEnabled {
         require(
-            rewardsTokenContract.transfer(msg.sender, amount),
+            rewardsTokenContract.transfer(_msgSender(), amount),
             "NftStaking: failed to withdraw from the rewards pool"
         );
     }
 
+    /**
+     * Withdraws the rewards associated with a lost cycle (ie. a past cycle with 0 global stake).
+     * @dev Reverts if not called by the owner.
+     * @dev Reverts if `to` is the zero address.
+     * @dev Reverts if the contract is not started.
+     * @dev Reverts if `cycle` is not past.
+     * @dev Reverts if the rewards for the lost cycle is already withdrawn.
+     * @dev Reverts if `globalSnapshotIndex` is < -1.
+     * @dev Reverts if `globalSnapshotIndex` is -1 but `cycle` is part of an existing snapshot.
+     * @dev Reverts (with "invalid opcode") if `globalSnapshotIndex` is >= 0 and points to an non existing snapshot.
+     * @dev Reverts if `globalSnapshotIndex` is >= 0 and does not point to a snapshot containing `cycle`.
+     * @dev Reverts if `cycle` is not a lost cycle (ie. global stake > 0).
+     * @dev Reverts if `cycle` does not have scheduled rewards.
+     * @dev The rewards token contract emits an ERC20 Transfer event for the reward tokens transfer.
+     * @param to The address to send the lost cycle rewards to.
+     * @param cycle The lost cycle.
+     * @param globalSnapshotIndex The index of the global snapshot which contains `cycle`, or -1 if the cycle was before the first snapshot.
+     */
+    function withdrawLostCycleRewards(address to, uint16 cycle, int256 globalSnapshotIndex) external onlyOwner {
+        require(to != address(0), "NftStaking: zero address");
+        require(cycle < _getCycle(now), "NftStaking: non-past cycle");
+        require(withdrawnLostCycles[cycle] == false, "NftStaking: already withdrawn");
+        if (globalSnapshotIndex == -1) {
+            require(
+                globalHistory.length == 0 ||
+                cycle < globalHistory[0].startCycle,
+                "NftStaking: cycle has snapshot"
+            );
+        } else if (globalSnapshotIndex >= 0) {
+            uint256 snapshotIndex = uint256(globalSnapshotIndex);
+            Snapshot memory snapshot = globalHistory[snapshotIndex];
+            require(
+                cycle >= snapshot.startCycle,
+                "NftStaking: cycle < snapshot"
+            );
+            require(
+                globalHistory.length == snapshotIndex + 1 || // last snapshot
+                cycle < globalHistory[snapshotIndex + 1].startCycle,
+                "NftStaking: cycle > snapshot"
+            );
+            require(snapshot.stake == 0, "NftStaking: non-lost cycle");
+        } else {
+            revert("NftStaking: wrong index value");
+        }
+
+        uint16 period = _getPeriod(cycle, periodLengthInCycles);
+        uint256 cycleRewards = rewardsSchedule[period];
+        require(cycleRewards != 0, "NftStaking: rewardless cycle");
+        withdrawnLostCycles[cycle] = true;
+        rewardsTokenContract.transfer(to, cycleRewards);
+    }
+
     /*                                             ERC1155TokenReceiver                                             */
 
+    /**
+     * ERC1155Receiver hook for single transfer.
+     * @dev Reverts if the caller is not the whitelisted NFT contract.
+     */
     function onERC1155Received(
         address, /*operator*/
         address from,
@@ -239,10 +301,15 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint256, /*value*/
         bytes calldata /*data*/
     ) external virtual override returns (bytes4) {
+        require(address(whitelistedNftContract) == _msgSender(), "NftStaking: contract not whitelisted");
         _stakeNft(id, from);
         return _ERC1155_RECEIVED;
     }
 
+    /**
+     * ERC1155Receiver hook for batch transfer.
+     * @dev Reverts if the caller is not the whitelisted NFT contract.
+     */
     function onERC1155BatchReceived(
         address, /*operator*/
         address from,
@@ -250,9 +317,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
         uint256[] calldata, /*values*/
         bytes calldata /*data*/
     ) external virtual override returns (bytes4) {
-        for (uint256 i = 0; i < ids.length; ++i) {
-            _stakeNft(ids[i], from);
-        }
+        require(address(whitelistedNftContract) == _msgSender(), "NftStaking: contract not whitelisted");
+        _batchStakeNfts(ids, from);
         return _ERC1155_BATCH_RECEIVED;
     }
 
@@ -273,9 +339,10 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     function unstakeNft(uint256 tokenId) external virtual {
         TokenInfo memory tokenInfo = tokenInfos[tokenId];
 
-        require(tokenInfo.owner == msg.sender, "NftStaking: token not staked or incorrect token owner");
+        require(tokenInfo.owner == _msgSender(), "NftStaking: not staked for owner");
 
         uint16 currentCycle = _getCycle(now);
+        uint64 weight = tokenInfo.weight;
 
         if (enabled) {
             // ensure that at least an entire cycle has elapsed before unstaking the token to avoid
@@ -283,7 +350,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             // of a cycle and unstaking right after the start of the new cycle
             require(currentCycle - tokenInfo.depositCycle >= 2, "NftStaking: token still frozen");
 
-            _updateHistories(msg.sender, -int128(tokenInfo.weight), currentCycle);
+            _updateHistories(_msgSender(), -int128(weight), currentCycle);
 
             // clear the token owner to ensure it cannot be unstaked again without being re-staked
             tokenInfo.owner = address(0);
@@ -294,14 +361,66 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             tokenInfos[tokenId] = tokenInfo;
         }
 
-        try whitelistedNftContract.safeTransferFrom(address(this), msg.sender, tokenId, 1, "")  {} catch {
-            // the above call to the ERC1155 safeTransferFrom() function may fail if the recipient
-            // is a contract wallet not implementing the ERC1155TokenReceiver interface
-            // if this happens, the transfer falls back to a call to the ERC721 (non-safe) transferFrom function.
-            whitelistedNftContract.transferFrom(address(this), msg.sender, tokenId);
+        whitelistedNftContract.safeTransferFromWithFallback(address(this), _msgSender(), tokenId, 1, "");
+        emit NftUnstaked(_msgSender(), currentCycle, tokenId, weight);
+        _onUnstake(_msgSender(), weight);
+    }
+
+    /**
+     * Unstakes a batch of deposited NFTs from the contract.
+     * @dev Reverts if `tokenIds` is empty.
+     * @dev Reverts if the caller is not the original owner of any of the NFTs.
+     * @dev While the contract is enabled, reverts if any NFT is being unstaked before its staking freeze duration has elapsed.
+     * @dev While the contract is enabled, creates any missing snapshots, up-to the current cycle.
+     * @dev While the contract is enabled, emits the HistoriesUpdated event.
+     * @dev Emits the NftsBatchUnstaked event for each NFT unstaked.
+     * @param tokenIds The token identifiers, referencing the NFTs being unstaked.
+     */
+    function batchUnstakeNfts(uint256[] calldata tokenIds) external {
+        uint256 numTokens = tokenIds.length;
+        require(numTokens != 0, "NftStaking: no tokens");
+
+        uint16 currentCycle = _getCycle(now);
+        int128 totalUnstakedWeight = 0;
+        uint256[] memory values = new uint256[](numTokens);
+        uint256[] memory weights = new uint256[](numTokens);
+
+        for (uint256 index = 0; index < numTokens; ++index) {
+            uint256 tokenId = tokenIds[index];
+
+            TokenInfo memory tokenInfo = tokenInfos[tokenId];
+
+            require(tokenInfo.owner == _msgSender(), "NftStaking: not staked for owner");
+
+            if (enabled) {
+                // ensure that at least an entire cycle has elapsed before
+                // unstaking the token to avoid an exploit where a a fukll cycle
+                // would be claimable if staking just before the end of a cycle
+                // and unstaking right after the start of the new cycle
+                require(currentCycle - tokenInfo.depositCycle >= 2, "NftStaking: token still frozen");
+
+                // clear the token owner to ensure it cannot be unstaked again
+                // without being re-staked
+                tokenInfos[tokenId].owner = address(0);
+
+                // we can use unsafe math here since the maximum total staked
+                // weight that a staker can unstake must fit within uint128
+                // (i.e. the staker snapshot stake limit)
+                uint64 weight = tokenInfo.weight;
+                totalUnstakedWeight += weight; // this is safe
+                weights[index] = weight;
+            }
+
+            values[index] = 1;
         }
 
-        emit NftUnstaked(msg.sender, currentCycle, tokenId, tokenInfo.weight);
+        if (enabled) {
+            _updateHistories(_msgSender(), -totalUnstakedWeight, currentCycle);
+        }
+
+        whitelistedNftContract.safeBatchTransferFromWithFallback(address(this), _msgSender(), tokenIds, values, "");
+        emit NftsBatchUnstaked(_msgSender(), currentCycle, tokenIds, weights);
+        _onUnstake(_msgSender(), uint256(totalUnstakedWeight));
     }
 
     /**
@@ -324,7 +443,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             uint256 amount
         )
     {
-        (ComputedClaim memory claim, ) = _computeRewards(msg.sender, maxPeriods);
+        (ComputedClaim memory claim, ) = _computeRewards(_msgSender(), maxPeriods);
         startPeriod = claim.startPeriod;
         periods = claim.periods;
         amount = claim.amount;
@@ -340,12 +459,12 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @param maxPeriods The maximum number of periods to claim for.
      */
     function claimRewards(uint16 maxPeriods) external isEnabled hasStarted {
-        NextClaim memory nextClaim = nextClaims[msg.sender];
+        NextClaim memory nextClaim = nextClaims[_msgSender()];
 
-        (ComputedClaim memory claim, NextClaim memory newNextClaim) = _computeRewards(msg.sender, maxPeriods);
+        (ComputedClaim memory claim, NextClaim memory newNextClaim) = _computeRewards(_msgSender(), maxPeriods);
 
         // free up memory on already processed staker snapshots
-        Snapshot[] storage stakerHistory = stakerHistories[msg.sender];
+        Snapshot[] storage stakerHistory = stakerHistories[_msgSender()];
         while (nextClaim.stakerSnapshotIndex < newNextClaim.stakerSnapshotIndex) {
             delete stakerHistory[nextClaim.stakerSnapshotIndex++];
         }
@@ -354,7 +473,7 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             return;
         }
 
-        if (nextClaims[msg.sender].period == 0) {
+        if (nextClaims[_msgSender()].period == 0) {
             return;
         }
 
@@ -366,16 +485,16 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             lastStakerSnapshot.stake == 0 // and nothing is staked in the last staker snapshot
         ) {
             // re-init the next claim
-            delete nextClaims[msg.sender];
+            delete nextClaims[_msgSender()];
         } else {
-            nextClaims[msg.sender] = newNextClaim;
+            nextClaims[_msgSender()] = newNextClaim;
         }
 
         if (claim.amount != 0) {
-            require(rewardsTokenContract.transfer(msg.sender, claim.amount), "NftStaking: failed to transfer rewards");
+            require(rewardsTokenContract.transfer(_msgSender(), claim.amount), "NftStaking: failed to transfer rewards");
         }
 
-        emit RewardsClaimed(msg.sender, _getCycle(now), claim.startPeriod, claim.periods, claim.amount);
+        emit RewardsClaimed(_msgSender(), _getCycle(now), claim.startPeriod, claim.periods, claim.amount);
     }
 
     /*                                            Utility Public Functions                                            */
@@ -422,37 +541,76 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
 
     /**
      * Stakes the NFT received by the contract for its owner. The NFT's weight will count for the current cycle.
-     * @dev Reverts if the caller is not the whitelisted NFT contract.
+     * @dev Reverts if `tokenId` is still on cooldown.
      * @dev Emits an HistoriesUpdated event.
      * @dev Emits an NftStaked event.
      * @param tokenId Identifier of the staked NFT.
-     * @param tokenOwner Owner of the staked NFT.
+     * @param owner Owner of the staked NFT.
      */
-    function _stakeNft(uint256 tokenId, address tokenOwner) internal isEnabled hasStarted {
-        require(address(whitelistedNftContract) == msg.sender, "NftStaking: contract not whitelisted");
-
+    function _stakeNft(uint256 tokenId, address owner) internal isEnabled hasStarted {
         uint64 weight = _validateAndGetNftWeight(tokenId);
 
         uint16 periodLengthInCycles_ = periodLengthInCycles;
         uint16 currentCycle = _getCycle(now);
 
-        _updateHistories(tokenOwner, int128(weight), currentCycle);
+        _updateHistories(owner, int128(weight), currentCycle);
 
         // initialise the next claim if it was the first stake for this staker or if
         // the next claim was re-initialised (ie. rewards were claimed until the last
         // staker snapshot and the last staker snapshot has no stake)
-        if (nextClaims[tokenOwner].period == 0) {
+        if (nextClaims[owner].period == 0) {
             uint16 currentPeriod = _getPeriod(currentCycle, periodLengthInCycles_);
-            nextClaims[tokenOwner] = NextClaim(currentPeriod, uint64(globalHistory.length - 1), 0);
+            nextClaims[owner] = NextClaim(currentPeriod, uint64(globalHistory.length - 1), 0);
         }
 
         uint16 withdrawCycle = tokenInfos[tokenId].withdrawCycle;
         require(currentCycle != withdrawCycle, "NftStaking: unstaked token cooldown");
 
         // set the staked token's info
-        tokenInfos[tokenId] = TokenInfo(tokenOwner, weight, currentCycle, 0);
+        tokenInfos[tokenId] = TokenInfo(owner, weight, currentCycle, 0);
 
-        emit NftStaked(tokenOwner, currentCycle, tokenId, weight);
+        emit NftStaked(owner, currentCycle, tokenId, weight);
+        _onStake(owner, weight);
+    }
+
+    /**
+     * Stakes the NFT received by the contract for its owner. The NFT's weight will count for the current cycle.
+     * @dev Reverts if `tokenIds` is empty.
+     * @dev Reverts if one of `tokenIds` is still on cooldown.
+     * @dev Emits an HistoriesUpdated event.
+     * @dev Emits an NftStaked event.
+     * @param tokenIds Identifiers of the staked NFTs.
+     * @param owner Owner of the staked NFTs.
+     */
+    function _batchStakeNfts(uint256[] memory tokenIds, address owner) internal isEnabled hasStarted {
+        uint256 numTokens = tokenIds.length;
+        require(numTokens != 0, "NftStaking: no tokens");
+
+        uint16 currentCycle = _getCycle(now);
+        uint128 totalStakedWeight = 0;
+        uint256[] memory weights = new uint256[](numTokens);
+
+        for (uint256 index = 0; index < numTokens; ++index) {
+            uint256 tokenId = tokenIds[index];
+            require(currentCycle != tokenInfos[tokenId].withdrawCycle, "NftStaking: unstaked token cooldown");
+            uint64 weight = _validateAndGetNftWeight(tokenId);
+            totalStakedWeight += weight; // This is safe
+            weights[index] = weight;
+            tokenInfos[tokenId] = TokenInfo(owner, weight, currentCycle, 0);
+        }
+
+        _updateHistories(owner, int128(totalStakedWeight), currentCycle);
+
+        // initialise the next claim if it was the first stake for this staker or if
+        // the next claim was re-initialised (ie. rewards were claimed until the last
+        // staker snapshot and the last staker snapshot has no stake)
+        if (nextClaims[owner].period == 0) {
+            uint16 currentPeriod = _getPeriod(currentCycle, periodLengthInCycles);
+            nextClaims[owner] = NextClaim(currentPeriod, uint64(globalHistory.length - 1), 0);
+        }
+
+        emit NftsBatchStaked(owner, currentCycle, tokenIds, weights);
+        _onStake(owner, totalStakedWeight);
     }
 
     /**
@@ -711,14 +869,59 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @return uint64 the weight of the NFT.
      */
     function _validateAndGetNftWeight(uint256 tokenId) internal virtual view returns (uint64);
+
+    /**
+     * Hook called on NFT(s) staking.
+     * @param owner uint256 the NFT(s) owner.
+     * @param totalWeight uint256 the total weight of the staked NFT(s).
+     */
+    function _onStake(
+        address owner,
+        uint256 totalWeight
+    ) internal virtual {}
+
+    /**
+     * Hook called on NFT(s) unstaking.
+     * @param owner uint256 the NFT(s) owner.
+     * @param totalWeight uint256 the total weight of the unstaked NFT(s).
+     */
+    function _onUnstake(
+        address owner,
+        uint256 totalWeight
+    ) internal virtual {}
 }
 
 /**
- * @notice Interface for the NftStaking whitelisted NFT contract.
+ * @title IERC1155721Transferrable
+ * Interface for transferring 1155 and/or 721 NFTs.
  */
-interface IWhitelistedNftContract {
+interface IERC1155721Transferrable {
     /**
-     * ERC1155: Transfers `value` amount of an `id` from  `from` to `to` (with safety call). 
+     * @notice Transfers `values` amount(s) of `ids` from the `from` address to the `to` address specified (with safety call).
+     * @dev Caller must be approved to manage the tokens being transferred out of the `from` account (see "Approval" section of the standard).
+     * MUST revert if `to` is the zero address.
+     * MUST revert if length of `ids` is not the same as length of `values`.
+     * MUST revert if any of the balance(s) of the holder(s) for token(s) in `ids` is lower than the respective amount(s) in `values` sent to the recipient.
+     * MUST revert on any other error.
+     * MUST emit `TransferSingle` or `TransferBatch` event(s) such that all the balance changes are reflected (see "Safe Transfer Rules" section of the standard).
+     * Balance changes and events MUST follow the ordering of the arrays (_ids[0]/_values[0] before _ids[1]/_values[1], etc).
+     * After the above conditions for the transfer(s) in the batch are met, this function MUST check if `to` is a smart contract (e.g. code size > 0). If so, it MUST call the relevant `ERC1155TokenReceiver` hook(s) on `to` and act appropriately (see "Safe Transfer Rules" section of the standard).
+     * @param from Source address
+     * @param to Target address
+     * @param ids IDs of each token type (order and length must match _values array)
+     * @param values Transfer amounts per token type (order and length must match _ids array)
+     * @param data Additional data with no specified format, MUST be sent unaltered in call to the `ERC1155TokenReceiver` hook(s) on `to`
+     */
+    function safeBatchTransferFrom(
+        address from,
+        address to,
+        uint256[] calldata ids,
+        uint256[] calldata values,
+        bytes calldata data
+    ) external;
+
+    /**
+     * ERC1155: Transfers `value` amount of an `id` from  `from` to `to` (with safety call).
      * @dev Caller must be approved to manage the tokens being transferred out of the `from` account (see "Approval" section of the standard).
      * @dev MUST revert if `to` is the zero address.
      * @dev MUST revert if balance of holder for token `id` is lower than the `value` sent.
@@ -752,4 +955,42 @@ interface IWhitelistedNftContract {
         address to,
         uint256 tokenId
     ) external;
+}
+
+/**
+ * @title ERC1155721SafeTransferFallback
+ * Library used to fall back on ERC721 non-safe transfer(s)
+ * in case of ERC1155 safe transfer failure. A failure can be
+ * caused by a contract-based wallet not implementing the
+ * ERC1155Receiver interface.
+ */
+library ERC1155721SafeTransferFallback {
+    function safeBatchTransferFromWithFallback(
+        IERC1155721Transferrable self,
+        address from,
+        address to,
+        uint256[] memory ids,
+        uint256[] memory values,
+        bytes memory data
+    ) internal {
+        try self.safeBatchTransferFrom(from, to, ids, values, data)  {} catch {
+            uint256 length = ids.length;
+            for (uint256 i = 0; i < length; ++i) {
+                self.transferFrom(from, to, ids[i]);
+            }
+        }
+    }
+
+    function safeTransferFromWithFallback(
+        IERC1155721Transferrable self,
+        address from,
+        address to,
+        uint256 id,
+        uint256 value,
+        bytes memory data
+    ) internal {
+        try self.safeTransferFrom(from, to, id, value, data)  {} catch {
+            self.transferFrom(from, to, id);
+        }
+    }
 }

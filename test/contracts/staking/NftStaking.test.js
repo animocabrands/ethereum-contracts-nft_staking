@@ -1,4 +1,3 @@
-const {accounts, contract} = require('@openzeppelin/test-environment');
 const {shouldSupportInterfaces} = require('@animoca/ethereum-contracts-core_library').behaviors;
 const {interfaces} = require('@animoca/ethereum-contracts-assets_inventory');
 
@@ -18,70 +17,70 @@ const {
     restakeScenario,
     nonWhitelistedNftContractScenario,
     batchStakeScenario,
+    batchUnstakeScenario,
     earlyUnstakeScenario,
     earlyRestakeScenario,
     claimScenario,
     invalidNftOwnerScenario,
     rewardsScheduleScenario,
+    lostCyclesScenario,
 } = require('./scenarios');
 
 describe('NftStaking', function () {
-    const [creator, staker, otherStaker, anotherStaker, ...otherAccounts] = accounts;
-
     describe('Preconditions', function () {
         before(deploy);
         before(start);
 
-        preconditionsScenario(staker);
+        preconditionsScenario();
     });
 
     describe('[[Scenario]] Multi NFT Staking', function () {
         before(deploy);
         before(start);
 
-        multiNftStakingScenario(staker);
+        multiNftStakingScenario();
     });
 
     describe('[[Scenario]] Multi NFT Staking (single period)', function () {
         before(deploy);
         before(start);
 
-        multiNftStakingSinglePeriodScenario(staker);
+        multiNftStakingSinglePeriodScenario();
     });
 
     describe('[[Scenario]] Multi NFT Staking (multi period)', function () {
         before(deploy);
         before(start);
 
-        multiNftStakingMultiPeriodScenario(staker);
+        multiNftStakingMultiPeriodScenario();
     });
 
     describe('[[Scenario]] Period Limits', function () {
         before(deploy);
         before(start);
 
-        periodLimitsScenario(staker, otherStaker);
+        periodLimitsScenario();
     });
 
     describe('[[Scenario]] Multi Stakers', function () {
         before(deploy);
         before(start);
 
-        multiStakersScenario(creator, staker, otherStaker);
+        multiStakersScenario();
     });
 
     describe('[[Scenario]] Multi Stakers (single period)', function () {
         before(deploy);
         before(start);
 
-        multiStakersSinglePeriodScenario(creator, staker, otherStaker);
+        multiStakersSinglePeriodScenario();
     });
 
     describe('[[Scenario]] Multi Stakers (multi period)', function () {
         before(deploy);
         before(start);
 
-        multiStakersMultiPeriodScenario(creator, staker, otherStaker);
+        multiStakersMultiPeriodScenario();
     });
 
     describe('[[Scenario]] Gas Heavy', function () {
@@ -90,7 +89,7 @@ describe('NftStaking', function () {
             return start.bind(this)(FlatRewardSchedule);
         });
 
-        gasHeavyScenario(creator, staker, otherStaker, anotherStaker);
+        gasHeavyScenario();
     });
 
     describe('[[Scenario]] Restake', function () {
@@ -99,28 +98,42 @@ describe('NftStaking', function () {
             return start.bind(this)(MigrationRewardSchedule);
         });
 
-        restakeScenario(staker, otherStaker);
+        restakeScenario();
     });
 
     describe('[[Scenario]] Non-Whitelisted NFT Contract', function () {
         before(deploy);
         before(start);
 
-        nonWhitelistedNftContractScenario(creator, staker);
+        nonWhitelistedNftContractScenario();
     });
 
     describe('[[Scenario]] Batch Stake', function () {
         before(deploy);
         before(start);
 
-        batchStakeScenario(staker);
+        batchStakeScenario();
+    });
+
+    describe('[[Scenario]] Batch Unstake', function () {
+        before(deploy);
+        before(start);
+
+        batchUnstakeScenario();
     });
 
     describe('[[Scenario]] Early Unstake', function () {
         before(deploy);
         before(start);
 
-        earlyUnstakeScenario(staker);
+        earlyUnstakeScenario();
+    });
+
+    describe('[[Scenario]] Early Re-stake', function () {
+        before(deploy);
+        before(start);
+
+        earlyRestakeScenario();
     });
 
     describe('[[Scenario]] Early Re-stake', function () {
@@ -134,28 +147,36 @@ describe('NftStaking', function () {
         before(deploy);
         before(start);
 
-        claimScenario(creator, staker, otherStaker, anotherStaker);
+        claimScenario();
     });
 
     describe('[[Scenario]] Invalid NFT Owner', function () {
         before(deploy);
         before(start);
 
-        invalidNftOwnerScenario(staker, otherStaker);
+        invalidNftOwnerScenario();
     });
 
     describe('[[Scenario]] RewardsSchedule (pre-start)', function () {
         before(deploy);
 
-        rewardsScheduleScenario(creator, staker, false);
+        rewardsScheduleScenario(false);
     });
 
     describe('[[Scenario]] Rewards Schedule (post-start)', function () {
         before(deploy);
         before(start);
 
-        rewardsScheduleScenario(creator, staker, true);
+        rewardsScheduleScenario(true);
     });
+
+    describe('[[Scenario]] Lost cycles withdrawal', function () {
+        before(deploy);
+        before(start);
+
+        lostCyclesScenario(true);
+    });
+
 
     describe('Interface support', function () {
         before(deploy);

@@ -1,4 +1,4 @@
-const TokenHelper = require('../../../utils/tokenHelper');
+const {accounts} = require('@openzeppelin/test-environment');
 
 const {
     shouldStakeNft,
@@ -11,34 +11,19 @@ const {
     initialiseDebug,
     suspendDebugOutput,
     resumeDebugOutput,
+    mintStakerTokens,
 } = require('../behaviors');
 
-const {TokenIds} = require('../constants');
+const [creator, staker, otherStaker, anotherStaker] = accounts;
 
-const OtherTokenIds = [
-    TokenHelper.makeTokenId(TokenHelper.Rarities.Common, TokenHelper.Types.Car),
-    TokenHelper.makeTokenId(TokenHelper.Rarities.Epic, TokenHelper.Types.Car),
-    TokenHelper.makeTokenId(TokenHelper.Rarities.Apex, TokenHelper.Types.Car),
-];
-
-const AnotherTokenIds = [
-    TokenHelper.makeTokenId(TokenHelper.Rarities.Common, TokenHelper.Types.Car),
-    TokenHelper.makeTokenId(TokenHelper.Rarities.Epic, TokenHelper.Types.Car),
-    TokenHelper.makeTokenId(TokenHelper.Rarities.Apex, TokenHelper.Types.Car),
-];
-
-const gasHeavyScenario = function (creator, staker, otherStaker, anotherStaker) {
-    before(async function () {
-        for (const tokenId of OtherTokenIds) {
-            await this.nftContract.mintNonFungible(otherStaker, tokenId, {from: creator});
-        }
-        for (const tokenId of AnotherTokenIds) {
-            await this.nftContract.mintNonFungible(anotherStaker, tokenId, {from: creator});
-        }
-    });
-
+const gasHeavyScenario = function () {
     before(function () {
         initialiseDebug.bind(this)(staker, otherStaker, anotherStaker);
+    });
+
+    before(async function () {
+        await mintStakerTokens.bind(this)(otherStaker);
+        await mintStakerTokens.bind(this)(anotherStaker);
     });
 
     describe('when creating 100 snapshots', function () {
@@ -48,10 +33,10 @@ const gasHeavyScenario = function (creator, staker, otherStaker, anotherStaker) 
         suspendDebugOutput.bind(this)();
 
         describe(`when creating snapshot #1 - staker #1 stakes an NFT`, function () {
-            shouldStakeNft(staker, TokenIds[0]);
+            shouldStakeNft(staker, 0);
         });
 
-        describe('when creating interstitial snapshots', async function () {
+        describe('when creating interstitial snapshots', function () {
             for (let index = 0; index < numSnapshotsToCreate; index++) {
                 ++cycleCounter;
 
@@ -59,25 +44,25 @@ const gasHeavyScenario = function (creator, staker, otherStaker, anotherStaker) 
                     case 0:
                         describe(`when creating snapshot #${cycleCounter} - timewarp 1 cycle and staker #2 stakes an NFT`, function () {
                             shouldTimeWarpBy({cycles: 1});
-                            shouldStakeNft(otherStaker, OtherTokenIds[0]);
+                            shouldStakeNft(otherStaker, 0);
                         });
                         break;
                     case 1:
                         describe(`when creating snapshot #${cycleCounter} - timewarp 1 cycle and staker #3 stakes an NFT`, function () {
                             shouldTimeWarpBy({cycles: 1});
-                            shouldStakeNft(anotherStaker, AnotherTokenIds[0]);
+                            shouldStakeNft(anotherStaker, 0);
                         });
                         break;
                     case 2:
                         describe(`when creating snapshot #${cycleCounter} - timewarp 1 cycle and staker #2 unclaims their NFT`, function () {
                             shouldTimeWarpBy({cycles: 1});
-                            shouldUnstakeNft(otherStaker, OtherTokenIds[0]);
+                            shouldUnstakeNft(otherStaker, 0);
                         });
                         break;
                     case 3:
                         describe(`when creating snapshot #${cycleCounter} - timewarp 1 cycle and staker #3 unclaims their NFT`, function () {
                             shouldTimeWarpBy({cycles: 1});
-                            shouldUnstakeNft(anotherStaker, AnotherTokenIds[0]);
+                            shouldUnstakeNft(anotherStaker, 0);
                         });
                         break;
                 }

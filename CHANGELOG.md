@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.0.0
+
+### New features
+ * Added `batchUnstakeNfts()` function to be able to perform batch unstaking of NFTs.
+ * Internal hook functions `_onStake` and`_onUnstake`.
+ * Added `withdrawLostCycleRewards` for an admin to withdraw the rewards for a past cycle where there was no stake.
+
+### Breaking changes
+ * New events `NftsBatchStaked` and `NftsBatchUnstaked` emitted during batch operations instead of the single versions.
+ * Batch functions throw on an empty tokens list.
+
+# Improvements
+ * Optimised implementation of batch staking.
+ * GSN compatibility.
+
 ## 3.0.4
 
 ### Improvements

@@ -59,7 +59,37 @@ const shouldRevertAndNotAddRewardsForPeriods = function (owner, startPeriod, end
     });
 };
 
+const shouldWithdrawLostCycle = function (owner, cycle, globalSnapshotIndex, rewards) {
+    it(`[withdrawLostCycle] withdraw ${rewards} for lost cycle ${cycle} in global snapshot at index ${globalSnapshotIndex}`, async function () {
+        const receipt = await this.stakingContract.withdrawLostCycleRewards(owner, cycle, globalSnapshotIndex, {
+            from: owner,
+        });
+
+        const withdrawn = await this.stakingContract.withdrawnLostCycles(cycle);
+        withdrawn.should.be.true;
+
+        await expectEvent.inTransaction(receipt.tx, this.rewardsToken, 'Transfer', {
+            _from: this.stakingContract.address,
+            _to: owner,
+            _value: rewards,
+        });
+    });
+};
+
+const shouldRevertAndNotWithdrawLostCycle = function (owner, cycle, globalSnapshotIndex, error, options = {}) {
+    it(`[withdrawLostCycle] revert and not withdraw rewards for lost cycle ${cycle} in global snapshot at index ${globalSnapshotIndex}`, async function () {
+        await expectRevert(
+            this.stakingContract.withdrawLostCycleRewards(owner, cycle, globalSnapshotIndex, {
+                from: options.from || owner,
+            }),
+            error
+        );
+    });
+};
+
 module.exports = {
     shouldAddRewardsForPeriods,
     shouldRevertAndNotAddRewardsForPeriods,
+    shouldWithdrawLostCycle,
+    shouldRevertAndNotWithdrawLostCycle,
 };

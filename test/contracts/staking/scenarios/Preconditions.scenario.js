@@ -1,3 +1,4 @@
+const {accounts} = require('@openzeppelin/test-environment');
 const {BN} = require('@openzeppelin/test-helpers');
 const TokenHelper = require('../../../utils/tokenHelper');
 
@@ -10,9 +11,11 @@ const {
     debugCurrentState,
 } = require('../behaviors');
 
-const {CycleLengthInSeconds, PeriodLengthInCycles, TokenIds} = require('../constants');
+const {CycleLengthInSeconds, PeriodLengthInCycles} = require('../constants');
 
-const preconditionsScenario = function (staker) {
+const [creator, staker] = accounts;
+
+const preconditionsScenario = function () {
     before(function () {
         initialiseDebug.bind(this)();
     });
@@ -67,7 +70,7 @@ const preconditionsScenario = function (staker) {
         });
 
         it('should have minted 3 car tokens for the staker', async function () {
-            for (const tokenId of TokenIds) {
+            for (const tokenId of this.stakerTokens[staker]) {
                 const balance = await this.nftContract.balanceOf(staker, tokenId);
                 balance.should.be.bignumber.equal(new BN(1));
 
@@ -77,25 +80,25 @@ const preconditionsScenario = function (staker) {
         });
 
         it('should have minted a Common car token for the staker', async function () {
-            const tokenId = TokenIds[0];
+            const tokenId = this.stakerTokens[staker][0];
             const rarity = TokenHelper.getRarity(tokenId);
             rarity.should.be.equal(TokenHelper.Rarities.Common);
         });
 
         it('should have minted an Epic car token for the staker', async function () {
-            const tokenId = TokenIds[1];
+            const tokenId = this.stakerTokens[staker][1];
             const rarity = TokenHelper.getRarity(tokenId);
             rarity.should.be.equal(TokenHelper.Rarities.Epic);
         });
 
         it('should have minted an Apex car token for the staker', async function () {
-            const tokenId = TokenIds[2];
+            const tokenId = this.stakerTokens[staker][2];
             const rarity = TokenHelper.getRarity(tokenId);
             rarity.should.be.equal(TokenHelper.Rarities.Legendary);
         });
 
         it('should have minted an Apex car token for the staker', async function () {
-            const tokenId = TokenIds[3];
+            const tokenId = this.stakerTokens[staker][3];
             const rarity = TokenHelper.getRarity(tokenId);
             rarity.should.be.equal(TokenHelper.Rarities.Apex);
         });

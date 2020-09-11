@@ -27,13 +27,6 @@ const RarityWeights = [
     },
 ];
 
-const TokenIds = [
-    TokenHelper.makeTokenId(TokenHelper.Rarities.Common, TokenHelper.Types.Car),
-    TokenHelper.makeTokenId(TokenHelper.Rarities.Epic, TokenHelper.Types.Car),
-    TokenHelper.makeTokenId(TokenHelper.Rarities.Legendary, TokenHelper.Types.Car),
-    TokenHelper.makeTokenId(TokenHelper.Rarities.Apex, TokenHelper.Types.Car),
-];
-
 const DefaultRewardSchedule = [
     {startPeriod: 1, endPeriod: 4, rewardPerCycle: '1000'},
     {startPeriod: 5, endPeriod: 8, rewardPerCycle: '500'},
@@ -76,7 +69,6 @@ module.exports = {
     PeriodLengthInSeconds,
     PeriodLengthInCycles,
     RarityWeights,
-    TokenIds,
     RewardsTokenInitialBalance,
     RewardsPool,
 };

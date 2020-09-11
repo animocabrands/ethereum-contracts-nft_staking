@@ -1,3 +1,5 @@
+const {accounts} = require('@openzeppelin/test-environment');
+
 const {
     shouldRevertAndNotUnstakeNft,
     shouldStakeNft,
@@ -6,30 +8,30 @@ const {
     initialiseDebug,
 } = require('../behaviors');
 
-const {TokenIds} = require('../constants');
+const [creator, staker] = accounts;
 
-const earlyUnstakeScenario = function (staker) {
+const earlyUnstakeScenario = function () {
     before(function () {
         initialiseDebug.bind(this)(staker);
     });
 
     describe("when unstaking an NFT that hasn't been staked", function () {
-        shouldRevertAndNotUnstakeNft(staker, TokenIds[0], 'NftStaking: token not staked or incorrect token owner.');
+        shouldRevertAndNotUnstakeNft(staker, 0, 'NftStaking: not staked for owner.');
     });
 
     describe('when immediatley trying to unstake an NFT after staking', function () {
-        shouldStakeNft(staker, TokenIds[0]);
-        shouldRevertAndNotUnstakeNft(staker, TokenIds[0], 'NftStaking: token still frozen.');
+        shouldStakeNft(staker, 0);
+        shouldRevertAndNotUnstakeNft(staker, 0, 'NftStaking: token still frozen.');
     });
 
     describe('when waiting 1 cycle before trying to unstake', function () {
         shouldTimeWarpBy({cycles: 1}, {cycle: 2});
-        shouldRevertAndNotUnstakeNft(staker, TokenIds[0], 'NftStaking: token still frozen.');
+        shouldRevertAndNotUnstakeNft(staker, 0, 'NftStaking: token still frozen.');
     });
 
     describe('when waiting another cycle before trying to unstake', function () {
         shouldTimeWarpBy({cycles: 1}, {cycle: 3});
-        shouldUnstakeNft(staker, TokenIds[0]);
+        shouldUnstakeNft(staker, 0);
     });
 };
 

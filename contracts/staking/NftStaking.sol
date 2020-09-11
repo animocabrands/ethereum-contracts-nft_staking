@@ -102,6 +102,9 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
     /* period => rewardsPerCycle */
     mapping(uint256 => uint256) public rewardsSchedule;
 
+    /* lost cycle => withdrawn? */
+    mapping(uint256 => bool) public withdrawnLostCycles;
+
     modifier hasStarted() {
         require(startTimestamp != 0, "NftStaking: staking not started");
         _;
@@ -231,6 +234,58 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
             rewardsTokenContract.transfer(_msgSender(), amount),
             "NftStaking: failed to withdraw from the rewards pool"
         );
+    }
+
+    /**
+     * Withdraws the rewards associated with a lost cycle (ie. a past cycle with 0 global stake).
+     * @dev Reverts if not called by the owner.
+     * @dev Reverts if `to` is the zero address.
+     * @dev Reverts if the contract is not started.
+     * @dev Reverts if `cycle` is not past.
+     * @dev Reverts if the rewards for the lost cycle is already withdrawn.
+     * @dev Reverts if `globalSnapshotIndex` is < -1.
+     * @dev Reverts if `globalSnapshotIndex` is -1 but `cycle` is part of an existing snapshot.
+     * @dev Reverts (with "invalid opcode") if `globalSnapshotIndex` is >= 0 and points to an non existing snapshot.
+     * @dev Reverts if `globalSnapshotIndex` is >= 0 and does not point to a snapshot containing `cycle`.
+     * @dev Reverts if `cycle` is not a lost cycle (ie. global stake > 0).
+     * @dev Reverts if `cycle` does not have scheduled rewards.
+     * @dev The rewards token contract emits an ERC20 Transfer event for the reward tokens transfer.
+     * @param to The address to send the lost cycle rewards to.
+     * @param cycle The lost cycle.
+     * @param globalSnapshotIndex The index of the global snapshot which contains `cycle`, or -1 if the cycle was before the first snapshot.
+     */
+    function withdrawLostCycleRewards(address to, uint16 cycle, int256 globalSnapshotIndex) external onlyOwner {
+        require(to != address(0), "NftStaking: zero address");
+        require(cycle < _getCycle(now), "NftStaking: non-past cycle");
+        require(withdrawnLostCycles[cycle] == false, "NftStaking: already withdrawn");
+        if (globalSnapshotIndex == -1) {
+            require(
+                globalHistory.length == 0 ||
+                cycle < globalHistory[0].startCycle,
+                "NftStaking: cycle has snapshot"
+            );
+        } else if (globalSnapshotIndex >= 0) {
+            uint256 snapshotIndex = uint256(globalSnapshotIndex);
+            Snapshot memory snapshot = globalHistory[snapshotIndex];
+            require(
+                cycle >= snapshot.startCycle,
+                "NftStaking: cycle < snapshot"
+            );
+            require(
+                globalHistory.length == snapshotIndex + 1 || // last snapshot
+                cycle < globalHistory[snapshotIndex + 1].startCycle,
+                "NftStaking: cycle > snapshot"
+            );
+            require(snapshot.stake == 0, "NftStaking: non-lost cycle");
+        } else {
+            revert("NftStaking: wrong index value");
+        }
+
+        uint16 period = _getPeriod(cycle, periodLengthInCycles);
+        uint256 cycleRewards = rewardsSchedule[period];
+        require(cycleRewards != 0, "NftStaking: rewardless cycle");
+        withdrawnLostCycles[cycle] = true;
+        rewardsTokenContract.transfer(to, cycleRewards);
     }
 
     /*                                             ERC1155TokenReceiver                                             */

@@ -23,6 +23,7 @@ const {
     claimScenario,
     invalidNftOwnerScenario,
     rewardsScheduleScenario,
+    lostCyclesScenario,
 } = require('./scenarios');
 
 describe('NftStaking', function () {
@@ -161,6 +162,14 @@ describe('NftStaking', function () {
 
         rewardsScheduleScenario(true);
     });
+
+    describe('[[Scenario]] Lost cycles withdrawal', function () {
+        before(deploy);
+        before(start);
+
+        lostCyclesScenario(true);
+    });
+
 
     describe('Interface support', function () {
         before(deploy);

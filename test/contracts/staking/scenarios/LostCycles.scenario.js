@@ -45,7 +45,8 @@ const lostCyclesScenario = function () {
 
     describe('withdraw an empty lost cycle', function () {
         shouldTimeWarpBy({periods: 50}, {cycle: 355});
-        shouldRevertAndNotWithdrawLostCycle(creator, 354, 1, 'NftStaking: rewardless cycle');
+        shouldRevertAndNotWithdrawLostCycle(creator, 353, 1, 'NftStaking: rewardless cycle');
+        shouldRevertAndNotWithdrawLostCycle(creator, 354, 10, 'invalid opcode');
     });
 };
 

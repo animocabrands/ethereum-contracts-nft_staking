@@ -245,8 +245,8 @@ abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
      * @dev Reverts if the rewards for the lost cycle is already withdrawn.
      * @dev Reverts if `globalSnapshotIndex` is < -1.
      * @dev Reverts if `globalSnapshotIndex` is -1 but `cycle` is part of an existing snapshot.
-     * @dev Reverts (with "invalid opcode") if `globalSnapshotIndex` is positive and points to an non existing snapshot.
-     * @dev Reverts if `globalSnapshotIndex` is positive and does not point to a snapshot containing `cycle`.
+     * @dev Reverts (with "invalid opcode") if `globalSnapshotIndex` is >= 0 and points to an non existing snapshot.
+     * @dev Reverts if `globalSnapshotIndex` is >= 0 and does not point to a snapshot containing `cycle`.
      * @dev Reverts if `cycle` is not a lost cycle (ie. global stake > 0).
      * @dev The rewards token contract emits an ERC20 Transfer event for the reward tokens transfer.
      * @param to The address to send the lost cycle rewards to.

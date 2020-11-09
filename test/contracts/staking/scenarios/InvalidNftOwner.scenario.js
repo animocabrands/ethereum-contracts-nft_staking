@@ -1,21 +1,30 @@
-const {shouldStakeNft, shouldRevertAndNotStakeNft, shouldRevertAndNotUnstakeNft} = require('../behaviors');
+const {accounts} = require('@openzeppelin/test-environment');
 
-const {TokenIds} = require('../constants');
+const {
+    shouldStakeNft,
+    shouldRevertAndNotStakeNft,
+    shouldRevertAndNotUnstakeNft,
+    mintStakerTokens,
+} = require('../behaviors');
 
-const invalidNftOwnerScenario = function (staker, otherStaker) {
+const [creator, staker, otherStaker] = accounts;
+
+const invalidNftOwnerScenario = function () {
+    before(async function () {
+        await mintStakerTokens.bind(this)(otherStaker);
+    });
+
     describe('when staking an NFT', function () {
-        shouldStakeNft(staker, TokenIds[0]);
+        shouldStakeNft(staker, 0);
 
         describe('when staking an already staked NFT', function () {
-            shouldRevertAndNotStakeNft(staker, TokenIds[0], 'ERC1155: transfer of a non-owned NFT');
+            shouldRevertAndNotStakeNft(staker, 0, 'ERC1155: transfer of a non-owned NFT');
         });
 
         describe('when unstaking an NFT not owned by the caller', function () {
-            shouldRevertAndNotUnstakeNft(
-                otherStaker,
-                TokenIds[0],
-                'NftStaking: token not staked or incorrect token owner'
-            );
+            shouldRevertAndNotUnstakeNft(staker, 0, 'NftStaking: not staked for owner', {
+                owner: otherStaker,
+            });
         });
     });
 };

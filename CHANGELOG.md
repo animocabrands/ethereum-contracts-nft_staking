@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.0.0
+
+### New features
+ * `NftStakingV2.sol`: 
+   - added `batchUnstakeNfts()` function
+   - internal hook functions `_onStake` and`_onUnstake`.
+   - added `withdrawLostCycleRewards` for an admin to withdraw the rewards for a past cycle where there was no stake.
+   - new events `NftsBatchStaked` and `NftsBatchUnstaked` emitted during batch operations instead of the single versions.
+   - Batch functions throw on an empty tokens list.
+   - Optimised implementation of batch staking.
+   - GSN compatibility.
+
+### Improvements
+ * Dependencies updated to `@animoca/ethereum-contracts-core_library@3.1.1` and `@animoca/ethereum-contracts-assets_inventory@4.0.0`.
+
 ## 3.0.4
 
 ### Improvements

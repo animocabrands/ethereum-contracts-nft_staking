@@ -1,4 +1,4 @@
-const TokenHelper = require('../../../utils/tokenHelper');
+const {accounts} = require('@openzeppelin/test-environment');
 
 const {
     shouldStakeNft,
@@ -6,37 +6,19 @@ const {
     shouldClaimRewards,
     shouldTimeWarpBy,
     initialiseDebug,
+    mintStakerTokens,
 } = require('../behaviors');
 
-const {TokenIds} = require('../constants');
+const [creator, staker, otherStaker, anotherStaker] = accounts;
 
-const OtherTokenIds = [
-    TokenHelper.makeTokenId(TokenHelper.Rarities.Common, TokenHelper.Types.Car),
-    TokenHelper.makeTokenId(TokenHelper.Rarities.Epic, TokenHelper.Types.Car),
-    TokenHelper.makeTokenId(TokenHelper.Rarities.Legendary, TokenHelper.Types.Car),
-    TokenHelper.makeTokenId(TokenHelper.Rarities.Apex, TokenHelper.Types.Car),
-];
-
-const AnotherTokenIds = [
-    TokenHelper.makeTokenId(TokenHelper.Rarities.Common, TokenHelper.Types.Car),
-    TokenHelper.makeTokenId(TokenHelper.Rarities.Epic, TokenHelper.Types.Car),
-    TokenHelper.makeTokenId(TokenHelper.Rarities.Legendary, TokenHelper.Types.Car),
-    TokenHelper.makeTokenId(TokenHelper.Rarities.Apex, TokenHelper.Types.Car),
-];
-
-const claimScenario = function (creator, staker, otherStaker, anotherStaker) {
+const claimScenario = function () {
     before(function () {
         initialiseDebug.bind(this)(staker, otherStaker, anotherStaker);
     });
 
     before(async function () {
-        for (const tokenId of OtherTokenIds) {
-            await this.nftContract.mintNonFungible(otherStaker, tokenId, {from: creator});
-        }
-
-        for (const tokenId of AnotherTokenIds) {
-            await this.nftContract.mintNonFungible(anotherStaker, tokenId, {from: creator});
-        }
+        await mintStakerTokens.bind(this)(otherStaker);
+        await mintStakerTokens.bind(this)(anotherStaker);
     });
 
     describe('when claiming before staking', function () {
@@ -44,9 +26,9 @@ const claimScenario = function (creator, staker, otherStaker, anotherStaker) {
     });
 
     describe('when claiming within the same cycle as staking', function () {
-        shouldStakeNft(staker, TokenIds[0]);
-        shouldStakeNft(otherStaker, OtherTokenIds[0]);
-        shouldStakeNft(anotherStaker, AnotherTokenIds[0]);
+        shouldStakeNft(staker, 0);
+        shouldStakeNft(otherStaker, 0);
+        shouldStakeNft(anotherStaker, 0);
         shouldClaimRewards(staker, 99, {startPeriod: 1, periods: 0, amount: '0'});
     });
 
@@ -98,7 +80,7 @@ const claimScenario = function (creator, staker, otherStaker, anotherStaker) {
         shouldTimeWarpBy({periods: 7}, {cycle: 71, period: 11});
 
         describe('when unstaking', function () {
-            shouldUnstakeNft(otherStaker, OtherTokenIds[0]);
+            shouldUnstakeNft(otherStaker, 0);
         });
     });
 

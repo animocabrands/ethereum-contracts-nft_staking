@@ -12,6 +12,9 @@
    - Optimised implementation of batch staking.
    - GSN compatibility.
 
+### Improvements
+ * Dependencies updated to `@animoca/ethereum-contracts-core_library@3.1.1` and `@animoca/ethereum-contracts-assets_inventory@4.0.0`.
+
 ## 3.0.4
 
 ### Improvements

@@ -3,9 +3,9 @@
 pragma solidity 0.6.8;
 
 import "@animoca/ethereum-contracts-erc20_base/contracts/token/ERC20/IERC20.sol";
-import "../../staking/NftStaking.sol";
+import "../../staking/NftStakingV2.sol";
 
-contract NftStakingMock is NftStaking {
+contract NftStakingMock is NftStakingV2 {
 
     mapping(uint256 => uint64) public weightByTokenAttribute;
 
@@ -16,7 +16,7 @@ contract NftStakingMock is NftStaking {
         IERC20 rewardsTokenContract_,
         uint256[] memory tokenAttribute,
         uint64[] memory weights
-    ) NftStaking(
+    ) NftStakingV2(
         cycleLengthInSeconds_,
         periodLengthInCycles_,
         whitelistedNftContract_,

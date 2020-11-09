@@ -136,13 +136,6 @@ describe('NftStaking', function () {
         earlyRestakeScenario();
     });
 
-    describe('[[Scenario]] Early Re-stake', function () {
-        before(deploy);
-        before(start);
-
-        earlyRestakeScenario(staker);
-    });
-
     describe('[[Scenario]] Claim', function () {
         before(deploy);
         before(start);

@@ -14,7 +14,7 @@ import "@animoca/ethereum-contracts-assets_inventory/contracts/token/ERC1155/ERC
  * Distribute ERC20 rewards over discrete-time schedules for the staking of NFTs.
  * This contract is designed on a self-service model, where users will stake NFTs, unstake NFTs and claim rewards through their own transactions only.
  */
-abstract contract NftStaking is ERC1155TokenReceiver, Ownable {
+abstract contract NftStakingV2 is ERC1155TokenReceiver, Ownable {
     using SafeCast for uint256;
     using SafeMath for uint256;
     using SignedSafeMath for int256;

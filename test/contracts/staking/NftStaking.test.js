@@ -170,7 +170,6 @@ describe('NftStaking', function () {
         lostCyclesScenario(true);
     });
 
-
     describe('Interface support', function () {
         before(deploy);
         shouldSupportInterfaces([interfaces.ERC1155TokenReceiver]);

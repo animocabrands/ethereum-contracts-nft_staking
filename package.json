@@ -27,7 +27,7 @@
   "devDependencies": {
     "@animoca/blockchain-inventory_metadata": "0.0.1",
     "@animoca/ethereum-contracts-assets_inventory": "=4.0.0",
-    "@animoca/ethereum-contracts-core_library": "=3.1.1",
+    "@animoca/ethereum-contracts-core_library": "=4.0.3",
     "@animoca/ethereum-contracts-erc20_base": "=3.0.0",
     "eslint-config-mocha": "^0.0.0",
     "eslint-config-prettier": "^6.15.0",
